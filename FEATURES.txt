@@ -23,18 +23,18 @@
  1. MODES
 --------------------------------------------------------------
 
-[ ] i   insert before the cursor
-[ ] a   insert after the cursor
-[ ] I   insert at the first non-blank
-[ ] A   insert at end of row
-[ ] o   open a row below
-[ ] O   open a row above
+[x] i   insert before the cursor
+[x] a   insert after the cursor
+[x] I   insert at the first non-blank
+[x] A   insert at end of row
+[x] o   open a row below
+[x] O   open a row above
       indent me and press I, then A, then o
-[ ] R   replace mode, overwrite as you type
+[x] R   replace mode, overwrite as you type
       overwrite the middle of this line
-[ ] v   visual by character
-[ ] V   visual by line
-[ ] <Esc> back to normal from any of the above
+[x] v   visual by character
+[x] V   visual by line
+[x] <Esc> back to normal from any of the above
 
     Check: after `iabc<Esc>` the cursor sits on `c`, not past it.
     Check: the cursor is a block in normal, a bar in insert.
@@ -43,13 +43,13 @@
  2. MOTIONS — characters and rows
 --------------------------------------------------------------
 
-[ ] h  left            [ ] l  right
-[ ] j  down            [ ] k  up
-[ ] <Left> <Right> <Up> <Down>   same, as arrows
-[ ] <Space>  right
-[ ] 0  first column        [ ] <Home>
-[ ] ^  first non-blank     (leading spaces below)
-[ ] $  last column         [ ] <End>
+[x] h  left            [x] l  right
+[x] j  down            [x] k  up
+[x] <Left> <Right> <Up> <Down>   same, as arrows
+[x] <Space>  right
+[x] 0  first column        [x] <Home>
+[x] ^  first non-blank     (leading spaces below)
+[x] $  last column         [x] <End>
       	tabbed and indented, try 0 then ^
 [ ] gg  first row
 [ ] G   last row

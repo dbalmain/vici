@@ -21,7 +21,7 @@ use std::ops::Range;
 
 use crate::buffer::Buffer;
 use crate::command::{Command, InsertAt, Mode, Motion, Operator, Scroll, Target, VisualKind};
-use crate::document::Document;
+use crate::document::{Document, Revert};
 use crate::edit::{Edit, Point};
 use crate::history::{History, LinearHistory};
 use crate::key::{Key, ParseError, keys};
@@ -319,16 +319,20 @@ impl<H: History> Editor<H> {
         };
     }
 
-    /// Every command runs inside an undo group.
+    /// Every command runs inside an undo group, bracketed by the caret on either
+    /// side so undo and redo can put it back where the user was.
     ///
     /// Groups nest, so this is safe while an insert session's group is already
     /// open: the inner begin/end pair changes nothing and the session still
-    /// collapses to one step. An empty group is never pushed, so non-editing
-    /// commands cost nothing.
+    /// collapses to one step — and the caret recorded is the one from before the
+    /// session opened, which is what makes undoing an `o` land where you pressed
+    /// it. An empty group is never pushed, so non-editing commands cost nothing.
     fn run(&mut self, command: Command, count: Option<usize>) -> Vec<Effect> {
-        self.doc.history_mut().begin_group();
+        let before = self.cursor;
+        self.doc.history_mut().begin_group(Some(before));
         let effects = self.dispatch(command, count);
-        self.doc.history_mut().end_group();
+        let after = self.cursor;
+        self.doc.history_mut().end_group(Some(after));
         effects
     }
 
@@ -370,11 +374,12 @@ impl<H: History> Editor<H> {
                 match motion::object_span(self.buffer(), self.cursor, scope, object) {
                     Some(span) => {
                         self.anchor = Some(span.range.start);
-                        self.cursor = motion::clamp(
+                        let end = motion::clamp(
                             self.buffer(),
                             span.range.end.saturating_sub(1),
                             Bound::OnChar,
                         );
+                        self.place_cursor(end);
                     }
                     None => effects.push(Effect::Bell),
                 }
@@ -408,6 +413,13 @@ impl<H: History> Editor<H> {
                     self.cursor = self.step(self.cursor, Motion::Left, 1, Bound::PastEnd);
                 }
                 self.set_mode(Mode::Normal, &mut effects);
+                if leaving_insert {
+                    // The cursor moved, so the column `j`/`k` aim for has to follow
+                    // it. Insert advances the sticky column with every character
+                    // typed; leaving it stale here lands the next `j` one column to
+                    // the right of where the cursor visibly is.
+                    self.sticky = motion::grapheme_col(self.buffer(), self.cursor);
+                }
             }
 
             Command::DeleteChar { before } => {
@@ -426,7 +438,8 @@ impl<H: History> Editor<H> {
                     self.yank(&range, false);
                     let start = range.start;
                     self.edit(range, "", &mut effects);
-                    self.cursor = motion::clamp(self.buffer(), start, Bound::OnChar);
+                    let at = motion::clamp(self.buffer(), start, Bound::OnChar);
+                    self.place_cursor(at);
                 }
             }
 
@@ -452,7 +465,8 @@ impl<H: History> Editor<H> {
                         .map(swap_case)
                         .collect();
                     self.edit(self.cursor..end, &swapped, &mut effects);
-                    self.cursor = motion::clamp(self.buffer(), end, Bound::OnChar);
+                    let at = motion::clamp(self.buffer(), end, Bound::OnChar);
+                    self.place_cursor(at);
                 }
             }
 
@@ -461,33 +475,18 @@ impl<H: History> Editor<H> {
             Command::Put { before } => self.put(before, repeat, &mut effects),
 
             Command::Undo => {
-                let edits = self.doc.undo();
-                if edits.is_empty() {
-                    effects.push(Effect::Bell);
-                } else {
-                    self.cursor = edits[edits.len() - 1].start_byte;
-                    self.after_history(&edits, &mut effects);
-                }
+                let revert = self.doc.undo();
+                self.revert(&revert, &mut effects);
             }
 
             Command::Redo => {
-                let edits = self.doc.redo();
-                if edits.is_empty() {
-                    effects.push(Effect::Bell);
-                } else {
-                    self.cursor = edits[edits.len() - 1].start_byte;
-                    self.after_history(&edits, &mut effects);
-                }
+                let revert = self.doc.redo();
+                self.revert(&revert, &mut effects);
             }
 
             Command::UndoRow => {
-                let edits = self.doc.undo_row();
-                if edits.is_empty() {
-                    effects.push(Effect::Bell);
-                } else {
-                    self.cursor = edits[0].start_byte;
-                    self.after_history(&edits, &mut effects);
-                }
+                let revert = self.doc.undo_row();
+                self.revert(&revert, &mut effects);
             }
 
             Command::Repeat => {
@@ -624,6 +623,19 @@ impl<H: History> Editor<H> {
         }
     }
 
+    /// Reposition the cursor and refresh the remembered column with it.
+    ///
+    /// Anything that moves the cursor *other than a motion* has to come through
+    /// here. Leaving `sticky` behind makes the next `j`/`k` aim at where the cursor
+    /// used to be, which shows up as the cursor drifting sideways a keystroke later.
+    ///
+    /// Motions are the deliberate exception: [`Self::update_sticky`] preserves
+    /// `$`'s stickiness, which an unconditional refresh would destroy.
+    fn place_cursor(&mut self, byte: usize) {
+        self.cursor = byte;
+        self.sticky = motion::grapheme_col(self.buffer(), self.cursor);
+    }
+
     fn update_sticky(&mut self, motion: Motion) {
         match motion {
             // Vertical movement consumes the sticky column without changing it.
@@ -634,12 +646,24 @@ impl<H: History> Editor<H> {
         }
     }
 
-    fn after_history(&mut self, edits: &[Edit], effects: &mut Vec<Effect>) {
-        for edit in edits {
+    /// Apply the outcome of an undo, redo or `U`.
+    ///
+    /// The caret goes back to where the history says it was. Failing that — a
+    /// history that does not track it, or a change recorded outside a group — fall
+    /// back to the last edit's site, which is at least where the text moved.
+    fn revert(&mut self, revert: &Revert, effects: &mut Vec<Effect>) {
+        if revert.is_empty() {
+            effects.push(Effect::Bell);
+            return;
+        }
+        for edit in &revert.edits {
             effects.push(Effect::Edit(*edit));
         }
-        self.cursor = motion::clamp(self.buffer(), self.cursor, self.bound());
-        self.sticky = motion::grapheme_col(self.buffer(), self.cursor);
+        let at = revert
+            .cursor
+            .unwrap_or_else(|| revert.edits[revert.edits.len() - 1].start_byte);
+        let at = motion::clamp(self.buffer(), at, self.bound());
+        self.place_cursor(at);
     }
 
     // -- operators -------------------------------------------------------
@@ -801,14 +825,18 @@ impl<H: History> Editor<H> {
     /// one `u`.
     fn open_insert_group(&mut self) {
         if !self.insert_group {
-            self.doc.history_mut().begin_group();
+            // Nested inside the current command's group, so the caret passed here
+            // is never the one recorded — see `run`.
+            let at = self.cursor;
+            self.doc.history_mut().begin_group(Some(at));
             self.insert_group = true;
         }
     }
 
     fn close_insert_group(&mut self) {
         if self.insert_group {
-            self.doc.history_mut().end_group();
+            let at = self.cursor;
+            self.doc.history_mut().end_group(Some(at));
             self.insert_group = false;
         }
     }
@@ -1145,6 +1173,40 @@ mod tests {
     }
 
     #[test]
+    fn escape_refreshes_the_sticky_column() {
+        // Insert advances the sticky column with the cursor, so leaving insert has
+        // to pull it back too — otherwise `j` remembers where the cursor *was*
+        // before `<Esc>` corrected it, and lands one column to the right.
+        let ed = editor("xx\nyyyyy", "iabc<Esc>");
+        assert_eq!(ed.cursor_point(), Point { row: 0, col: 2 });
+
+        let ed = editor("xx\nyyyyy", "iabc<Esc>j");
+        assert_eq!(ed.cursor_point(), Point { row: 1, col: 2 });
+
+        // Two rows down and back up must not drift either.
+        let ed = editor("xx\nyyyyy\nzzzzz", "iabc<Esc>jjk");
+        assert_eq!(ed.cursor_point(), Point { row: 1, col: 2 });
+    }
+
+    #[test]
+    fn edits_that_move_the_cursor_refresh_the_sticky_column() {
+        // Every one of these repositions the cursor without going through a motion,
+        // so each has to bring the remembered column along with it.
+
+        // `x` at the end of a row pulls the cursor back a column.
+        let ed = editor("ab\nwxyz", "lxj");
+        assert_eq!(ed.cursor_point(), Point { row: 1, col: 0 });
+
+        // `3~` advances past what it swapped.
+        let ed = editor("abc\nwxyz", "3~j");
+        assert_eq!(ed.cursor_point(), Point { row: 1, col: 2 });
+
+        // A visual text object moves the cursor to the object's end.
+        let ed = editor("abc def\nwxyzwxyz", "viwj");
+        assert_eq!(ed.cursor_point(), Point { row: 1, col: 2 });
+    }
+
+    #[test]
     fn insert_editing_keys() {
         assert_eq!(typed("", "iab<BS>c<Esc>"), "ac");
         assert_eq!(typed("", "ione two<C-w>three<Esc>"), "one three");
@@ -1219,6 +1281,36 @@ mod tests {
     fn undo_and_redo() {
         assert_eq!(typed(SQL, "ddu"), SQL);
         assert_eq!(typed(SQL, "ddu<C-r>"), "from users\nwhere id = 1");
+    }
+
+    #[test]
+    fn undo_puts_the_caret_back_where_the_change_started() {
+        // `o` appends a newline at the *end* of the row, so the edit's own geometry
+        // says nothing useful about where the user was. Only the caret the history
+        // bracketed the group with gets this right.
+        let ed = editor("select id\nfrom users", "lllo-- note<Esc>u");
+        assert_eq!(ed.buffer().to_string(), "select id\nfrom users");
+        assert_eq!(ed.cursor_point(), Point { row: 0, col: 3 });
+
+        // With the caret *inside* a word, `ciw` starts the change before it. The
+        // caret has to come back to where it was, not to where the edit began.
+        let ed = editor("select id, name", "wwwllciwX<Esc>u");
+        assert_eq!(ed.buffer().to_string(), "select id, name");
+        assert_eq!(ed.cursor_point(), Point { row: 0, col: 13 });
+
+        // `O` opens above, so undoing it must not leave the caret on the row that
+        // shifted down.
+        let ed = editor("aaa\nbbb", "jlO-- note<Esc>u");
+        assert_eq!(ed.buffer().to_string(), "aaa\nbbb");
+        assert_eq!(ed.cursor_point(), Point { row: 1, col: 1 });
+    }
+
+    #[test]
+    fn redo_puts_the_caret_where_the_change_left_it() {
+        let ed = editor("select id\nfrom users", "lllo-- note<Esc>u<C-r>");
+        assert_eq!(ed.buffer().to_string(), "select id\n-- note\nfrom users");
+        // Where `<Esc>` left it: on the last typed character.
+        assert_eq!(ed.cursor_point(), Point { row: 1, col: 6 });
     }
 
     #[test]
@@ -1303,13 +1395,22 @@ mod tests {
 
     #[test]
     fn record_and_play_a_macro() {
-        // Uppercase the first letter of each row.
-        assert_eq!(typed("aa\nbb\ncc", "qa~jq@a@a"), "Aa\nBb\nCc");
+        // Uppercase the first letter of each row. The `0` is load-bearing: `~`
+        // advances the cursor, so the macro has to come back to the first column
+        // before stepping down.
+        assert_eq!(typed("aa\nbb\ncc", "qa~0jq@a@a"), "Aa\nBb\nCc");
     }
 
     #[test]
     fn a_macro_replays_with_a_count() {
-        assert_eq!(typed("aa\nbb\ncc", "qa~jq2@a"), "Aa\nBb\nCc");
+        assert_eq!(typed("aa\nbb\ncc", "qa~0jq2@a"), "Aa\nBb\nCc");
+    }
+
+    #[test]
+    fn swap_case_carries_the_column_with_it() {
+        // Without the `0`, the run walks diagonally, because `~` leaves the cursor
+        // one column further right and `j` keeps that column. vi does the same.
+        assert_eq!(typed("aa\nbb\ncc", "qa~jq@a@a"), "Aa\nbB\ncC");
     }
 
     #[test]

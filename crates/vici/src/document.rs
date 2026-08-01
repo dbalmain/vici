@@ -9,7 +9,24 @@ use core::ops::Range;
 
 use crate::buffer::Buffer;
 use crate::edit::{Change, Edit};
-use crate::history::{History, LinearHistory};
+use crate::history::{History, LinearHistory, Step};
+
+/// What an undo, redo or `U` did: the edits applied, and the caret to restore.
+///
+/// `cursor` is `None` when the history does not track it — see [`Step::cursor`].
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct Revert {
+    pub edits: Vec<Edit>,
+    pub cursor: Option<usize>,
+}
+
+impl Revert {
+    /// True when there was nothing to undo or redo.
+    #[must_use]
+    pub fn is_empty(&self) -> bool {
+        self.edits.is_empty()
+    }
+}
 
 /// A buffer paired with an undo policy.
 ///
@@ -81,31 +98,42 @@ impl<H: History> Document<H> {
 
     /// Group the changes made by `edits` into one undo step.
     ///
+    /// A [`Document`] has no caret, so nothing is recorded for `undo` to restore.
+    /// Callers that do have one bracket the group themselves — see
+    /// [`History::begin_group`].
+    ///
     /// Not a drop guard: an unwinding panic inside `edits` leaves the group open.
     /// That is deliberate — a panic here means buffer and history have already
     /// diverged, and silently closing the group would hide it.
     pub fn grouped<T>(&mut self, edits: impl FnOnce(&mut Self) -> T) -> T {
-        self.history.begin_group();
+        self.history.begin_group(None);
         let out = edits(self);
-        self.history.end_group();
+        self.history.end_group(None);
         out
     }
 
-    pub fn undo(&mut self) -> Vec<Edit> {
-        let changes = self.history.undo();
-        self.apply_all(&changes)
+    pub fn undo(&mut self) -> Revert {
+        let step = self.history.undo();
+        self.revert(&step)
     }
 
-    pub fn redo(&mut self) -> Vec<Edit> {
-        let changes = self.history.redo();
-        self.apply_all(&changes)
+    pub fn redo(&mut self) -> Revert {
+        let step = self.history.redo();
+        self.revert(&step)
     }
 
     /// vi's `U`. Returns empty if the history does not support it, or if there is
     /// no row to restore.
-    pub fn undo_row(&mut self) -> Vec<Edit> {
-        let changes = self.history.undo_row(&self.buffer);
-        self.apply_all(&changes)
+    pub fn undo_row(&mut self) -> Revert {
+        let step = self.history.undo_row(&self.buffer);
+        self.revert(&step)
+    }
+
+    fn revert(&mut self, step: &Step) -> Revert {
+        Revert {
+            edits: self.apply_all(&step.changes),
+            cursor: step.cursor,
+        }
     }
 
     /// Apply changes handed back by the history. Deliberately does not `record`
@@ -158,10 +186,12 @@ mod tests {
             doc.replace(2..3, "Y");
         });
         let undone = doc.undo();
-        assert_eq!(undone.len(), 2);
+        assert_eq!(undone.edits.len(), 2);
         // Reversed relative to how they were applied.
-        assert_eq!(undone[0].start_byte, 2);
-        assert_eq!(undone[1].start_byte, 0);
+        assert_eq!(undone.edits[0].start_byte, 2);
+        assert_eq!(undone.edits[1].start_byte, 0);
+        // A `Document` has no caret, so `grouped` records none.
+        assert_eq!(undone.cursor, None);
         assert_eq!(doc.to_string(), "abc");
     }
 
@@ -170,9 +200,11 @@ mod tests {
         let mut doc = Document::from_text("select id\nfrom users");
         doc.replace(7..9, "name");
         doc.replace(0..6, "SELECT");
-        let edits = doc.undo_row();
-        assert_eq!(edits.len(), 1);
-        assert_eq!(edits[0].start_point, Point::new(0, 0));
+        let reverted = doc.undo_row();
+        assert_eq!(reverted.edits.len(), 1);
+        assert_eq!(reverted.edits[0].start_point, Point::new(0, 0));
+        // `U` knows the row it restored.
+        assert_eq!(reverted.cursor, Some(0));
         assert_eq!(doc.to_string(), "select id\nfrom users");
     }
 

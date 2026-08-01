@@ -15,6 +15,28 @@
 use crate::buffer::Buffer;
 use crate::edit::Change;
 
+/// Changes that reverse a step, and where the caret was when it began.
+///
+/// Text and caret travel together because restoring one without the other is
+/// jarring: undoing an `o` should put you back where you pressed it, not at the
+/// end of the row the newline was appended to. A history that does not track the
+/// caret leaves [`cursor`](Step::cursor) as `None` and the caller falls back to
+/// whatever it can infer from the changes.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct Step {
+    pub changes: Vec<Change>,
+    /// Byte offset to restore the caret to, if this history remembers one.
+    pub cursor: Option<usize>,
+}
+
+impl Step {
+    /// True when there was nothing to undo or redo.
+    #[must_use]
+    pub fn is_empty(&self) -> bool {
+        self.changes.is_empty()
+    }
+}
+
 /// A policy for remembering changes and handing back the changes that reverse
 /// them.
 ///
@@ -38,23 +60,31 @@ pub trait History {
     /// An insert-mode session is one group. Note that this is a *coarser*
     /// granularity than the [`crate::Edit`] stream a host feeds to tree-sitter,
     /// which wants one edit per keystroke — the two must not be conflated.
-    fn begin_group(&mut self);
+    ///
+    /// `cursor` is the caret position the group starts from, for
+    /// [`Step::cursor`] to hand back on undo. Callers with no caret pass `None`.
+    /// Only the outermost group's value is kept, since nesting exists to let an
+    /// inner bracket be a no-op.
+    fn begin_group(&mut self, cursor: Option<usize>);
 
     /// Close the innermost open group. Calls nest.
-    fn end_group(&mut self);
+    ///
+    /// `cursor` is the caret position the group ends at, which is what a *redo*
+    /// restores.
+    fn end_group(&mut self, cursor: Option<usize>);
 
     /// Changes that undo the most recent step.
-    fn undo(&mut self) -> Vec<Change>;
+    fn undo(&mut self) -> Step;
 
     /// Changes that reapply the most recently undone step.
-    fn redo(&mut self) -> Vec<Change>;
+    fn redo(&mut self) -> Step;
 
     /// vi's `U`: restore the most recently changed row to its content from
     /// before the current run of changes on it.
     ///
     /// Defaults to unsupported, so simple histories opt out by saying nothing.
-    fn undo_row(&mut self, _buf: &Buffer) -> Vec<Change> {
-        Vec::new()
+    fn undo_row(&mut self, _buf: &Buffer) -> Step {
+        Step::default()
     }
 }
 
@@ -67,13 +97,13 @@ pub struct NoHistory;
 
 impl History for NoHistory {
     fn record(&mut self, _change: &Change, _buf: &Buffer) {}
-    fn begin_group(&mut self) {}
-    fn end_group(&mut self) {}
-    fn undo(&mut self) -> Vec<Change> {
-        Vec::new()
+    fn begin_group(&mut self, _cursor: Option<usize>) {}
+    fn end_group(&mut self, _cursor: Option<usize>) {}
+    fn undo(&mut self) -> Step {
+        Step::default()
     }
-    fn redo(&mut self) -> Vec<Change> {
-        Vec::new()
+    fn redo(&mut self) -> Step {
+        Step::default()
     }
 }
 
@@ -81,6 +111,16 @@ impl History for NoHistory {
 struct RowSnapshot {
     row: usize,
     content: String,
+}
+
+/// One undo step: the changes it applied, bracketed by the caret on either side.
+#[derive(Debug, Clone)]
+struct Group {
+    changes: Vec<Change>,
+    /// Caret before the changes, restored by `undo`.
+    before: Option<usize>,
+    /// Caret after them, restored by `redo`.
+    after: Option<usize>,
 }
 
 /// A linear undo stack with grouping and row-scoped undo.
@@ -94,10 +134,12 @@ struct RowSnapshot {
 pub struct LinearHistory {
     /// `groups[..cursor]` are applied to the buffer; `groups[cursor..]` are the
     /// redo tail.
-    groups: Vec<Vec<Change>>,
+    groups: Vec<Group>,
     cursor: usize,
     depth: usize,
     open: Vec<Change>,
+    /// Caret at the moment the outermost open group began.
+    open_from: Option<usize>,
     row: Option<RowSnapshot>,
     limit: Option<usize>,
 }
@@ -135,9 +177,9 @@ impl LinearHistory {
         self.row.as_ref().map(|snapshot| snapshot.row)
     }
 
-    fn push_group(&mut self, changes: Vec<Change>) {
+    fn push_group(&mut self, group: Group) {
         self.groups.truncate(self.cursor);
-        self.groups.push(changes);
+        self.groups.push(group);
         self.cursor = self.groups.len();
         self.trim();
     }
@@ -184,70 +226,99 @@ impl History for LinearHistory {
             self.groups.truncate(self.cursor);
             self.open.push(change.clone());
         } else {
-            self.push_group(vec![change.clone()]);
+            // Ungrouped, so there is no caret to bracket it with.
+            self.push_group(Group {
+                changes: vec![change.clone()],
+                before: None,
+                after: None,
+            });
         }
     }
 
-    fn begin_group(&mut self) {
+    fn begin_group(&mut self, cursor: Option<usize>) {
+        if self.depth == 0 {
+            self.open_from = cursor;
+        }
         self.depth += 1;
     }
 
-    fn end_group(&mut self) {
+    fn end_group(&mut self, cursor: Option<usize>) {
         self.depth = self.depth.saturating_sub(1);
-        if self.depth == 0 && !self.open.is_empty() {
+        if self.depth > 0 {
+            return;
+        }
+        let before = self.open_from.take();
+        if !self.open.is_empty() {
             let changes = core::mem::take(&mut self.open);
-            self.push_group(changes);
+            self.push_group(Group {
+                changes,
+                before,
+                after: cursor,
+            });
         }
     }
 
-    fn undo(&mut self) -> Vec<Change> {
+    fn undo(&mut self) -> Step {
         if self.cursor == 0 {
-            return Vec::new();
+            return Step::default();
         }
         self.cursor -= 1;
         self.row = None;
-        // Reverse order: a group applied c1, c2, c3 is undone by inv(c3),
-        // inv(c2), inv(c1).
-        self.groups[self.cursor]
-            .iter()
-            .rev()
-            .map(Change::inverted)
-            .collect()
+        let group = &self.groups[self.cursor];
+        Step {
+            // Reverse order: a group applied c1, c2, c3 is undone by inv(c3),
+            // inv(c2), inv(c1).
+            changes: group.changes.iter().rev().map(Change::inverted).collect(),
+            cursor: group.before,
+        }
     }
 
-    fn redo(&mut self) -> Vec<Change> {
+    fn redo(&mut self) -> Step {
         if self.cursor >= self.groups.len() {
-            return Vec::new();
+            return Step::default();
         }
-        let changes = self.groups[self.cursor].clone();
+        let group = &self.groups[self.cursor];
+        let step = Step {
+            changes: group.changes.clone(),
+            cursor: group.after,
+        };
         self.cursor += 1;
         self.row = None;
-        changes
+        step
     }
 
-    fn undo_row(&mut self, buf: &Buffer) -> Vec<Change> {
+    fn undo_row(&mut self, buf: &Buffer) -> Step {
         let Some(snapshot) = self.row.take() else {
-            return Vec::new();
+            return Step::default();
         };
         if snapshot.row >= buf.len_rows() {
-            return Vec::new();
+            return Step::default();
         }
         let range = buf.row_content_range(snapshot.row);
         let current = buf.text_in(range.clone());
         if current == snapshot.content {
             self.row = Some(snapshot);
-            return Vec::new();
+            return Step::default();
         }
+        let row_start = range.start;
         let change = buf.stage_replace(range, &snapshot.content);
-        // `U` is an ordinary change as far as `u` is concerned.
-        self.push_group(vec![change.clone()]);
+        // `U` is an ordinary change as far as `u` is concerned. Its own caret
+        // bracket is the row it restored, from both directions.
+        self.push_group(Group {
+            changes: vec![change.clone()],
+            before: Some(row_start),
+            after: Some(row_start),
+        });
         // Swapping the snapshot for what we just displaced is what makes a second
         // `U` toggle back.
         self.row = Some(RowSnapshot {
             row: snapshot.row,
             content: current,
         });
-        vec![change]
+        Step {
+            changes: vec![change],
+            cursor: Some(row_start),
+        }
     }
 }
 
@@ -282,19 +353,22 @@ mod tests {
             }
         }
 
-        fn undo(&mut self) {
-            let changes = self.hist.undo();
-            self.apply_all(&changes);
+        fn undo(&mut self) -> Option<usize> {
+            let step = self.hist.undo();
+            self.apply_all(&step.changes);
+            step.cursor
         }
 
-        fn redo(&mut self) {
-            let changes = self.hist.redo();
-            self.apply_all(&changes);
+        fn redo(&mut self) -> Option<usize> {
+            let step = self.hist.redo();
+            self.apply_all(&step.changes);
+            step.cursor
         }
 
-        fn undo_row(&mut self) {
-            let changes = self.hist.undo_row(&self.buf);
-            self.apply_all(&changes);
+        fn undo_row(&mut self) -> Option<usize> {
+            let step = self.hist.undo_row(&self.buf);
+            self.apply_all(&step.changes);
+            step.cursor
         }
 
         fn text(&self) -> String {
@@ -316,11 +390,11 @@ mod tests {
     #[test]
     fn a_group_undoes_as_one_step() {
         let mut h = Harness::new("");
-        h.hist.begin_group();
+        h.hist.begin_group(None);
         for (i, ch) in "select".chars().enumerate() {
             h.replace(i..i, &ch.to_string());
         }
-        h.hist.end_group();
+        h.hist.end_group(None);
         assert_eq!(h.text(), "select");
         assert_eq!(h.hist.undo_depth(), 1);
         h.undo();
@@ -330,12 +404,12 @@ mod tests {
     #[test]
     fn groups_nest() {
         let mut h = Harness::new("");
-        h.hist.begin_group();
-        h.hist.begin_group();
+        h.hist.begin_group(None);
+        h.hist.begin_group(None);
         h.replace(0..0, "a");
-        h.hist.end_group();
+        h.hist.end_group(None);
         h.replace(1..1, "b");
-        h.hist.end_group();
+        h.hist.end_group(None);
         assert_eq!(h.hist.undo_depth(), 1);
         h.undo();
         assert_eq!(h.text(), "");
@@ -356,10 +430,10 @@ mod tests {
     #[test]
     fn undo_reverses_a_group_in_reverse_order() {
         let mut h = Harness::new("abc");
-        h.hist.begin_group();
+        h.hist.begin_group(None);
         h.replace(0..1, "X"); // Xbc
         h.replace(2..3, "Y"); // XbY
-        h.hist.end_group();
+        h.hist.end_group(None);
         assert_eq!(h.text(), "XbY");
         h.undo();
         assert_eq!(h.text(), "abc");
