@@ -51,8 +51,8 @@
 [x] ^  first non-blank     (leading spaces below)
 [x] $  last column         [x] <End>
       	tabbed and indented, try 0 then ^
-[ ] gg  first row
-[ ] G   last row
+[x] gg  first row
+[x] G   last row
 
     Sticky column: put the cursor at the end of the long row,
     then press j twice. It should return to the end each time.
@@ -60,27 +60,31 @@
       short
       another quite long row, ending here
 
+Note: This doesn't quite work like vim. When I hit `$`, it sticks to the end even on longer lines. I don't mind this behaviour
+too much, but it seems to be something extra that we're doing, so it would be good to remove if it reduces the code. Otherwise, it
+works perfectlu.
+
 --------------------------------------------------------------
  3. MOTIONS — words
 --------------------------------------------------------------
 
       alpha beta.gamma delta_eps  ninety9 end
-[ ] w   next word start
-[ ] W   next WORD start   (ignores the `.`)
-[ ] b   previous word start
-[ ] B   previous WORD start
-[ ] e   end of word
-[ ] E   end of WORD
+[x] w   next word start
+[x] W   next WORD start   (ignores the `.`)
+[x] b   previous word start
+[x] B   previous WORD start
+[x] e   end of word
+[x] E   end of WORD
 
 --------------------------------------------------------------
  4. MOTIONS — find on the row
 --------------------------------------------------------------
 
       select id, name, email from users
-[ ] f,  forward to the comma
-[ ] t,  forward, stopping before it
-[ ] F,  backward to a comma
-[ ] T,  backward, stopping after it
+[x] f,  forward to the comma
+[x] t,  forward, stopping before it
+[x] F,  backward to a comma
+[x] T,  backward, stopping after it
 [ ] ;   repeat the last find
 [ ] ,   repeat it in reverse
 
@@ -88,11 +92,11 @@
  5. COUNTS
 --------------------------------------------------------------
 
-[ ] 3j  down three rows
-[ ] 5l  right five
-[ ] 3x  delete three characters
-[ ] 2dw delete two words
-[ ] 2d3w delete six words — counts multiply
+[x] 3j  down three rows
+[x] 5l  right five
+[x] 3x  delete three characters
+[x] 2dw delete two words
+[x] 2d3w delete six words — counts multiply
 [ ] 5G  go to row five
 [ ] 1G  row one (and bare G is the last row — not the same)
 [ ] 0   is a motion, not a count: `d0` deletes to the start

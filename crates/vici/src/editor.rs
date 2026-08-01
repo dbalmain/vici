@@ -602,6 +602,22 @@ impl<H: History> Editor<H> {
         self.buffer().row_content_range(point.row - 1).end
     }
 
+    /// The concrete find `;` or `,` stands for, given what was remembered.
+    ///
+    /// Any other motion is already concrete and passes through. Without this,
+    /// [`Motion::is_inclusive`] has no direction to answer from and falls back to
+    /// exclusive, which silently costs `d;` a character.
+    fn effective(&self, motion: Motion) -> Motion {
+        match (motion, self.last_find) {
+            (Motion::RepeatFind { reverse }, Some(find)) => Motion::Find {
+                target: find.target,
+                backward: find.backward != reverse,
+                till: find.till,
+            },
+            _ => motion,
+        }
+    }
+
     fn remember_find(&mut self, motion: Motion) {
         if let Motion::Find {
             target,
@@ -695,7 +711,12 @@ impl<H: History> Editor<H> {
                     self.last_find,
                     Bound::OnChar,
                 )?;
-                if motion.is_linewise() {
+                // Resolution above keeps the `RepeatFind` form, because that is what
+                // tells `motion::resolve` to skip the target a `t` is already parked
+                // on. Operator semantics have to come from the concrete find it
+                // stands for, or `d;` after `f,` stops one character short.
+                let semantics = self.effective(motion);
+                if semantics.is_linewise() {
                     let first = buf.byte_to_point(self.cursor.min(landed)).row;
                     let last = buf.byte_to_point(self.cursor.max(landed)).row;
                     return Some(Span {
@@ -704,7 +725,7 @@ impl<H: History> Editor<H> {
                     });
                 }
                 let (start, mut end) = (self.cursor.min(landed), self.cursor.max(landed));
-                if motion.is_inclusive() {
+                if semantics.is_inclusive() {
                     end = motion::resolve(buf, end, Motion::Right, None, 0, None, Bound::PastEnd)
                         .unwrap_or(end);
                 }
@@ -1281,6 +1302,48 @@ mod tests {
     fn undo_and_redo() {
         assert_eq!(typed(SQL, "ddu"), SQL);
         assert_eq!(typed(SQL, "ddu<C-r>"), "from users\nwhere id = 1");
+    }
+
+    #[test]
+    fn repeating_a_till_find_skips_where_it_already_is() {
+        // `t`/`T` land one short of the target, so a naive repeat re-finds the same
+        // target and resolves to the position it is already on. vi's default skips
+        // it — `cpoptions` without `;`.
+        // "a.b.c.d" — dots at 1, 3, 5.
+        // `t.` from 0 is already a no-op, because the dot is adjacent. That part
+        // matches vi. It is the repeat that has to move.
+        let ed = editor("a.b.c.d", "t.");
+        assert_eq!(ed.cursor(), 0);
+        let ed = editor("a.b.c.d", "t.;");
+        assert_eq!(ed.cursor(), 2);
+        let ed = editor("a.b.c.d", "t.;;");
+        assert_eq!(ed.cursor(), 4);
+
+        // Backward, and with `,` reversing an earlier forward find.
+        let ed = editor("a.b.c.d", "$T.;");
+        assert_eq!(ed.cursor(), 4);
+        let ed = editor("a.b.c.d", "t.;;,");
+        assert_eq!(ed.cursor(), 2);
+
+        // `f`/`F` were never affected: they land *on* the target, so the next
+        // search already starts past it.
+        let ed = editor("a.b.c.d", "f.;");
+        assert_eq!(ed.cursor(), 3);
+
+        // A count skips the adjacent target first, then counts from there. That is
+        // the natural reading of the two rules together rather than a behaviour
+        // checked against vi; pinned so it cannot drift silently.
+        let ed = editor("a.b.c.d.e", "t.2;");
+        assert_eq!(ed.cursor(), 4);
+
+        // As an operator target, a forward `;` is inclusive, exactly as the `f`/`t`
+        // it stands for. `d;` after `f,` takes the second comma with it.
+        assert_eq!(typed("foo,bar,baz", "f,d;"), "foobaz");
+        // And the till version stops before the target it found.
+        assert_eq!(typed("a.b.c.d", "t.d;"), ".c.d");
+        // Backward stays exclusive, leaving the character under the cursor.
+        // `;` keeps `F`'s direction — it is `,` that would flip it to forward.
+        assert_eq!(typed("foo,bar,baz", "$F,d;"), "foo,baz");
     }
 
     #[test]

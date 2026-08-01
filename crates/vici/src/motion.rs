@@ -264,17 +264,53 @@ fn word_run(buf: &Buffer, at: usize, big: bool) -> Range<usize> {
 // find, row-local
 // ---------------------------------------------------------------------------
 
-fn find_in_row(buf: &Buffer, from: usize, find: Find, count: usize) -> Option<usize> {
+/// Row-local char step, used only to nudge a search origin.
+fn next_char(text: &str, at: usize) -> usize {
+    text.get(at..)
+        .and_then(|rest| rest.chars().next())
+        .map_or(at, |ch| at + ch.len_utf8())
+}
+
+fn prev_char(text: &str, at: usize) -> usize {
+    text.get(..at)
+        .and_then(|head| head.chars().next_back())
+        .map_or(at, |ch| at - ch.len_utf8())
+}
+
+/// Find `find.target` within `from`'s row.
+///
+/// `skip_adjacent` is for `;` and `,`. A `t`/`T` parks one character short of its
+/// target, so repeating it re-finds that same target and resolves to the position
+/// the cursor is already on — the repeat appears to do nothing. Stepping the origin
+/// one character along excludes exactly that target and nothing else, since a
+/// target one step away is precisely the one whose till-position is the cursor.
+/// This is vi's default behaviour, i.e. `cpoptions` without `;`.
+fn find_in_row(
+    buf: &Buffer,
+    from: usize,
+    find: Find,
+    count: usize,
+    skip_adjacent: bool,
+) -> Option<usize> {
     let row = buf.byte_to_point(from).row;
     let range = buf.row_content_range(row);
     let text = buf.text_in(range.clone());
     let cursor = from - range.start;
+    let origin = if skip_adjacent && find.till {
+        if find.backward {
+            prev_char(&text, cursor)
+        } else {
+            next_char(&text, cursor)
+        }
+    } else {
+        cursor
+    };
 
     let mut hit = None;
     if find.backward {
         let mut seen = 0;
         for (offset, ch) in text.char_indices().rev() {
-            if offset >= cursor {
+            if offset >= origin {
                 continue;
             }
             if ch == find.target {
@@ -288,7 +324,7 @@ fn find_in_row(buf: &Buffer, from: usize, find: Find, count: usize) -> Option<us
     } else {
         let mut seen = 0;
         for (offset, ch) in text.char_indices() {
-            if offset <= cursor {
+            if offset <= origin {
                 continue;
             }
             if ch == find.target {
@@ -415,13 +451,14 @@ pub fn resolve(
                 till,
             },
             repeat,
+            false,
         )?,
         Motion::RepeatFind { reverse } => {
             let mut find = last_find?;
             if reverse {
                 find.backward = !find.backward;
             }
-            find_in_row(buf, from, find, repeat)?
+            find_in_row(buf, from, find, repeat, true)?
         }
         // `G` and `gg` take the count as an absolute row, 1-based.
         Motion::GotoRow => {
