@@ -97,9 +97,9 @@ works perfectlu.
 [x] 3x  delete three characters
 [x] 2dw delete two words
 [x] 2d3w delete six words — counts multiply
-[ ] 5G  go to row five
-[ ] 1G  row one (and bare G is the last row — not the same)
-[ ] 0   is a motion, not a count: `d0` deletes to the start
+[x] 5G  go to row five
+[x] 1G  row one (and bare G is the last row — not the same)
+[x] 0   is a motion, not a count: `d0` deletes to the start
       one two three four five six seven eight nine ten
 
     Watch `cmd:` in the status bar while you type a count.
@@ -109,16 +109,16 @@ works perfectlu.
 --------------------------------------------------------------
 
       delete from here to somewhere over there
-[ ] dw  delete word           [ ] de  delete to word end
-[ ] d$  to end of row         [ ] d0  to start of row
-[ ] dj  delete two rows — a linewise motion
-[ ] dG  to the last row       [ ] dgg to the first
-[ ] dt, delete up to a comma, keeping it
-[ ] cw  change word — behaves like `ce`, no trailing space
-[ ] ce  change to word end
-[ ] c$  change to end of row
-[ ] yw  yank a word, then `p` to paste it
-[ ] y$  yank to end of row
+[x] dw  delete word           [x] de  delete to word end
+[x] d$  to end of row         [x] d0  to start of row
+[x] dj  delete two rows — a linewise motion
+[x] dG  to the last row       [x] dgg to the first
+[x] dt, delete up to a comma, keeping it
+[x] cw  change word — behaves like `ce`, no trailing space
+[x] ce  change to word end
+[x] c$  change to end of row
+[x] yw  yank a word, then `p` to paste it
+[x] y$  yank to end of row
 
     `cw` on the last word of a row is the classic irregularity:
     it must not swallow the newline.
@@ -127,10 +127,10 @@ works perfectlu.
  7. DOUBLED OPERATORS — whole rows
 --------------------------------------------------------------
 
-[ ] dd  delete this row
-[ ] cc  change this row, keeping the row itself
-[ ] yy  yank this row, then `p` below / `P` above
-[ ] 3dd delete three rows
+[x] dd  delete this row
+[x] cc  change this row, keeping the row itself
+[x] yy  yank this row, then `p` below / `P` above
+[x] 3dd delete three rows
       row one of four
       row two of four
       row three of four
@@ -144,15 +144,15 @@ works perfectlu.
 --------------------------------------------------------------
 
       the quick brown fox jumps
-[ ] diw  inner word          [ ] daw  a word, plus a space
-[ ] ciw  change inner word   [ ] caw
-[ ] yiw  yank inner word
-[ ] diW  inner WORD          [ ] daW
+[x] diw  inner word          [x] daw  a word, plus a space
+[x] ciw  change inner word   [x] caw
+[x] yiw  yank inner word
+[x] diW  inner WORD          [x] daW
 
       call(one, two) and more
-[ ] di(  inner parens        [ ] da(  including them
-[ ] di)  same thing          [ ] dib  the `b` alias
-[ ] ci(  change inside
+[x] di(  inner parens        [x] da(  including them
+[x] di)  same thing          [x] dib  the `b` alias
+[x] ci(  change inside
 
       block { nested { deep } here } end
 [ ] di{  inner braces — nesting-aware

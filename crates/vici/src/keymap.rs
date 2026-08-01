@@ -7,7 +7,7 @@
 use std::collections::BTreeMap;
 
 use crate::command::{
-    AwaitChar, Command, InsertAt, Mode, Motion, ObjectScope, Operator, Scroll, TextObject,
+    AwaitChar, Command, InsertAt, Mode, Motion, ObjectScope, Operator, Scroll, Target, TextObject,
     VisualKind,
 };
 use crate::key::{Key, KeyCode, keys};
@@ -235,6 +235,21 @@ impl Keymap {
         map.bind_spec(Layer::Normal, "d", Op(Operator::Delete))
             .bind_spec(Layer::Normal, "c", Op(Operator::Change))
             .bind_spec(Layer::Normal, "y", Op(Operator::Yank));
+
+        // `D` and `C` are `d$` and `c$` pre-applied. Binding them as whole commands
+        // rather than as an operator awaiting a target is what lets them take a
+        // count: `LastColumn` reads it as "this row plus count-1 more", so `2D`
+        // clears to the end of the following row, as in vi.
+        for (spec, operator) in [("D", Operator::Delete), ("C", Operator::Change)] {
+            map.bind_spec(
+                Layer::Normal,
+                spec,
+                Cmd(C::Operate {
+                    operator,
+                    target: Target::Motion(Motion::LastColumn),
+                }),
+            );
+        }
 
         // -- mode changes ----------------------------------------------------
         for (spec, at) in [

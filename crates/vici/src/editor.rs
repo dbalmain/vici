@@ -1305,6 +1305,48 @@ mod tests {
     }
 
     #[test]
+    fn d_and_c_clear_to_the_end_of_the_row() {
+        // The space before the deleted word stays — `D` cuts from the cursor, and
+        // `w` landed on `i`, not on the space.
+        assert_eq!(typed(SQL, "wD"), "select \nfrom users\nwhere id = 1");
+        assert_eq!(
+            typed(SQL, "wCname<Esc>"),
+            "select name\nfrom users\nwhere id = 1"
+        );
+
+        // `$` is inclusive, so the last character goes too.
+        assert_eq!(typed("abc", "D"), "");
+        assert_eq!(typed("abc", "lD"), "a");
+
+        // `C` leaves you in insert mode at the point of truncation.
+        let ed = editor("abc", "lC");
+        assert_eq!(ed.mode(), Mode::Insert);
+        assert_eq!(ed.cursor(), 1);
+
+        // The row itself survives, unlike `dd`.
+        assert_eq!(typed("aa\nbb", "D"), "\nbb");
+
+        // A count reaches into following rows: `2D` takes this row's tail and all
+        // of the next, joining what is left.
+        assert_eq!(typed("aa\nbb\ncc", "lD"), "a\nbb\ncc");
+        assert_eq!(typed("aa\nbb\ncc", "2D"), "\ncc");
+        assert_eq!(typed("aa\nbb\ncc", "3D"), "");
+
+        // Yanked characterwise, so `p` pastes inline rather than onto a new row.
+        let ed = editor("abc\nxyz", "D");
+        assert!(!ed.register().linewise);
+        assert_eq!(ed.register().text, "abc");
+
+        // Undo restores in one step, caret included.
+        let ed = editor(SQL, "wDu");
+        assert_eq!(ed.buffer().to_string(), SQL);
+        assert_eq!(ed.cursor_point(), Point { row: 0, col: 7 });
+
+        // And `.` repeats it.
+        assert_eq!(typed("aa bb\ncc dd", "wDj0w."), "aa \ncc ");
+    }
+
+    #[test]
     fn repeating_a_till_find_skips_where_it_already_is() {
         // `t`/`T` land one short of the target, so a naive repeat re-finds the same
         // target and resolves to the position it is already on. vi's default skips
