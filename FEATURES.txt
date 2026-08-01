@@ -1,0 +1,345 @@
+==============================================================
+ vici — every bound feature, one line at a time
+==============================================================
+
+ Open this in the harness:   cargo run -p vici-harness
+
+ Harness keys (these bypass the editor entirely):
+   F10    quit, always
+   F2     hide/show the effect log
+   <C-c>  quit, from normal mode only
+   :w     save        :q  quit      :q!  discard     :wq  both
+
+ Tick a box by putting the cursor on the space and typing  rx
+ — which is itself a test of `r`. Then `u` to untick it.
+
+ The right pane logs every effect the core emits. Watch it: one
+ `edit` per keystroke while typing is the thing tree-sitter needs,
+ and it is easy to get wrong.
+
+ Nothing here is precious. Break it, then `u` your way back.
+
+--------------------------------------------------------------
+ 1. MODES
+--------------------------------------------------------------
+
+[ ] i   insert before the cursor
+[ ] a   insert after the cursor
+[ ] I   insert at the first non-blank
+[ ] A   insert at end of row
+[ ] o   open a row below
+[ ] O   open a row above
+      indent me and press I, then A, then o
+[ ] R   replace mode, overwrite as you type
+      overwrite the middle of this line
+[ ] v   visual by character
+[ ] V   visual by line
+[ ] <Esc> back to normal from any of the above
+
+    Check: after `iabc<Esc>` the cursor sits on `c`, not past it.
+    Check: the cursor is a block in normal, a bar in insert.
+
+--------------------------------------------------------------
+ 2. MOTIONS — characters and rows
+--------------------------------------------------------------
+
+[ ] h  left            [ ] l  right
+[ ] j  down            [ ] k  up
+[ ] <Left> <Right> <Up> <Down>   same, as arrows
+[ ] <Space>  right
+[ ] 0  first column        [ ] <Home>
+[ ] ^  first non-blank     (leading spaces below)
+[ ] $  last column         [ ] <End>
+      	tabbed and indented, try 0 then ^
+[ ] gg  first row
+[ ] G   last row
+
+    Sticky column: put the cursor at the end of the long row,
+    then press j twice. It should return to the end each time.
+      a very long row indeed, ending here
+      short
+      another quite long row, ending here
+
+--------------------------------------------------------------
+ 3. MOTIONS — words
+--------------------------------------------------------------
+
+      alpha beta.gamma delta_eps  ninety9 end
+[ ] w   next word start
+[ ] W   next WORD start   (ignores the `.`)
+[ ] b   previous word start
+[ ] B   previous WORD start
+[ ] e   end of word
+[ ] E   end of WORD
+
+--------------------------------------------------------------
+ 4. MOTIONS — find on the row
+--------------------------------------------------------------
+
+      select id, name, email from users
+[ ] f,  forward to the comma
+[ ] t,  forward, stopping before it
+[ ] F,  backward to a comma
+[ ] T,  backward, stopping after it
+[ ] ;   repeat the last find
+[ ] ,   repeat it in reverse
+
+--------------------------------------------------------------
+ 5. COUNTS
+--------------------------------------------------------------
+
+[ ] 3j  down three rows
+[ ] 5l  right five
+[ ] 3x  delete three characters
+[ ] 2dw delete two words
+[ ] 2d3w delete six words — counts multiply
+[ ] 5G  go to row five
+[ ] 1G  row one (and bare G is the last row — not the same)
+[ ] 0   is a motion, not a count: `d0` deletes to the start
+      one two three four five six seven eight nine ten
+
+    Watch `cmd:` in the status bar while you type a count.
+
+--------------------------------------------------------------
+ 6. OPERATORS over motions
+--------------------------------------------------------------
+
+      delete from here to somewhere over there
+[ ] dw  delete word           [ ] de  delete to word end
+[ ] d$  to end of row         [ ] d0  to start of row
+[ ] dj  delete two rows — a linewise motion
+[ ] dG  to the last row       [ ] dgg to the first
+[ ] dt, delete up to a comma, keeping it
+[ ] cw  change word — behaves like `ce`, no trailing space
+[ ] ce  change to word end
+[ ] c$  change to end of row
+[ ] yw  yank a word, then `p` to paste it
+[ ] y$  yank to end of row
+
+    `cw` on the last word of a row is the classic irregularity:
+    it must not swallow the newline.
+
+--------------------------------------------------------------
+ 7. DOUBLED OPERATORS — whole rows
+--------------------------------------------------------------
+
+[ ] dd  delete this row
+[ ] cc  change this row, keeping the row itself
+[ ] yy  yank this row, then `p` below / `P` above
+[ ] 3dd delete three rows
+      row one of four
+      row two of four
+      row three of four
+      row four of four
+
+    `dd` on the very last row of the file takes the *preceding*
+    newline. Scroll to the bottom and try it.
+
+--------------------------------------------------------------
+ 8. TEXT OBJECTS
+--------------------------------------------------------------
+
+      the quick brown fox jumps
+[ ] diw  inner word          [ ] daw  a word, plus a space
+[ ] ciw  change inner word   [ ] caw
+[ ] yiw  yank inner word
+[ ] diW  inner WORD          [ ] daW
+
+      call(one, two) and more
+[ ] di(  inner parens        [ ] da(  including them
+[ ] di)  same thing          [ ] dib  the `b` alias
+[ ] ci(  change inside
+
+      block { nested { deep } here } end
+[ ] di{  inner braces — nesting-aware
+[ ] da{                      [ ] diB  the `B` alias
+      list [ one, two ] and array [ three ]
+[ ] di[                      [ ] da[
+      generic <T, U> here
+[ ] di<                      [ ] da<
+
+      say "hello there" and 'goodbye' and `tick`
+[ ] di"  inner double quotes [ ] da"
+[ ] di'                      [ ] ci'
+[ ] di`
+
+[ ] dip  inner paragraph — the blank-line-delimited block
+[ ] dap
+
+    Note: `i(` needs the cursor inside or on a delimiter. On the
+    `c` of `call` it correctly does nothing. That is not a bug.
+
+--------------------------------------------------------------
+ 9. SINGLE-KEY EDITS
+--------------------------------------------------------------
+
+      mangle THIS text however you like
+[ ] x    delete the character under the cursor
+[ ] <Del> same
+[ ] X    delete the character before it
+[ ] rZ   replace one character with Z
+[ ] ~    swap case, and advance
+[ ] 3~   swap three
+[ ] J    join the next row onto this one
+      join me
+      to the row above
+[ ] p    put after      [ ] P    put before
+[ ] 2p   put twice
+
+    Yank a row with `yy` then `p`: it should land on a new row.
+    Yank a word with `yw` then `p`: it should land inline.
+    That difference is the register's `linewise` flag — the
+    status bar shows it as reg[line] or reg[char].
+
+--------------------------------------------------------------
+ 10. UNDO
+--------------------------------------------------------------
+
+[ ] u     undo
+[ ] <C-r> redo
+[ ] U     undo every change on the current row
+      break this row repeatedly then press U
+
+    An insert session is ONE undo step: type `ihello<Esc>` then
+    `u`, and all five characters go together — while the effect
+    log shows five separate edits. Both granularities at once is
+    the whole point.
+
+[ ] U then u — the U itself is undoable
+[ ] U twice — toggles back
+
+    U after a multi-row change is a no-op, not a fallback to `u`.
+    Try `ddU`. This diverges from vi deliberately.
+
+--------------------------------------------------------------
+ 11. DOT REPEAT
+--------------------------------------------------------------
+
+[ ] .    repeat the last change
+      repeat me and me and me and me
+      ciwX<Esc> then w then . then w then .
+[ ] 3.   repeat three times
+
+    `.` after an insert session replays the typed text.
+    Note: `3.` replays the whole command three times rather than
+    substituting the count, which differs from vi.
+
+--------------------------------------------------------------
+ 12. MACROS
+--------------------------------------------------------------
+
+[ ] qa   start recording into register a  (watch rec:@a)
+[ ] q    stop recording
+[ ] @a   play it back
+[ ] 3@a  play it three times
+      aaa one
+      bbb two
+      ccc three
+      ddd four
+
+    Try: qa~jq  then @a @a @a
+
+--------------------------------------------------------------
+ 13. VISUAL MODE
+--------------------------------------------------------------
+
+      select some of this line and act on it
+[ ] v then motions — the highlight follows
+[ ] vd   delete the selection      [ ] vx  same
+[ ] vc   change it                 [ ] vs  same
+[ ] vy   yank it
+[ ] viw  extend to inner word
+[ ] va(  extend to a parens block
+[ ] v then V — switch granularity mid-selection
+[ ] V then j then d — delete whole rows
+[ ] <Esc> cancels without acting
+
+    The selection includes the character under the cursor, so
+    what you see is what gets deleted.
+
+--------------------------------------------------------------
+ 14. INSERT-MODE KEYS
+--------------------------------------------------------------
+
+[ ] typing inserts text
+[ ] <CR>    split the row
+[ ] <BS>    delete back
+[ ] <BS> at column 0 — joins onto the previous row
+[ ] <C-w>   delete the word before the cursor
+[ ] <Tab>   inserts a real tab byte, shown as 8 columns
+[ ] <Esc>   leave        [ ] <C-c>  also leaves
+[ ] arrows move without leaving insert mode
+      edit inside me
+
+--------------------------------------------------------------
+ 15. VIEWPORT
+--------------------------------------------------------------
+
+[ ] <C-d>  half page down   [ ] <C-u>  half page up
+[ ] <C-f>  page down        [ ] <C-b>  page up
+[ ] zz     centre the cursor row
+[ ] zt     cursor row to the top
+[ ] zb     cursor row to the bottom
+
+    The core does not own the viewport — it emits a Scroll effect
+    and the harness moves. So <C-d> scrolls the view and leaves
+    the cursor where it was, unlike vi, which drags the cursor
+    along. Decide whether you want that.
+
+--------------------------------------------------------------
+ 16. PROMPTS — known gap
+--------------------------------------------------------------
+
+[ ] /   opens a prompt, and then cannot move the cursor
+[ ] ?   likewise
+[ ] n   [ ] N   report the same gap
+[ ] :   opens a prompt the harness answers itself
+
+    The core resolves these and emits an effect, but there is no
+    API for a host to hand a match back. Confirm the prompt opens
+    and the effect fires; the movement is genuinely not built yet.
+
+--------------------------------------------------------------
+ 17. NOT BOUND — these should ring the bell
+--------------------------------------------------------------
+
+[ ] D   would be d$        [ ] C   would be c$
+[ ] s   would be xi        [ ] S   would be cc
+[ ] %   match a bracket
+[ ] H   [ ] M   [ ] L   screen top/middle/bottom
+[ ] {   [ ] }   paragraph motions
+[ ] <C-v>  visual block
+[ ] "ayy  named registers — deliberately absent
+[ ] ma    marks — deliberately absent
+
+    Watch for `bell` in the log. Anything here that silently does
+    something instead is a bug worth reporting.
+
+--------------------------------------------------------------
+ 18. EDGES
+--------------------------------------------------------------
+
+    Multibyte — `x` must delete a whole grapheme, and the cursor
+    must never land mid-character. The status bar shows the byte
+    offset, so watch it jump by more than one.
+      café niño — touché
+      日本語のテキスト
+      flags 🇦🇺 and family 👩‍👩‍👧‍👦 emoji
+
+    Tabs — display width is the harness's job, not the core's.
+    The byte column and the screen column will differ here.
+      	one tab
+      		two tabs
+      a	middle	tab
+
+    Empty rows — motions and operators over nothing.
+
+[ ] dd on the blank row above
+[ ] x on an empty row      [ ] J onto an empty row
+[ ] $ on an empty row      [ ] diw on an empty row
+
+    Trailing newline — go to the last row with G and try dd, o,
+    and A. The file may or may not end in a newline; both should
+    behave.
+
+    The very end of the file is below. Nothing after this line.

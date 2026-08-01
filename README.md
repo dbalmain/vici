@@ -102,6 +102,23 @@ other.
 Rows are counted by LF only, matching tree-sitter. Line endings are preserved
 byte-for-byte; a `\r` is ordinary content at the end of a row.
 
+## Trying it
+
+```sh
+cargo run -p vici-harness
+```
+
+A terminal harness that opens `FEATURES.txt` — a checklist of every bound key
+with sample text to try it on. The right pane logs every effect as it is
+emitted, which is the quickest way to see that typing produces one `Edit` per
+keystroke while undo still treats the whole insert session as one step. `F10`
+quits, `F2` hides the log.
+
+The harness is deliberately in its own unpublished crate, so `vici` never needs
+a UI dependency. It is also the honest demonstration of the layering: owning the
+viewport, expanding tabs, measuring display width, answering `:` prompts and
+touching the filesystem are all _its_ code, not the core's.
+
 ## Status
 
 Early but tested — the test suite reads as keystroke scripts, which is the main

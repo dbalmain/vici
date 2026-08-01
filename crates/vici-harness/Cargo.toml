@@ -1,0 +1,19 @@
+[package]
+name = "vici-harness"
+version = "0.1.0"
+description = "Interactive terminal harness for driving vici by hand"
+# Not for crates.io. This exists so `vici` itself never needs a UI dependency.
+publish = false
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[dependencies]
+vici = { path = "../vici" }
+# crossterm comes in via ratatui's re-export, so the versions cannot skew.
+ratatui = "0.30.2"
+# Display width is the *view's* job — `vici` deliberately has no opinion on it.
+unicode-width = "0.2.2"
+
+[lints]
+workspace = true
