@@ -1,0 +1,29 @@
+[package]
+name = "vici"
+version = "0.1.0"
+description = "A headless vi editing core: modes, motions, operators, text objects, undo and dot-repeat, with no view attached"
+keywords = ["vi", "vim", "editor", "modal", "headless"]
+categories = ["text-editors", "text-processing"]
+readme = "README.md"
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+homepage.workspace = true
+authors.workspace = true
+
+[dependencies]
+# Byte-indexed rope. `metric_lines_lf` counts rows by LF only, which matches
+# tree-sitter's `Point.row`; the default `metric_lines_lf_cr` would also count a
+# lone CR and silently drift from the parser.
+ropey = { version = "2.0.0-beta.1", default-features = false, features = [
+    "metric_lines_lf",
+    "metric_chars",
+    "simd",
+] }
+# Grapheme clusters, so `l` and `x` step over combining marks and emoji as one
+# unit rather than one `char`.
+unicode-segmentation = "1.13.3"
+
+[lints]
+workspace = true
