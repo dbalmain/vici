@@ -153,6 +153,23 @@ pub enum Operator {
     Delete,
     Change,
     Yank,
+    /// `gu`
+    Lower,
+    /// `gU`
+    Upper,
+    /// `g~`, and `~` over a visual selection.
+    SwapCase,
+}
+
+impl Operator {
+    /// Whether this operator fills the register.
+    ///
+    /// The case-changing operators do not: `gUW` leaves whatever you last yanked
+    /// alone, so a `p` afterwards still pastes it.
+    #[must_use]
+    pub const fn yanks(self) -> bool {
+        matches!(self, Self::Delete | Self::Change | Self::Yank)
+    }
 }
 
 /// Where insert mode begins relative to the cursor.
@@ -210,6 +227,8 @@ pub enum Command {
     EnterReplace,
     /// `<Esc>` from any mode.
     EnterNormal,
+    /// `<C-o>` — run one normal-mode command, then resume inserting.
+    OneShotNormal,
 
     /// `x` / `X`
     DeleteChar {

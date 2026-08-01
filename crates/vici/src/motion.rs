@@ -260,6 +260,32 @@ fn word_run(buf: &Buffer, at: usize, big: bool) -> Range<usize> {
     start..end
 }
 
+/// End of the whitespace run at `at`, stopping at the row's newline.
+///
+/// The newline is whitespace as far as [`class`] is concerned, but a word object
+/// that swallowed it would join two rows, so it bounds every one of these walks.
+fn blank_run_end(buf: &Buffer, at: usize, big: bool) -> usize {
+    let mut end = at;
+    while class_at(buf, end, big) == Some(Class::Blank) && char_at(buf, end) != Some('\n') {
+        end = advance_char(buf, end);
+    }
+    end
+}
+
+/// Start of the whitespace run ending at `at`, stopping at the previous newline.
+fn blank_run_start(buf: &Buffer, at: usize, big: bool) -> usize {
+    let mut start = at;
+    while start > 0 {
+        let prev = retreat_char(buf, start);
+        if class_at(buf, prev, big) == Some(Class::Blank) && char_at(buf, prev) != Some('\n') {
+            start = prev;
+        } else {
+            break;
+        }
+    }
+    start
+}
+
 // ---------------------------------------------------------------------------
 // find, row-local
 // ---------------------------------------------------------------------------
@@ -478,96 +504,179 @@ pub fn resolve(
 // ---------------------------------------------------------------------------
 
 /// The span a text object covers with the cursor at `at`.
+///
+/// `count` means something different for each kind of object, following vi:
+/// nesting levels for a delimited pair, runs of text for a word, paragraphs for a
+/// paragraph. Quotes do not nest and have nothing to count, so they ignore it.
 #[must_use]
 pub fn object_span(
     buf: &Buffer,
     at: usize,
     scope: ObjectScope,
     object: TextObject,
+    count: usize,
 ) -> Option<Span> {
+    let count = count.max(1);
     match object {
-        TextObject::Word { big } => {
-            let run = word_run(buf, at, big);
-            if run.is_empty() {
-                return None;
-            }
-            let range = match scope {
-                ObjectScope::Inner => run,
-                // `aw` takes the trailing whitespace too, or the leading run when
-                // there is none after.
-                ObjectScope::Around => {
-                    let mut end = run.end;
-                    while class_at(buf, end, big) == Some(Class::Blank)
-                        && char_at(buf, end) != Some('\n')
-                    {
-                        end = advance_char(buf, end);
-                    }
-                    if end == run.end {
-                        let mut start = run.start;
-                        while start > 0 {
-                            let prev = retreat_char(buf, start);
-                            if class_at(buf, prev, big) == Some(Class::Blank)
-                                && char_at(buf, prev) != Some('\n')
-                            {
-                                start = prev;
-                            } else {
-                                break;
-                            }
-                        }
-                        start..end
-                    } else {
-                        run.start..end
-                    }
-                }
-            };
-            Some(Span {
-                range,
-                linewise: false,
-            })
-        }
+        TextObject::Word { big } => word_object(buf, at, scope, big, count),
         TextObject::Delimited { open, close } => {
-            let (start, end) = enclosing_pair(buf, at, open, close)?;
-            let range = match scope {
-                ObjectScope::Inner => advance_char(buf, start)..end,
-                ObjectScope::Around => start..advance_char(buf, end),
-            };
-            Some(Span {
-                range,
-                linewise: false,
-            })
+            let (start, end) = pair_at_level(buf, at, open, close, count)?;
+            Some(pair_span(buf, start, end, scope))
         }
         TextObject::Quoted(quote) => {
             let (start, end) = enclosing_quotes(buf, at, quote)?;
-            let range = match scope {
-                ObjectScope::Inner => advance_char(buf, start)..end,
-                ObjectScope::Around => start..advance_char(buf, end),
-            };
-            Some(Span {
-                range,
-                linewise: false,
-            })
+            Some(pair_span(buf, start, end, scope))
         }
-        TextObject::Paragraph => {
-            let row = buf.byte_to_point(at).row;
-            let blank = |r: usize| buf.row_text(r).trim().is_empty();
-            let mut first = row;
-            while first > 0 && !blank(first - 1) {
-                first -= 1;
+        TextObject::Paragraph => Some(paragraph_object(buf, at, scope, count)),
+    }
+}
+
+/// `iw` / `aw`, with a count taking in further runs of text.
+///
+/// A stretch of whitespace is a run of its own, so `3iw` is word, space, word,
+/// while `3aw` is three words each with the space that follows it.
+fn word_object(
+    buf: &Buffer,
+    at: usize,
+    scope: ObjectScope,
+    big: bool,
+    count: usize,
+) -> Option<Span> {
+    let run = word_run(buf, at, big);
+    if run.is_empty() {
+        return None;
+    }
+    // A word object never joins rows, so the newline ending this one is where a
+    // count runs out.
+    let spent = |end: usize| matches!(char_at(buf, end), None | Some('\n'));
+    let range = match scope {
+        ObjectScope::Inner => {
+            let mut end = run.end;
+            for _ in 1..count {
+                if spent(end) {
+                    break;
+                }
+                end = if class_at(buf, end, big) == Some(Class::Blank) {
+                    blank_run_end(buf, end, big)
+                } else {
+                    word_run(buf, end, big).end
+                };
             }
-            let mut last = row;
-            while last + 1 < buf.len_rows() && !blank(last + 1) {
+            run.start..end
+        }
+        // `aw` takes the trailing whitespace too, or the leading run when there is
+        // none after.
+        ObjectScope::Around => {
+            let mut end = blank_run_end(buf, run.end, big);
+            let trailing = end > run.end;
+            for _ in 1..count {
+                if spent(end) {
+                    break;
+                }
+                end = blank_run_end(buf, word_run(buf, end, big).end, big);
+            }
+            let start = if trailing {
+                run.start
+            } else {
+                blank_run_start(buf, run.start, big)
+            };
+            start..end
+        }
+    };
+    Some(Span {
+        range,
+        linewise: false,
+    })
+}
+
+/// The delimiter pair `count` levels out from the cursor.
+fn pair_at_level(
+    buf: &Buffer,
+    at: usize,
+    open: char,
+    close: char,
+    count: usize,
+) -> Option<(usize, usize)> {
+    let (mut start, mut end) = enclosing_pair(buf, at, open, close)?;
+    // A count climbs out that many levels of nesting: `2di{` takes the pair around
+    // the pair the cursor is in.
+    for _ in 1..count {
+        if start == 0 {
+            return None;
+        }
+        let (outer_start, outer_end) = enclosing_pair(buf, retreat_char(buf, start), open, close)?;
+        // Searching from just before this pair finds an adjacent sibling as readily
+        // as an enclosing one — `(a)(b)` has no second level — so only a pair that
+        // genuinely contains this one counts as a level.
+        if outer_start >= start || outer_end <= end {
+            return None;
+        }
+        (start, end) = (outer_start, outer_end);
+    }
+    Some((start, end))
+}
+
+/// The span between a pair of delimiters, with or without the delimiters.
+fn pair_span(buf: &Buffer, start: usize, end: usize, scope: ObjectScope) -> Span {
+    let range = match scope {
+        ObjectScope::Inner => advance_char(buf, start)..end,
+        ObjectScope::Around => start..advance_char(buf, end),
+    };
+    Span {
+        range,
+        linewise: false,
+    }
+}
+
+/// `ip` / `ap`, blank-row delimited and always linewise.
+fn paragraph_object(buf: &Buffer, at: usize, scope: ObjectScope, count: usize) -> Span {
+    let rows = buf.len_rows();
+    let row = buf.byte_to_point(at).row;
+    let blank = |r: usize| buf.row_text(r).trim().is_empty();
+    let mut first = row;
+    while first > 0 && !blank(first - 1) {
+        first -= 1;
+    }
+    let mut last = row;
+    while last + 1 < rows && !blank(last + 1) {
+        last += 1;
+    }
+    // Counts work as they do for words, with a run of blank rows standing in for a
+    // run of whitespace: `3ip` is paragraph, gap, paragraph, while `2ap` is two
+    // paragraphs each with the gap that follows it.
+    match scope {
+        ObjectScope::Inner => {
+            for _ in 1..count {
+                if last + 1 >= rows {
+                    break;
+                }
+                let want = blank(last + 1);
                 last += 1;
-            }
-            if scope == ObjectScope::Around {
-                while last + 1 < buf.len_rows() && blank(last + 1) {
+                while last + 1 < rows && blank(last + 1) == want {
                     last += 1;
                 }
             }
-            Some(Span {
-                range: row_span(buf, first, last),
-                linewise: true,
-            })
         }
+        ObjectScope::Around => {
+            for step in 0..count {
+                if step > 0 {
+                    if last + 1 >= rows || blank(last + 1) {
+                        break;
+                    }
+                    last += 1;
+                    while last + 1 < rows && !blank(last + 1) {
+                        last += 1;
+                    }
+                }
+                while last + 1 < rows && blank(last + 1) {
+                    last += 1;
+                }
+            }
+        }
+    }
+    Span {
+        range: row_span(buf, first, last),
+        linewise: true,
     }
 }
 
@@ -896,11 +1005,26 @@ mod tests {
         assert_eq!(row_span(&buf, 2, 2), 26..39);
     }
 
+    /// An uncounted object, which is what most of these are about.
+    fn obj(buf: &Buffer, at: usize, scope: ObjectScope, object: TextObject) -> Option<Span> {
+        object_span(buf, at, scope, object, 1)
+    }
+
+    const WORD: TextObject = TextObject::Word { big: false };
+    const PARENS: TextObject = TextObject::Delimited {
+        open: '(',
+        close: ')',
+    };
+    const BRACES: TextObject = TextObject::Delimited {
+        open: '{',
+        close: '}',
+    };
+
     #[test]
     fn inner_and_around_word() {
         let buf = buf();
         // Cursor in `select`.
-        let inner = object_span(&buf, 2, ObjectScope::Inner, TextObject::Word { big: false });
+        let inner = obj(&buf, 2, ObjectScope::Inner, WORD);
         assert_eq!(
             inner,
             Some(Span {
@@ -909,12 +1033,7 @@ mod tests {
             })
         );
         // `aw` takes the following space.
-        let around = object_span(
-            &buf,
-            2,
-            ObjectScope::Around,
-            TextObject::Word { big: false },
-        );
+        let around = obj(&buf, 2, ObjectScope::Around, WORD);
         assert_eq!(
             around,
             Some(Span {
@@ -928,12 +1047,7 @@ mod tests {
     fn around_word_falls_back_to_leading_space() {
         let buf = Buffer::from_text("a bb");
         // No trailing space after `bb`, so `aw` takes the leading one.
-        let around = object_span(
-            &buf,
-            2,
-            ObjectScope::Around,
-            TextObject::Word { big: false },
-        );
+        let around = obj(&buf, 2, ObjectScope::Around, WORD);
         assert_eq!(
             around,
             Some(Span {
@@ -944,66 +1058,134 @@ mod tests {
     }
 
     #[test]
+    fn counted_word_objects_take_further_runs() {
+        let buf = Buffer::from_text("one two three four");
+        let text = |span: Option<Span>| buf.text_in(span.expect("object resolves").range);
+
+        // `iw` counts whitespace as a run of its own, so an odd count ends on a word
+        // and an even one ends on the space after it.
+        assert_eq!(
+            text(object_span(&buf, 0, ObjectScope::Inner, WORD, 1)),
+            "one"
+        );
+        assert_eq!(
+            text(object_span(&buf, 0, ObjectScope::Inner, WORD, 2)),
+            "one "
+        );
+        assert_eq!(
+            text(object_span(&buf, 0, ObjectScope::Inner, WORD, 3)),
+            "one two"
+        );
+
+        // `aw` counts whole words, each with the space that follows.
+        assert_eq!(
+            text(object_span(&buf, 0, ObjectScope::Around, WORD, 2)),
+            "one two "
+        );
+        assert_eq!(
+            text(object_span(&buf, 0, ObjectScope::Around, WORD, 3)),
+            "one two three "
+        );
+
+        // A count that overruns the row stops at its end rather than joining rows.
+        let buf = Buffer::from_text("a b\nc d");
+        let text = |span: Option<Span>| buf.text_in(span.expect("object resolves").range);
+        assert_eq!(
+            text(object_span(&buf, 0, ObjectScope::Inner, WORD, 9)),
+            "a b"
+        );
+        assert_eq!(
+            text(object_span(&buf, 0, ObjectScope::Around, WORD, 9)),
+            "a b"
+        );
+    }
+
+    #[test]
     fn delimited_objects_count_nesting() {
         let buf = Buffer::from_text("f(a, g(b), c)");
-        let parens = TextObject::Delimited {
-            open: '(',
-            close: ')',
-        };
         // Cursor on `b`, innermost pair.
-        let inner = object_span(&buf, 7, ObjectScope::Inner, parens).unwrap();
+        let inner = obj(&buf, 7, ObjectScope::Inner, PARENS).unwrap();
         assert_eq!(buf.text_in(inner.range.clone()), "b");
         // Cursor on the leading `a`, outer pair.
-        let outer = object_span(&buf, 2, ObjectScope::Inner, parens).unwrap();
+        let outer = obj(&buf, 2, ObjectScope::Inner, PARENS).unwrap();
         assert_eq!(buf.text_in(outer.range), "a, g(b), c");
-        let around = object_span(&buf, 2, ObjectScope::Around, parens).unwrap();
+        let around = obj(&buf, 2, ObjectScope::Around, PARENS).unwrap();
         assert_eq!(buf.text_in(around.range), "(a, g(b), c)");
+    }
+
+    #[test]
+    fn a_count_climbs_out_of_nested_delimiters() {
+        let buf = Buffer::from_text("outer { mid { deep } here } end");
+        let text = |scope, count| {
+            buf.text_in(
+                object_span(&buf, 15, scope, BRACES, count)
+                    .expect("object resolves")
+                    .range,
+            )
+        };
+        assert_eq!(text(ObjectScope::Inner, 1), " deep ");
+        assert_eq!(text(ObjectScope::Inner, 2), " mid { deep } here ");
+        assert_eq!(text(ObjectScope::Around, 2), "{ mid { deep } here }");
+
+        // Beyond the outermost pair there is nothing to take.
+        assert_eq!(object_span(&buf, 15, ObjectScope::Inner, BRACES, 3), None);
+
+        // Siblings are not levels: `(a)(b)` encloses nothing, however it is read.
+        let buf = Buffer::from_text("(a)(b)");
+        assert_eq!(object_span(&buf, 4, ObjectScope::Inner, PARENS, 2), None);
     }
 
     #[test]
     fn cursor_on_the_delimiter_counts_as_inside() {
         let buf = Buffer::from_text("f(abc)");
-        let parens = TextObject::Delimited {
-            open: '(',
-            close: ')',
-        };
-        let inner = object_span(&buf, 1, ObjectScope::Inner, parens).unwrap();
+        let inner = obj(&buf, 1, ObjectScope::Inner, PARENS).unwrap();
         assert_eq!(buf.text_in(inner.range), "abc");
     }
 
     #[test]
     fn unbalanced_delimiters_resolve_to_nothing() {
         let buf = Buffer::from_text("no parens here");
-        assert_eq!(
-            object_span(
-                &buf,
-                3,
-                ObjectScope::Inner,
-                TextObject::Delimited {
-                    open: '(',
-                    close: ')'
-                }
-            ),
-            None
-        );
+        assert_eq!(obj(&buf, 3, ObjectScope::Inner, PARENS), None);
     }
 
     #[test]
     fn quoted_objects() {
         let buf = Buffer::from_text("where name = 'dave'");
         let quoted = TextObject::Quoted('\'');
-        let inner = object_span(&buf, 15, ObjectScope::Inner, quoted).unwrap();
+        let inner = obj(&buf, 15, ObjectScope::Inner, quoted).unwrap();
         assert_eq!(buf.text_in(inner.range), "dave");
-        let around = object_span(&buf, 15, ObjectScope::Around, quoted).unwrap();
+        let around = obj(&buf, 15, ObjectScope::Around, quoted).unwrap();
         assert_eq!(buf.text_in(around.range), "'dave'");
+        // Quotes do not nest, so a count has nothing to climb and is ignored.
+        let counted = object_span(&buf, 15, ObjectScope::Inner, quoted, 3).unwrap();
+        assert_eq!(buf.text_in(counted.range), "dave");
     }
 
     #[test]
     fn paragraph_objects_are_linewise() {
         let buf = Buffer::from_text("one\ntwo\n\nthree");
-        let span = object_span(&buf, 0, ObjectScope::Inner, TextObject::Paragraph).unwrap();
+        let span = obj(&buf, 0, ObjectScope::Inner, TextObject::Paragraph).unwrap();
         assert!(span.linewise);
         assert_eq!(buf.text_in(span.range), "one\ntwo\n");
+    }
+
+    #[test]
+    fn counted_paragraph_objects() {
+        let buf = Buffer::from_text("one\n\ntwo\n\nthree");
+        let para = TextObject::Paragraph;
+        let text = |scope, count| {
+            buf.text_in(
+                object_span(&buf, 0, scope, para, count)
+                    .expect("object resolves")
+                    .range,
+            )
+        };
+        // A gap is a run of its own for `ip`, just as whitespace is for `iw`.
+        assert_eq!(text(ObjectScope::Inner, 2), "one\n\n");
+        assert_eq!(text(ObjectScope::Inner, 3), "one\n\ntwo\n");
+        // `ap` takes each paragraph with the gap after it.
+        assert_eq!(text(ObjectScope::Around, 1), "one\n\n");
+        assert_eq!(text(ObjectScope::Around, 2), "one\n\ntwo\n\n");
     }
 
     #[test]

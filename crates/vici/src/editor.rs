@@ -93,6 +93,8 @@ pub struct Editor<H: History = LinearHistory> {
     replay_depth: usize,
     /// True while an insert session's undo group is open.
     insert_group: bool,
+    /// The mode a `<C-o>` will hand back to once its one command has run.
+    resume: Option<Mode>,
 }
 
 impl Default for Editor<LinearHistory> {
@@ -131,6 +133,7 @@ impl<H: History> Editor<H> {
             macros: BTreeMap::new(),
             replay_depth: 0,
             insert_group: false,
+            resume: None,
         }
     }
 
@@ -149,6 +152,16 @@ impl<H: History> Editor<H> {
     #[must_use]
     pub fn mode(&self) -> Mode {
         self.mode
+    }
+
+    /// The mode a `<C-o>` is holding open, if one is in flight.
+    ///
+    /// [`Self::mode`] reports [`Mode::Normal`] during a `<C-o>`, because that is
+    /// the grammar in force. This is how a host knows to show vi's
+    /// `-- (insert) --` instead of plain `-- INSERT --`.
+    #[must_use]
+    pub fn resuming(&self) -> Option<Mode> {
+        self.resume
     }
 
     /// Cursor position as a byte offset.
@@ -246,9 +259,17 @@ impl<H: History> Editor<H> {
             script.push(key);
         }
 
+        // Whether a `<C-o>` was already in flight *before* this key, so that the
+        // `<C-o>` itself does not immediately spend the turn it just bought.
+        let one_shot = self.resume.is_some();
         match self.pending.feed(key, self.mode, &self.keymap) {
-            Resolution::Pending | Resolution::Cancelled { .. } => Vec::new(),
-            Resolution::Rejected { .. } => vec![Effect::Bell],
+            Resolution::Pending => Vec::new(),
+            // `<C-o>d<Esc>` abandons the command. Spend the `<C-o>` on it rather
+            // than leaving it armed for whatever gets typed next.
+            Resolution::Cancelled { .. } => self.spend_one_shot(one_shot, Vec::new()),
+            // A `<C-o>` aimed at a key that means nothing beeps and hands you back,
+            // rather than stranding you in a mode you never asked for.
+            Resolution::Rejected { .. } => self.spend_one_shot(one_shot, vec![Effect::Bell]),
             Resolution::Command {
                 command,
                 count,
@@ -256,7 +277,7 @@ impl<H: History> Editor<H> {
             } => {
                 let effects = self.run(command, count);
                 self.note_change(command, &consumed);
-                effects
+                self.spend_one_shot(one_shot, effects)
             }
         }
     }
@@ -285,6 +306,7 @@ impl<H: History> Editor<H> {
         self.anchor = None;
         self.pending.reset();
         self.mode = Mode::Normal;
+        self.resume = None;
         edit
     }
 
@@ -293,6 +315,10 @@ impl<H: History> Editor<H> {
     fn bound(&self) -> Bound {
         match self.mode {
             Mode::Insert | Mode::Replace => Bound::PastEnd,
+            // A `<C-o>` command keeps insert's past-the-end caret, so typing at the
+            // end of a row and reaching for one command comes back to the column
+            // you left rather than one short of it.
+            Mode::Normal if self.resume.is_some() => Bound::PastEnd,
             Mode::Normal | Mode::Visual(_) => Bound::OnChar,
         }
     }
@@ -371,7 +397,7 @@ impl<H: History> Editor<H> {
             }
 
             Command::SelectObject { scope, object } => {
-                match motion::object_span(self.buffer(), self.cursor, scope, object) {
+                match motion::object_span(self.buffer(), self.cursor, scope, object, repeat) {
                     Some(span) => {
                         self.anchor = Some(span.range.start);
                         let end = motion::clamp(
@@ -401,8 +427,25 @@ impl<H: History> Editor<H> {
                 }
             }
 
+            Command::OneShotNormal => {
+                // Bound in the insert layer alone, so the mode recorded here is
+                // always the one to come back to.
+                self.resume = Some(self.mode);
+                // The session's undo group closes: vi breaks the undo sequence at a
+                // `<C-o>`, so what you typed before it, the command itself, and what
+                // you type after are three steps. `finish_one_shot` reopens it.
+                self.close_insert_group();
+                // Deliberately none of `EnterNormal`'s leaving-insert work — no step
+                // left, no sticky refresh. Staying put is the whole point.
+                self.set_mode(Mode::Normal, &mut effects);
+            }
+
             Command::EnterNormal => {
-                let leaving_insert = matches!(self.mode, Mode::Insert | Mode::Replace);
+                // `<C-o><Esc>` leaves insert for good rather than resuming it, and
+                // the caret is still sitting where insert left it — so this counts
+                // as leaving insert even though the mode is already Normal.
+                let leaving_insert = matches!(self.mode, Mode::Insert | Mode::Replace)
+                    || self.resume.take().is_some();
                 self.close_insert_group();
                 self.anchor = None;
                 if leaving_insert {
@@ -438,8 +481,7 @@ impl<H: History> Editor<H> {
                     self.yank(&range, false);
                     let start = range.start;
                     self.edit(range, "", &mut effects);
-                    let at = motion::clamp(self.buffer(), start, Bound::OnChar);
-                    self.place_cursor(at);
+                    self.place_cursor(start);
                 }
             }
 
@@ -465,8 +507,7 @@ impl<H: History> Editor<H> {
                         .map(swap_case)
                         .collect();
                     self.edit(self.cursor..end, &swapped, &mut effects);
-                    let at = motion::clamp(self.buffer(), end, Bound::OnChar);
-                    self.place_cursor(at);
+                    self.place_cursor(end);
                 }
             }
 
@@ -647,8 +688,12 @@ impl<H: History> Editor<H> {
     ///
     /// Motions are the deliberate exception: [`Self::update_sticky`] preserves
     /// `$`'s stickiness, which an unconditional refresh would destroy.
+    ///
+    /// `byte` is clamped to whatever the current mode allows, so a caller that has
+    /// just deleted the text it was aiming at need not work out where the end of the
+    /// row went — and a `<C-o>` command keeps insert's past-the-end caret.
     fn place_cursor(&mut self, byte: usize) {
-        self.cursor = byte;
+        self.cursor = motion::clamp(self.buffer(), byte, self.bound());
         self.sticky = motion::grapheme_col(self.buffer(), self.cursor);
     }
 
@@ -678,7 +723,6 @@ impl<H: History> Editor<H> {
         let at = revert
             .cursor
             .unwrap_or_else(|| revert.edits[revert.edits.len() - 1].start_byte);
-        let at = motion::clamp(self.buffer(), at, self.bound());
         self.place_cursor(at);
     }
 
@@ -702,6 +746,21 @@ impl<H: History> Editor<H> {
                     motion
                 };
 
+                // Resolution keeps the `RepeatFind` form, because that is what tells
+                // `motion::resolve` to skip the target a `t` is already parked on.
+                // Operator semantics have to come from the concrete find it stands
+                // for, or `d;` after `f,` stops one character short.
+                let semantics = self.effective(motion);
+                // An exclusive motion's landing place is the span's *end boundary*,
+                // not somewhere the cursor has to be able to sit, so it may be one
+                // past the last character — otherwise `dw` on the last word of the
+                // file leaves its final character behind. An inclusive motion does
+                // land on a character, and extends over it below.
+                let bound = if semantics.is_inclusive() {
+                    Bound::OnChar
+                } else {
+                    Bound::PastEnd
+                };
                 let landed = motion::resolve(
                     buf,
                     self.cursor,
@@ -709,13 +768,8 @@ impl<H: History> Editor<H> {
                     count,
                     self.sticky,
                     self.last_find,
-                    Bound::OnChar,
+                    bound,
                 )?;
-                // Resolution above keeps the `RepeatFind` form, because that is what
-                // tells `motion::resolve` to skip the target a `t` is already parked
-                // on. Operator semantics have to come from the concrete find it
-                // stands for, or `d;` after `f,` stops one character short.
-                let semantics = self.effective(motion);
                 if semantics.is_linewise() {
                     let first = buf.byte_to_point(self.cursor.min(landed)).row;
                     let last = buf.byte_to_point(self.cursor.max(landed)).row;
@@ -743,7 +797,7 @@ impl<H: History> Editor<H> {
                 })
             }
             Target::Object { scope, object } => {
-                motion::object_span(buf, self.cursor, scope, object)
+                motion::object_span(buf, self.cursor, scope, object, count.unwrap_or(1))
             }
             Target::Selection => self.selection().map(|range| Span {
                 range,
@@ -764,17 +818,32 @@ impl<H: History> Editor<H> {
             }
             return;
         }
-        self.yank(&range, linewise);
+        if operator.yanks() {
+            self.yank(&range, linewise);
+        }
         let was_visual = self.mode.is_visual();
 
         match operator {
+            Operator::Lower | Operator::Upper | Operator::SwapCase => {
+                let text = self.buffer().text_in(range.clone());
+                let recased = recase(&text, operator);
+                let start = range.start;
+                self.edit(range, &recased, effects);
+                self.cursor = motion::clamp(self.buffer(), start, self.bound());
+                if linewise {
+                    self.cursor = self.step(self.cursor, Motion::FirstNonBlank, 1, Bound::OnChar);
+                }
+            }
             Operator::Yank => {
-                self.cursor = motion::clamp(self.buffer(), range.start, Bound::OnChar);
+                self.cursor = motion::clamp(self.buffer(), range.start, self.bound());
             }
             Operator::Delete => {
                 let start = range.start;
                 self.edit(range, "", effects);
-                self.cursor = motion::clamp(self.buffer(), start, Bound::OnChar);
+                // `self.bound()`, not `OnChar`: an operator run from a `<C-o>` leaves
+                // the caret where insert wants it, which at the end of a row is one
+                // column further along than normal mode would allow.
+                self.cursor = motion::clamp(self.buffer(), start, self.bound());
                 if linewise {
                     self.cursor = self.step(self.cursor, Motion::FirstNonBlank, 1, Bound::OnChar);
                 }
@@ -852,6 +921,27 @@ impl<H: History> Editor<H> {
             self.doc.history_mut().begin_group(Some(at));
             self.insert_group = true;
         }
+    }
+
+    /// Hand control back to insert once a `<C-o>` command has had its turn.
+    ///
+    /// `armed` is read before the key was fed, so the `<C-o>` that set it up is not
+    /// the command that consumes it.
+    fn spend_one_shot(&mut self, armed: bool, mut effects: Vec<Effect>) -> Vec<Effect> {
+        if !armed {
+            return effects;
+        }
+        // Gone already: `<C-o><Esc>` took it on the way out and meant it.
+        let Some(mode) = self.resume.take() else {
+            return effects;
+        };
+        // A command that opened a mode of its own supersedes the plan: `<C-o>cw` is
+        // already inserting, `<C-o>v` is selecting. Neither should be overridden.
+        if self.mode == Mode::Normal {
+            self.open_insert_group();
+            self.set_mode(mode, &mut effects);
+        }
+        effects
     }
 
     fn close_insert_group(&mut self) {
@@ -961,7 +1051,7 @@ impl<H: History> Editor<H> {
             // One-shot changes record immediately — but only outside a session,
             // whose keys are already accumulating.
             Command::Operate {
-                operator: Operator::Delete,
+                operator: Operator::Delete | Operator::Lower | Operator::Upper | Operator::SwapCase,
                 ..
             }
             | Command::DeleteChar { .. }
@@ -975,6 +1065,19 @@ impl<H: History> Editor<H> {
             }
             _ => {}
         }
+    }
+}
+
+/// Apply a case-changing operator to a stretch of text.
+///
+/// Lowering and raising go through `char::to_lowercase`/`to_uppercase`, which are
+/// one-to-many — `ß` uppercases to `SS` — so the result can be longer than the
+/// input. Swapping stays one-to-one, since there is no sensible reverse of that.
+fn recase(text: &str, operator: Operator) -> String {
+    match operator {
+        Operator::Lower => text.chars().flat_map(char::to_lowercase).collect(),
+        Operator::Upper => text.chars().flat_map(char::to_uppercase).collect(),
+        _ => text.chars().map(swap_case).collect(),
     }
 }
 
@@ -1088,6 +1191,53 @@ mod tests {
     }
 
     #[test]
+    fn counts_apply_to_text_objects() {
+        const NESTED: &str = "outer { mid { deep } here } end";
+
+        // A count on a delimited object climbs out that many levels of nesting.
+        assert_eq!(typed(NESTED, "fpda{"), "outer { mid  here } end");
+        assert_eq!(typed(NESTED, "fp2di{"), "outer {} end");
+        assert_eq!(typed(NESTED, "fp2da{"), "outer  end");
+        // Either side of the operator, as vi's grammar allows.
+        assert_eq!(typed(NESTED, "fpd2i{"), "outer {} end");
+
+        // Past the outermost pair there is nothing to delete, so it rings.
+        let ed = editor(NESTED, "fp3di{");
+        assert_eq!(ed.buffer().to_string(), NESTED);
+
+        // Words count runs, so `2diw` takes the word and the space after it while
+        // `2daw` takes two whole words.
+        assert_eq!(typed("one two three", "2diw"), "two three");
+        assert_eq!(typed("one two three", "3diw"), " three");
+        assert_eq!(typed("one two three", "2daw"), "three");
+
+        // And a count on a visual object extends the selection the same way.
+        let ed = editor(NESTED, "fpv2i{");
+        assert_eq!(
+            ed.selection().map(|range| ed.buffer().text_in(range)),
+            Some(" mid { deep } here ".to_string())
+        );
+    }
+
+    #[test]
+    fn an_exclusive_operator_reaches_the_end_of_the_file() {
+        // The end of an exclusive span is a boundary, not a place the cursor has to
+        // be able to rest, so it may sit one past the last character. Clamping it as
+        // though it were a cursor position left the file's final character behind.
+        assert_eq!(typed("one two", "wdw"), "one ");
+        assert_eq!(typed("one two", "d2w"), "");
+        assert_eq!(typed("one two", "wdW"), "one ");
+        assert_eq!(typed("one two", "wgUw"), "one TWO");
+        // `l` on the last character of the file has the same shape.
+        assert_eq!(typed("abc", "$dl"), "ab");
+        assert_eq!(typed("abc", "$x"), "ab");
+        // Inclusive motions are unaffected: they land *on* a character and extend
+        // over it, so `d$` must still stop before the newline.
+        assert_eq!(typed("ab\ncd", "d$"), "\ncd");
+        assert_eq!(typed("one two", "de"), " two");
+    }
+
+    #[test]
     fn change_word_behaves_like_change_to_word_end() {
         // vi's famous irregularity: `cw` must not swallow the following space.
         assert_eq!(
@@ -1128,6 +1278,87 @@ mod tests {
             typed(SQL, "ddp"),
             "from users\nselect id, name\nwhere id = 1"
         );
+    }
+
+    // -- case ------------------------------------------------------------
+
+    #[test]
+    fn case_operators_over_motions() {
+        assert_eq!(typed("one two", "gUw"), "ONE two");
+        assert_eq!(typed("ONE TWO", "guw"), "one TWO");
+        assert_eq!(typed("One Two", "g~w"), "oNE Two");
+        // Counts multiply through the motion, either side of the operator.
+        assert_eq!(typed("one two three", "2gUw"), "ONE TWO three");
+        assert_eq!(typed("one two three", "gU2w"), "ONE TWO three");
+        assert_eq!(typed("one two three", "2gU2w"), "ONE TWO THREE");
+        // And over text objects and finds, like any other operator.
+        assert_eq!(typed("one two", "wgUiw"), "one TWO");
+        assert_eq!(typed("one two", "gUt "), "ONE two");
+        assert_eq!(typed("a (b c) d", "fbgUi("), "a (B C) d");
+    }
+
+    #[test]
+    fn case_operators_over_whole_rows() {
+        // Doubled, and vi's short second half — `gUU` as well as `gUgU`.
+        assert_eq!(typed("one two\nthree", "gUU"), "ONE TWO\nthree");
+        assert_eq!(typed("one two\nthree", "gUgU"), "ONE TWO\nthree");
+        assert_eq!(typed("One Two\nthree", "g~~"), "oNE tWO\nthree");
+        assert_eq!(typed("one\ntwo\nthree", "2guu"), "one\ntwo\nthree");
+        assert_eq!(typed("ONE\nTWO\nthree", "2guu"), "one\ntwo\nthree");
+        // Mismatched halves are a syntax error, as `dc` is.
+        let ed = editor("one two", "gUd");
+        assert_eq!(ed.buffer().to_string(), "one two");
+    }
+
+    #[test]
+    fn case_operators_leave_the_register_alone() {
+        // `yw` then `gUW` then `p` pastes what was yanked, not what was recased.
+        let ed = editor("one two", "ywwgUWP");
+        assert_eq!(ed.buffer().to_string(), "one one TWO");
+        assert_eq!(ed.register().text, "one ");
+    }
+
+    #[test]
+    fn case_changes_on_a_visual_selection() {
+        // In visual mode `u` and `U` are case changes rather than undo, and `~`
+        // covers the whole selection rather than one character.
+        assert_eq!(typed("one two three", "vwU"), "ONE Two three");
+        assert_eq!(typed("ONE TWO three", "vwu"), "one tWO three");
+        assert_eq!(typed("One Two", "v$~"), "oNE tWO");
+        // Linewise, and the selection is dropped afterwards.
+        let ed = editor("one\ntwo\nthree", "VjU");
+        assert_eq!(ed.buffer().to_string(), "ONE\nTWO\nthree");
+        assert_eq!(ed.mode(), Mode::Normal);
+        assert_eq!(ed.selection(), None);
+        // `gU` still works there too, and so does a count on the motion. The
+        // selection includes the character under the cursor, so `2w` takes the `t`
+        // it landed on as well.
+        assert_eq!(typed("one two three", "v2wgU"), "ONE TWO Three");
+    }
+
+    #[test]
+    fn case_changes_are_undoable_and_repeatable() {
+        let mut ed = Editor::from_text("one two three");
+        ed.type_keys("gUw").expect("valid keys");
+        assert_eq!(ed.buffer().to_string(), "ONE two three");
+        // One step, and the caret comes back to where the change started.
+        ed.type_keys("u").expect("valid keys");
+        assert_eq!(ed.buffer().to_string(), "one two three");
+        assert_eq!(ed.cursor(), 0);
+
+        // `.` repeats a case change like any other.
+        assert_eq!(typed("one two three", "gUww.w."), "ONE TWO THREE");
+    }
+
+    #[test]
+    fn case_changes_handle_multibyte_text() {
+        // Uppercasing is one-to-many in places, so the text can grow.
+        assert_eq!(typed("straße", "gUiw"), "STRASSE");
+        assert_eq!(typed("CAFÉ NIÑO", "guiw"), "café NIÑO");
+        // And the caret must still land on a character boundary afterwards.
+        let ed = editor("straße rest", "gUiw");
+        assert_eq!(ed.cursor(), 0);
+        assert_eq!(ed.buffer().to_string(), "STRASSE rest");
     }
 
     // -- simple edits ----------------------------------------------------
@@ -1238,6 +1469,122 @@ mod tests {
     fn backspace_crosses_a_row_boundary() {
         // `h` will not leave a row, but backspace must.
         assert_eq!(typed("ab\ncd", "ji<BS><Esc>"), "abcd");
+    }
+
+    #[test]
+    fn one_shot_normal_runs_a_command_and_comes_back() {
+        // `<C-o>` buys exactly one normal-mode command, then hands back the mode it
+        // came from, caret where the command left it.
+        let ed = editor("one two", "i<C-o>wX<Esc>");
+        assert_eq!(ed.buffer().to_string(), "one Xtwo");
+        assert_eq!(ed.mode(), Mode::Normal);
+
+        // Only one: the second `w` is text again.
+        assert_eq!(typed("one two", "i<C-o>ww<Esc>"), "one wtwo");
+
+        // Counts belong to the command, not the `<C-o>`.
+        assert_eq!(typed("a\nb\nc\nd", "i<C-o>2ddX<Esc>"), "Xc\nd");
+
+        // The whole vocabulary is available, including operators over motions and
+        // the doubled forms.
+        assert_eq!(typed("one two", "A<C-o>dbthree<Esc>"), "one three");
+        assert_eq!(typed("keep\nlose", "ji<C-o>ddX<Esc>"), "Xkeep");
+    }
+
+    #[test]
+    fn one_shot_normal_is_visible_to_the_host() {
+        // The grammar in force is normal mode's, and `mode()` says so — but a host
+        // still has to render `-- (insert) --`, so the pending mode is queryable.
+        let ed = editor("abc", "i<C-o>");
+        assert_eq!(ed.mode(), Mode::Normal);
+        assert_eq!(ed.resuming(), Some(Mode::Insert));
+
+        // Replace mode uses the insert grammar, so it gets `<C-o>` too, and comes
+        // back to overwriting rather than inserting.
+        let ed = editor("abcdef", "R<C-o>2lXY<Esc>");
+        assert_eq!(ed.resuming(), None);
+        assert_eq!(ed.buffer().to_string(), "abXYef");
+
+        // Spent, and back to insert.
+        let ed = editor("abc", "i<C-o>l");
+        assert_eq!(ed.mode(), Mode::Insert);
+        assert_eq!(ed.resuming(), None);
+    }
+
+    #[test]
+    fn one_shot_normal_keeps_the_caret_past_the_end_of_the_row() {
+        // The caret is an insert caret throughout: normal mode would clamp it onto
+        // the last character, and coming back would land a column short of where
+        // the user was typing.
+        let ed = editor("ab\ncd", "A<C-o>");
+        assert_eq!(ed.cursor(), 2);
+        assert_eq!(typed("ab\ncd", "A<C-o>zzX<Esc>"), "abX\ncd");
+
+        // And `<C-o><Esc>` leaves insert for good, clamping as `<Esc>` always does.
+        let ed = editor("ab\ncd", "A<C-o><Esc>");
+        assert_eq!(ed.mode(), Mode::Normal);
+        assert_eq!(ed.resuming(), None);
+        assert_eq!(ed.cursor(), 1);
+    }
+
+    #[test]
+    fn one_shot_normal_yields_to_a_command_that_picks_its_own_mode() {
+        // `<C-o>cw` is already inserting when it hands back, so nothing to restore.
+        let ed = editor("one two", "i<C-o>cwX<Esc>");
+        assert_eq!(ed.buffer().to_string(), "X two");
+
+        // `<C-o>v` means the user wants a selection, not another character typed.
+        let ed = editor("abc", "i<C-o>v");
+        assert_eq!(ed.mode(), Mode::Visual(VisualKind::Char));
+        assert_eq!(ed.resuming(), None);
+    }
+
+    #[test]
+    fn a_wasted_one_shot_hands_back_rather_than_stranding_you() {
+        // `<C-o>` then a key that means nothing in normal mode: bell, and back to
+        // insert. Being left in normal mode would silently reinterpret every
+        // keystroke that followed.
+        let mut ed = Editor::from_text("abc");
+        ed.type_keys("i<C-o>").expect("valid keys");
+        let effects = ed.type_keys("<C-y>").expect("valid keys");
+        assert!(effects.contains(&Effect::Bell));
+        assert_eq!(ed.mode(), Mode::Insert);
+        assert_eq!(typed("abc", "i<C-o><C-y>X<Esc>"), "Xabc");
+
+        // Abandoning a half-typed command spends the `<C-o>` too, for the same
+        // reason — `d` alone leaves nothing to interpret the next key against.
+        let ed = editor("abc", "i<C-o>d<Esc>");
+        assert_eq!(ed.mode(), Mode::Insert);
+        assert_eq!(ed.resuming(), None);
+    }
+
+    #[test]
+    fn one_shot_normal_breaks_the_undo_sequence() {
+        // vi splits the insert session at a `<C-o>`: what came before, the command
+        // itself, and what came after are three separate steps.
+        let mut ed = Editor::from_text("one two");
+        ed.type_keys("ipre <C-o>dw post<Esc>").expect("valid keys");
+        assert_eq!(ed.buffer().to_string(), "pre  posttwo");
+        assert_eq!(ed.document().history().undo_depth(), 3);
+
+        ed.type_keys("u").expect("valid keys");
+        assert_eq!(ed.buffer().to_string(), "pre two");
+        ed.type_keys("u").expect("valid keys");
+        assert_eq!(ed.buffer().to_string(), "pre one two");
+        ed.type_keys("u").expect("valid keys");
+        assert_eq!(ed.buffer().to_string(), "one two");
+    }
+
+    #[test]
+    fn dot_repeats_a_session_containing_a_one_shot() {
+        // `.` replays raw keys, so the `<C-o>` and its command ride along with the
+        // text that was typed around it.
+        assert_eq!(typed("one two\nthree four", "i<C-o>Dx<Esc>j0."), "x\nx");
+
+        // And the replayed command re-aims from wherever the caret is now rather
+        // than reproducing the offset it hit the first time: the second `w` starts
+        // from column 0 of the changed row, so both `X`s land on a word start.
+        assert_eq!(typed("one two", "i<C-o>wX<Esc>0."), "one XXtwo");
     }
 
     #[test]

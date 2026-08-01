@@ -396,12 +396,17 @@ impl App {
             return Line::from(format!("{}{}", prompt.sigil(), prompt.input));
         }
 
-        let (label, colour) = match self.editor.mode() {
-            Mode::Normal => (" NORMAL ", Color::Blue),
-            Mode::Insert => (" INSERT ", Color::Green),
-            Mode::Replace => (" REPLACE ", Color::Red),
-            Mode::Visual(VisualKind::Char) => (" VISUAL ", Color::Magenta),
-            Mode::Visual(VisualKind::Line) => (" V-LINE ", Color::Magenta),
+        // A `<C-o>` runs one normal-mode command with an insert session still open,
+        // so the mode in force and the mode you are about to get back are different.
+        // vi shows the latter in parentheses; without it the bracket is invisible.
+        let (label, colour) = match (self.editor.mode(), self.editor.resuming()) {
+            (_, Some(Mode::Replace)) => (" (REPLACE) ", Color::Red),
+            (_, Some(_)) => (" (INSERT) ", Color::Green),
+            (Mode::Normal, None) => (" NORMAL ", Color::Blue),
+            (Mode::Insert, None) => (" INSERT ", Color::Green),
+            (Mode::Replace, None) => (" REPLACE ", Color::Red),
+            (Mode::Visual(VisualKind::Char), None) => (" VISUAL ", Color::Magenta),
+            (Mode::Visual(VisualKind::Line), None) => (" V-LINE ", Color::Magenta),
         };
 
         let point = self.editor.cursor_point();

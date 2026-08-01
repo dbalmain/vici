@@ -60,10 +60,6 @@
       short
       another quite long row, ending here
 
-Note: This doesn't quite work like vim. When I hit `$`, it sticks to the end even on longer lines. I don't mind this behaviour
-too much, but it seems to be something extra that we're doing, so it would be good to remove if it reduces the code. Otherwise, it
-works perfectlu.
-
 --------------------------------------------------------------
  3. MOTIONS — words
 --------------------------------------------------------------
@@ -123,6 +119,28 @@ works perfectlu.
     `cw` on the last word of a row is the classic irregularity:
     it must not swallow the newline.
 
+    An exclusive motion reaches one past the last character, so on
+    the very last word of the file `dw` takes all of it. Go to the
+    end with G$ and check — this used to leave one character.
+
+ Case, over the same motions and objects:
+[ ] gUw  upper-case a word     [ ] guw  lower-case it
+[ ] g~w  swap case over a word
+[ ] 2gUw  two words            [ ] gU2w  the count either side
+[ ] gUiw  over a text object   [ ] gUi(  over a parens block
+[ ] gUt,  over a find
+      make this shout, then quieten it down again
+[ ] gUU  this whole row        [ ] gUgU  the long form
+[ ] guu  [ ] g~~  the same for lower and swap
+[ ] 2guu  this row and the next
+
+    Case changes do not touch the register: yank something, then
+    gUW, then p — you should get what you yanked. Watch reg[] in
+    the status bar stay put.
+
+    gUiw on `straße` gives STRASSE — one character becoming two is
+    why these go through the full Unicode mapping.
+
 --------------------------------------------------------------
  7. DOUBLED OPERATORS — whole rows
 --------------------------------------------------------------
@@ -155,33 +173,52 @@ works perfectlu.
 [x] ci(  change inside
 
       block { nested { deep } here } end
-[ ] di{  inner braces — nesting-aware
-[ ] da{                      [ ] diB  the `B` alias
+[x] di{  inner braces — nesting-aware
+[x] da{                      [x] diB  the `B` alias
       list [ one, two ] and array [ three ]
-[ ] di[                      [ ] da[
+[x] di[                      [x] da[
       generic <T, U> here
-[ ] di<                      [ ] da<
+[x] di<                      [x] da<
 
       say "hello there" and 'goodbye' and `tick`
-[ ] di"  inner double quotes [ ] da"
-[ ] di'                      [ ] ci'
-[ ] di`
+[x] di"  inner double quotes [x] da"
+[x] di'                      [x] ci'
+[x] di`
 
-[ ] dip  inner paragraph — the blank-line-delimited block
-[ ] dap
+[x] dip  inner paragraph — the blank-line-delimited block
+[x] dap
 
     Note: `i(` needs the cursor inside or on a delimiter. On the
     `c` of `call` it correctly does nothing. That is not a bug.
+
+ Counts, which mean something different for each kind of object:
+      outer { mid { deep } here } end
+[ ] di{   the innermost braces, from the cursor on `deep`
+[ ] 2di{  one level further out — a count climbs the nesting
+[ ] 2da{  the same, taking the braces with it
+[ ] 3di{  nothing to climb, so it rings the bell
+[ ] d2i{  the count works either side of the operator
+
+      one two three four
+[ ] 2diw  a word and the space after it — whitespace is a run
+[ ] 3diw  word, space, word
+[ ] 2daw  two whole words
+[ ] 9diw  stops at the row's end rather than joining rows
+
+[ ] 2dip  a paragraph and the gap after it
+[ ] 2dap  two paragraphs, each with its gap
+[ ] 2di"  quotes do not nest, so the count is ignored
+[ ] v2i{  a count extends a visual selection the same way
 
 --------------------------------------------------------------
  9. SINGLE-KEY EDITS
 --------------------------------------------------------------
 
       mangle THIS text however you like
-[ ] x    delete the character under the cursor
-[ ] <Del> same
-[ ] X    delete the character before it
-[ ] rZ   replace one character with Z
+[x] x    delete the character under the cursor
+[x] <Del> same
+[x] X    delete the character before it
+[x] rZ   replace one character with Z
 [ ] ~    swap case, and advance
 [ ] 3~   swap three
 [ ] J    join the next row onto this one
@@ -261,6 +298,16 @@ works perfectlu.
     The selection includes the character under the cursor, so
     what you see is what gets deleted.
 
+ Case, on the selection rather than one character:
+[ ] vwU  upper-case it     [ ] vwu  lower-case it
+[ ] v$~  swap case across the selection
+[ ] VjU  two whole rows
+[ ] vwgU  the operator form works here too
+
+    `u` in visual mode is a case change, not undo — that is vi, and
+    it surprises people. `~` covers the whole selection instead of
+    the single character it takes in normal mode.
+
 --------------------------------------------------------------
  14. INSERT-MODE KEYS
 --------------------------------------------------------------
@@ -274,6 +321,28 @@ works perfectlu.
 [ ] <Esc>   leave        [ ] <C-c>  also leaves
 [ ] arrows move without leaving insert mode
       edit inside me
+
+ <C-o> — one normal-mode command, then straight back to inserting:
+[ ] <C-o>zz  centre the view without losing your place
+[ ] <C-o>D   wipe the rest of the row and keep typing
+[ ] <C-o>0   jump to the start and carry on there
+[ ] <C-o>2dd  counts belong to the command, not the <C-o>
+[ ] <C-o>w   one command only — the next w is text again
+      come and edit somewhere in the middle of this row
+[ ] <C-o>cw  a command that opens its own mode keeps it
+[ ] <C-o><Esc>  leaves insert for good
+[ ] <C-o> then a key that means nothing — bell, and you are
+    handed back to insert rather than stranded in normal
+
+    The status bar shows (INSERT) in parentheses while a <C-o> is
+    in flight, and the cursor turns into a block: the grammar in
+    force is normal mode's, but the session is still open.
+
+    At the end of a row the caret stays past the last character,
+    so A then <C-o>zz then typing continues where you were.
+
+    <C-o> breaks the undo sequence, as vi does: type, <C-o>D, type
+    more, then <Esc> — that is three `u` presses, not one.
 
 --------------------------------------------------------------
  15. VIEWPORT

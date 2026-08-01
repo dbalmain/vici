@@ -234,7 +234,18 @@ impl Keymap {
         // -- operators -------------------------------------------------------
         map.bind_spec(Layer::Normal, "d", Op(Operator::Delete))
             .bind_spec(Layer::Normal, "c", Op(Operator::Change))
-            .bind_spec(Layer::Normal, "y", Op(Operator::Yank));
+            .bind_spec(Layer::Normal, "y", Op(Operator::Yank))
+            .bind_spec(Layer::Normal, "gu", Op(Operator::Lower))
+            .bind_spec(Layer::Normal, "gU", Op(Operator::Upper))
+            .bind_spec(Layer::Normal, "g~", Op(Operator::SwapCase));
+
+        // The bare keys, so that the doubled row forms work: an operator is doubled
+        // when the same operator arrives twice, and vi accepts the short second half
+        // — `gUU` as well as `gUgU`. With an operator pending these keys were a
+        // syntax error anyway, so shadowing `u` here costs nothing.
+        map.bind_spec(Layer::Operator, "u", Op(Operator::Lower))
+            .bind_spec(Layer::Operator, "U", Op(Operator::Upper))
+            .bind_spec(Layer::Operator, "~", Op(Operator::SwapCase));
 
         // `D` and `C` are `d$` and `c$` pre-applied. Binding them as whole commands
         // rather than as an operator awaiting a target is what lets them take a
@@ -312,6 +323,12 @@ impl Keymap {
             .bind_spec(Layer::Visual, "a", Scope(ObjectScope::Around))
             .bind_spec(Layer::Visual, "x", Op(Operator::Delete))
             .bind_spec(Layer::Visual, "s", Op(Operator::Change))
+            // Over a selection these are case changes, not undo and not a one-
+            // character swap. `gu`/`gU`/`g~` reach the same operators through the
+            // normal layer, so they need no separate binding here.
+            .bind_spec(Layer::Visual, "u", Op(Operator::Lower))
+            .bind_spec(Layer::Visual, "U", Op(Operator::Upper))
+            .bind_spec(Layer::Visual, "~", Op(Operator::SwapCase))
             .bind_spec(Layer::Visual, "v", Cmd(C::EnterVisual(VisualKind::Char)))
             .bind_spec(Layer::Visual, "V", Cmd(C::EnterVisual(VisualKind::Line)));
 
@@ -321,6 +338,7 @@ impl Keymap {
             .bind_spec(Layer::Insert, "<CR>", Cmd(C::InsertNewline))
             .bind_spec(Layer::Insert, "<BS>", Cmd(C::DeleteBack))
             .bind_spec(Layer::Insert, "<C-w>", Cmd(C::DeleteWordBack))
+            .bind_spec(Layer::Insert, "<C-o>", Cmd(C::OneShotNormal))
             .bind_spec(Layer::Insert, "<Tab>", Cmd(C::InsertText('\t')))
             .bind_spec(Layer::Insert, "<Left>", Cmd(C::Move(Motion::Left)))
             .bind_spec(Layer::Insert, "<Right>", Cmd(C::Move(Motion::Right)))
