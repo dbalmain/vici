@@ -20,7 +20,7 @@
 //! font and tab-stop knowledge; when the view supplies a layout, this is where it
 //! plugs in.
 
-use core::ops::Range;
+use core::ops::{Range, RangeInclusive};
 
 use unicode_segmentation::UnicodeSegmentation;
 
@@ -36,11 +36,57 @@ pub struct Find {
     pub till: bool,
 }
 
-/// A resolved region, and whether an operator should treat it as whole rows.
+/// A resolved region, expressed in the granularity that produced it.
+///
+/// A linewise region names **rows**, not bytes. The byte range a row range
+/// corresponds to depends on what is being done to it — deleting a row takes a
+/// row terminator with it where rewriting the row's content must not — so the
+/// conversion happens per operator, at the point of edit, and never in reverse.
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Span {
-    pub range: Range<usize>,
-    pub linewise: bool,
+pub enum Span {
+    /// A half-open byte range on UTF-8 boundaries.
+    Chars(Range<usize>),
+    /// An inclusive range of rows that exist in the buffer.
+    Lines(RangeInclusive<usize>),
+}
+
+impl Span {
+    #[must_use]
+    pub const fn is_linewise(&self) -> bool {
+        matches!(self, Self::Lines(_))
+    }
+
+    /// The bytes an operator rewrites **in place**, leaving row structure alone:
+    /// from the first row's start to the last row's content end, excluding its
+    /// terminator. What a linewise change or recase acts on.
+    #[must_use]
+    pub fn content_range(&self, buf: &Buffer) -> Range<usize> {
+        match self {
+            Self::Chars(range) => range.clone(),
+            Self::Lines(rows) => {
+                buf.row_range(*rows.start()).start..buf.row_content_range(*rows.end()).end
+            }
+        }
+    }
+
+    /// The bytes a delete removes, including a row terminator so that `dd`
+    /// takes the row break with it — see [`row_span`] for which one.
+    #[must_use]
+    pub fn delete_range(&self, buf: &Buffer) -> Range<usize> {
+        match self {
+            Self::Chars(range) => range.clone(),
+            Self::Lines(rows) => row_span(buf, *rows.start(), *rows.end()),
+        }
+    }
+
+    /// Where the caret belongs once the operator is done.
+    #[must_use]
+    pub fn home(&self, buf: &Buffer) -> usize {
+        match self {
+            Self::Chars(range) => range.start,
+            Self::Lines(rows) => buf.row_content_range(*rows.start()).start,
+        }
+    }
 }
 
 /// Where the cursor is allowed to rest.
@@ -55,7 +101,7 @@ pub enum Bound {
 }
 
 /// Sentinel sticky column meaning "stay at the end of the row", as `$` does.
-pub const STICKY_END: usize = usize::MAX;
+pub(crate) const STICKY_END: usize = usize::MAX;
 
 // ---------------------------------------------------------------------------
 // character stepping
@@ -385,30 +431,6 @@ fn find_in_row(
 // motion resolution
 // ---------------------------------------------------------------------------
 
-/// The rows a span covers.
-///
-/// Nearly the inverse of [`row_span`], but not simply the rows its end bytes sit
-/// on: a linewise span that reaches the final row *starts* at the newline ending
-/// the row above it, because that is the newline `dd` has to take. Reading the
-/// first row straight off `range.start` therefore lands a row too high.
-///
-/// Correcting for that is only safe where the row holding that byte has content
-/// of its own. A span starting on a genuinely empty row starts on that row's own
-/// newline, which is indistinguishable byte for byte — so the emptiness of the
-/// row is what tells the two apart.
-#[must_use]
-pub fn span_rows(buf: &Buffer, range: &Range<usize>) -> (usize, usize) {
-    let mut first = buf.byte_to_point(range.start).row;
-    let content = buf.row_content_range(first);
-    if !content.is_empty() && range.start >= content.end && first + 1 < buf.len_rows() {
-        first += 1;
-    }
-    let last = buf
-        .byte_to_point(range.end.saturating_sub(1).max(range.start))
-        .row;
-    (first, last.max(first))
-}
-
 /// Byte range covering rows `first..=last`, including the final row's newline
 /// when there is one. This is what a linewise operator deletes.
 #[must_use]
@@ -487,7 +509,7 @@ fn screen_motion(buf: &Buffer, motion: Motion, repeat: usize, viewport: Viewport
 
 /// Where `motion` lands, starting from `from`.
 ///
-/// `sticky` is the remembered column for `j`/`k`; [`STICKY_END`] means "row end".
+/// `sticky` is the remembered grapheme column for `j`/`k`.
 /// `last_find` supplies the target for [`Motion::RepeatFind`].
 /// `viewport` is the host's current screen fact for `H`/`M`/`L`.
 ///
@@ -670,10 +692,7 @@ fn word_object(
             start..end
         }
     };
-    Some(Span {
-        range,
-        linewise: false,
-    })
+    Some(Span::Chars(range))
 }
 
 /// The delimiter pair `count` nesting levels from the cursor.
@@ -773,10 +792,7 @@ fn pair_span(buf: &Buffer, start: usize, end: usize, scope: ObjectScope) -> Span
         ObjectScope::Inner => inner_span(buf, start, end),
         ObjectScope::Around => start..advance_char(buf, end),
     };
-    Span {
-        range,
-        linewise: false,
-    }
+    Span::Chars(range)
 }
 
 /// The inside of a pair, following vi's rule for delimiters that own their rows.
@@ -871,10 +887,7 @@ fn paragraph_object(buf: &Buffer, at: usize, scope: ObjectScope, count: usize) -
             }
         }
     }
-    Span {
-        range: row_span(buf, first, last),
-        linewise: true,
-    }
+    Span::Lines(first..=last)
 }
 
 /// Byte offsets of the delimiters enclosing `at`, counting nesting.
@@ -1232,6 +1245,13 @@ mod tests {
         object_span(buf, at, scope, object, 1)
     }
 
+    fn chars(span: Span) -> Range<usize> {
+        match span {
+            Span::Chars(range) => range,
+            Span::Lines(rows) => panic!("expected a character span, got rows {rows:?}"),
+        }
+    }
+
     const WORD: TextObject = TextObject::Word { big: false };
     const PARENS: TextObject = TextObject::Delimited {
         open: '(',
@@ -1247,22 +1267,10 @@ mod tests {
         let buf = buf();
         // Cursor in `select`.
         let inner = obj(&buf, 2, ObjectScope::Inner, WORD);
-        assert_eq!(
-            inner,
-            Some(Span {
-                range: 0..6,
-                linewise: false
-            })
-        );
+        assert_eq!(inner, Some(Span::Chars(0..6)));
         // `aw` takes the following space.
         let around = obj(&buf, 2, ObjectScope::Around, WORD);
-        assert_eq!(
-            around,
-            Some(Span {
-                range: 0..7,
-                linewise: false
-            })
-        );
+        assert_eq!(around, Some(Span::Chars(0..7)));
     }
 
     #[test]
@@ -1270,19 +1278,13 @@ mod tests {
         let buf = Buffer::from_text("a bb");
         // No trailing space after `bb`, so `aw` takes the leading one.
         let around = obj(&buf, 2, ObjectScope::Around, WORD);
-        assert_eq!(
-            around,
-            Some(Span {
-                range: 1..4,
-                linewise: false
-            })
-        );
+        assert_eq!(around, Some(Span::Chars(1..4)));
     }
 
     #[test]
     fn counted_word_objects_take_further_runs() {
         let buf = Buffer::from_text("one two three four");
-        let text = |span: Option<Span>| buf.text_in(span.expect("object resolves").range);
+        let text = |span: Option<Span>| buf.text_in(chars(span.expect("object resolves")));
 
         // `iw` counts whitespace as a run of its own, so an odd count ends on a word
         // and an even one ends on the space after it.
@@ -1311,7 +1313,7 @@ mod tests {
 
         // A count that overruns the row stops at its end rather than joining rows.
         let buf = Buffer::from_text("a b\nc d");
-        let text = |span: Option<Span>| buf.text_in(span.expect("object resolves").range);
+        let text = |span: Option<Span>| buf.text_in(chars(span.expect("object resolves")));
         assert_eq!(
             text(object_span(&buf, 0, ObjectScope::Inner, WORD, 9)),
             "a b"
@@ -1327,23 +1329,21 @@ mod tests {
         let buf = Buffer::from_text("f(a, g(b), c)");
         // Cursor on `b`, innermost pair.
         let inner = obj(&buf, 7, ObjectScope::Inner, PARENS).unwrap();
-        assert_eq!(buf.text_in(inner.range.clone()), "b");
+        assert_eq!(buf.text_in(chars(inner)), "b");
         // Cursor on the leading `a`, outer pair.
         let outer = obj(&buf, 2, ObjectScope::Inner, PARENS).unwrap();
-        assert_eq!(buf.text_in(outer.range), "a, g(b), c");
+        assert_eq!(buf.text_in(chars(outer)), "a, g(b), c");
         let around = obj(&buf, 2, ObjectScope::Around, PARENS).unwrap();
-        assert_eq!(buf.text_in(around.range), "(a, g(b), c)");
+        assert_eq!(buf.text_in(chars(around)), "(a, g(b), c)");
     }
 
     #[test]
     fn a_count_climbs_out_of_nested_delimiters() {
         let buf = Buffer::from_text("outer { mid { deep } here } end");
         let text = |scope, count| {
-            buf.text_in(
-                object_span(&buf, 15, scope, BRACES, count)
-                    .expect("object resolves")
-                    .range,
-            )
+            buf.text_in(chars(
+                object_span(&buf, 15, scope, BRACES, count).expect("object resolves"),
+            ))
         };
         assert_eq!(text(ObjectScope::Inner, 1), " deep ");
         assert_eq!(text(ObjectScope::Inner, 2), " mid { deep } here ");
@@ -1361,11 +1361,9 @@ mod tests {
     fn a_delimited_object_seeks_forward_when_the_cursor_is_outside() {
         let buf = Buffer::from_text("foo { a { b { c } d } e } baz");
         let text = |count| {
-            buf.text_in(
-                object_span(&buf, 0, ObjectScope::Inner, BRACES, count)
-                    .expect("object resolves")
-                    .range,
-            )
+            buf.text_in(chars(
+                object_span(&buf, 0, ObjectScope::Inner, BRACES, count).expect("object resolves"),
+            ))
         };
         // From `foo`, level 1 is the outermost pair ahead...
         assert_eq!(text(1), " a { b { c } d } e ");
@@ -1380,12 +1378,12 @@ mod tests {
     fn seeking_descends_into_the_first_nested_pair() {
         let buf = Buffer::from_text("foo { a {b} c {d} e }");
         let span = object_span(&buf, 0, ObjectScope::Inner, BRACES, 2).unwrap();
-        assert_eq!(buf.text_in(span.range), "b");
+        assert_eq!(buf.text_in(chars(span)), "b");
 
         // Siblings are no more a level to descend into than one to climb out of.
         let buf = Buffer::from_text("foo {a} {b} baz");
         let span = obj(&buf, 0, ObjectScope::Inner, BRACES).unwrap();
-        assert_eq!(buf.text_in(span.range), "a");
+        assert_eq!(buf.text_in(chars(span)), "a");
         assert_eq!(object_span(&buf, 0, ObjectScope::Inner, BRACES, 2), None);
     }
 
@@ -1395,7 +1393,7 @@ mod tests {
         // From the signature row, `i{` reaches the block below it — which is the
         // whole point of seeking, and why it is not row-scoped the way quotes are.
         let span = obj(&buf, 3, ObjectScope::Inner, BRACES).unwrap();
-        assert_eq!(buf.text_in(span.range), "    body\n");
+        assert_eq!(buf.text_in(chars(span)), "    body\n");
     }
 
     #[test]
@@ -1405,34 +1403,29 @@ mod tests {
         // behind the `{` through to the `}`.
         let buf = Buffer::from_text("f() {\n  a\n  b\n  }");
         let span = obj(&buf, 0, ObjectScope::Inner, BRACES).unwrap();
-        assert_eq!(buf.text_in(span.range), "  a\n  b\n");
+        assert_eq!(buf.text_in(chars(span)), "  a\n  b\n");
         // `a{` is untouched by the rule.
         let span = obj(&buf, 0, ObjectScope::Around, BRACES).unwrap();
-        assert_eq!(buf.text_in(span.range), "{\n  a\n  b\n  }");
+        assert_eq!(buf.text_in(chars(span)), "{\n  a\n  b\n  }");
 
         // Each half applies on its own. Open mid-row, close owning its row — and
         // the row break stays, because `x {` is still there to need it.
         let buf = Buffer::from_text("x { body\n}");
         let span = obj(&buf, 0, ObjectScope::Inner, BRACES).unwrap();
-        assert_eq!(buf.text_in(span.range), " body");
+        assert_eq!(buf.text_in(chars(span)), " body");
         // Open owning its row, close mid-row:
         let buf = Buffer::from_text("{\n  body }");
         let span = obj(&buf, 0, ObjectScope::Inner, BRACES).unwrap();
-        assert_eq!(buf.text_in(span.range), "  body ");
+        assert_eq!(buf.text_in(chars(span)), "  body ");
 
         // Nothing between the two rows leaves nothing to take.
         let buf = Buffer::from_text("{\n}");
-        assert!(
-            obj(&buf, 0, ObjectScope::Inner, BRACES)
-                .unwrap()
-                .range
-                .is_empty()
-        );
+        assert!(chars(obj(&buf, 0, ObjectScope::Inner, BRACES).unwrap()).is_empty());
 
         // And a pair that shares its row is unaffected, indent or not.
         let buf = Buffer::from_text("    { a }");
         let span = obj(&buf, 0, ObjectScope::Inner, BRACES).unwrap();
-        assert_eq!(buf.text_in(span.range), " a ");
+        assert_eq!(buf.text_in(chars(span)), " a ");
     }
 
     #[test]
@@ -1448,7 +1441,7 @@ mod tests {
         assert_eq!(obj(&buf, 0, ObjectScope::Inner, BRACES), None);
         // Past the stray close, the pair is reachable again.
         let span = obj(&buf, 4, ObjectScope::Inner, BRACES).unwrap();
-        assert_eq!(buf.text_in(span.range), " a ");
+        assert_eq!(buf.text_in(chars(span)), " a ");
     }
 
     #[test]
@@ -1492,7 +1485,7 @@ mod tests {
     fn cursor_on_the_delimiter_counts_as_inside() {
         let buf = Buffer::from_text("f(abc)");
         let inner = obj(&buf, 1, ObjectScope::Inner, PARENS).unwrap();
-        assert_eq!(buf.text_in(inner.range), "abc");
+        assert_eq!(buf.text_in(chars(inner)), "abc");
     }
 
     #[test]
@@ -1506,20 +1499,19 @@ mod tests {
         let buf = Buffer::from_text("where name = 'dave'");
         let quoted = TextObject::Quoted('\'');
         let inner = obj(&buf, 15, ObjectScope::Inner, quoted).unwrap();
-        assert_eq!(buf.text_in(inner.range), "dave");
+        assert_eq!(buf.text_in(chars(inner)), "dave");
         let around = obj(&buf, 15, ObjectScope::Around, quoted).unwrap();
-        assert_eq!(buf.text_in(around.range), "'dave'");
+        assert_eq!(buf.text_in(chars(around)), "'dave'");
         // Quotes do not nest, so a count has nothing to climb and is ignored.
         let counted = object_span(&buf, 15, ObjectScope::Inner, quoted, 3).unwrap();
-        assert_eq!(buf.text_in(counted.range), "dave");
+        assert_eq!(buf.text_in(chars(counted)), "dave");
     }
 
     #[test]
     fn paragraph_objects_are_linewise() {
         let buf = Buffer::from_text("one\ntwo\n\nthree");
         let span = obj(&buf, 0, ObjectScope::Inner, TextObject::Paragraph).unwrap();
-        assert!(span.linewise);
-        assert_eq!(buf.text_in(span.range), "one\ntwo\n");
+        assert_eq!(span, Span::Lines(0..=1));
     }
 
     #[test]
@@ -1527,11 +1519,12 @@ mod tests {
         let buf = Buffer::from_text("one\n\ntwo\n\nthree");
         let para = TextObject::Paragraph;
         let text = |scope, count| {
-            buf.text_in(
-                object_span(&buf, 0, scope, para, count)
-                    .expect("object resolves")
-                    .range,
-            )
+            let Span::Lines(rows) =
+                object_span(&buf, 0, scope, para, count).expect("object resolves")
+            else {
+                panic!("paragraph objects must be linewise")
+            };
+            buf.text_in(buf.row_range(*rows.start()).start..buf.row_range(*rows.end()).end)
         };
         // A gap is a run of its own for `ip`, just as whitespace is for `iw`.
         assert_eq!(text(ObjectScope::Inner, 2), "one\n\n");

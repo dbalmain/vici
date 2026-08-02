@@ -6,7 +6,8 @@ use proptest::prelude::*;
 use unicode_segmentation::UnicodeSegmentation;
 use vici::{
     Bound, Buffer, Editor, Effect, Find, Key, KeyCode, Keymap, Mode, Mods, Motion, ObjectScope,
-    Pending, Point, Resolution, TextObject, Viewport, keys, object_span, render, resolve_motion,
+    Pending, Point, Resolution, Span, TextObject, Viewport, keys, object_span, render,
+    resolve_motion,
 };
 
 const CASES: u32 = 64;
@@ -440,13 +441,29 @@ proptest! {
                 let inner = object_span(&buffer, at, ObjectScope::Inner, object, 1);
                 let around = object_span(&buffer, at, ObjectScope::Around, object, 1);
                 for span in [inner.as_ref(), around.as_ref()].into_iter().flatten() {
-                    prop_assert!(span.range.start <= span.range.end && span.range.end <= text.len());
-                    prop_assert!(text.is_char_boundary(span.range.start));
-                    prop_assert!(text.is_char_boundary(span.range.end));
+                    match span {
+                        Span::Chars(range) => {
+                            prop_assert!(range.start <= range.end && range.end <= text.len());
+                            prop_assert!(text.is_char_boundary(range.start));
+                            prop_assert!(text.is_char_boundary(range.end));
+                        }
+                        Span::Lines(rows) => {
+                            prop_assert!(rows.start() <= rows.end());
+                            prop_assert!(*rows.end() < buffer.len_rows());
+                        }
+                    }
                 }
                 if let Some(inner) = inner {
                     let around = around.expect("inner text objects always have an around span");
-                    prop_assert!(around.range.start <= inner.range.start && inner.range.end <= around.range.end);
+                    match (&inner, &around) {
+                        (Span::Chars(inner), Span::Chars(around)) => {
+                            prop_assert!(around.start <= inner.start && inner.end <= around.end);
+                        }
+                        (Span::Lines(inner), Span::Lines(around)) => {
+                            prop_assert!(around.start() <= inner.start() && inner.end() <= around.end());
+                        }
+                        _ => prop_assert!(false, "inner and around spans have different granularities"),
+                    }
                 }
             }
         }

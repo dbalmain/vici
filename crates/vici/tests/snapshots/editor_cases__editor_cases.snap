@@ -990,7 +990,7 @@ register: char ""
 history: undo=1 redo=0
 pending: ""; last-change: "gUU"; recording: -
 effects:
-  edit 0..8 -> 8; (0,0)..(1,0) -> (1,0)
+  edit 0..7 -> 7; (0,0)..(0,7) -> (0,7)
 
 == upper-current-row-long ==
 text: "ONE TWO\nthree"
@@ -1000,7 +1000,7 @@ register: char ""
 history: undo=1 redo=0
 pending: ""; last-change: "gUgU"; recording: -
 effects:
-  edit 0..8 -> 8; (0,0)..(1,0) -> (1,0)
+  edit 0..7 -> 7; (0,0)..(0,7) -> (0,7)
 
 == swap-current-row ==
 text: "oNE tWO\nthree"
@@ -1010,7 +1010,7 @@ register: char ""
 history: undo=1 redo=0
 pending: ""; last-change: "g~~"; recording: -
 effects:
-  edit 0..8 -> 8; (0,0)..(1,0) -> (1,0)
+  edit 0..7 -> 7; (0,0)..(0,7) -> (0,7)
 
 == lower-current-rows ==
 text: "one\ntwo\nthree"
@@ -1020,7 +1020,7 @@ register: char ""
 history: undo=1 redo=0
 pending: ""; last-change: "2guu"; recording: -
 effects:
-  edit 0..8 -> 8; (0,0)..(2,0) -> (2,0)
+  edit 0..7 -> 7; (0,0)..(1,3) -> (1,3)
 
 == upper-bad-double ==
 text: "one two"
@@ -1088,7 +1088,7 @@ history: undo=1 redo=0
 pending: ""; last-change: "VjU"; recording: -
 effects:
   mode Visual(Line)
-  edit 0..8 -> 8; (0,0)..(2,0) -> (2,0)
+  edit 0..7 -> 7; (0,0)..(1,3) -> (1,3)
   mode Normal
 
 == visual-upper-counted-motion ==
@@ -2484,3 +2484,950 @@ history: undo=0 redo=0
 pending: ""; last-change: "rx"; recording: -
 effects:
   bell
+
+== lines-dd-first-no-newline ==
+text: "bb\ncc"
+cursor: 0 @ 0:0
+mode: Normal; selection: -
+register: line "aa\n"
+history: undo=1 redo=0
+pending: ""; last-change: "dd"; recording: -
+effects:
+  edit 0..3 -> 0; (0,0)..(1,0) -> (0,0)
+
+== lines-dd-middle-no-newline ==
+text: "aa\ncc"
+cursor: 3 @ 1:0
+mode: Normal; selection: -
+register: line "bb\n"
+history: undo=1 redo=0
+pending: ""; last-change: "dd"; recording: -
+effects:
+  edit 3..6 -> 3; (1,0)..(2,0) -> (1,0)
+
+== lines-dd-final-no-newline ==
+text: "aa\nbb"
+cursor: 3 @ 1:0
+mode: Normal; selection: -
+register: line "cc\n"
+history: undo=1 redo=0
+pending: ""; last-change: "dd"; recording: -
+effects:
+  edit 5..8 -> 5; (1,2)..(2,2) -> (1,2)
+
+== lines-dd-first-trailing-newline ==
+text: "bb\ncc\n"
+cursor: 0 @ 0:0
+mode: Normal; selection: -
+register: line "aa\n"
+history: undo=1 redo=0
+pending: ""; last-change: "dd"; recording: -
+effects:
+  edit 0..3 -> 0; (0,0)..(1,0) -> (0,0)
+
+== lines-dd-middle-trailing-newline ==
+text: "aa\ncc\n"
+cursor: 3 @ 1:0
+mode: Normal; selection: -
+register: line "bb\n"
+history: undo=1 redo=0
+pending: ""; last-change: "dd"; recording: -
+effects:
+  edit 3..6 -> 3; (1,0)..(2,0) -> (1,0)
+
+== lines-dd-final-trailing-newline ==
+text: "aa\nbb"
+cursor: 3 @ 1:0
+mode: Normal; selection: -
+register: line "cc\n"
+history: undo=1 redo=0
+pending: ""; last-change: "dd"; recording: -
+effects:
+  edit 5..9 -> 5; (1,2)..(3,0) -> (1,2)
+
+== lines-dd-single-row ==
+text: ""
+cursor: 0 @ 0:0
+mode: Normal; selection: -
+register: line "aa\n"
+history: undo=1 redo=0
+pending: ""; last-change: "dd"; recording: -
+effects:
+  edit 0..2 -> 0; (0,0)..(0,2) -> (0,0)
+
+== lines-cc-first-no-newline ==
+text: "X\nbb\ncc"
+cursor: 0 @ 0:0
+mode: Normal; selection: -
+register: line "aa\n"
+history: undo=1 redo=0
+pending: ""; last-change: "ccX<Esc>"; recording: -
+effects:
+  edit 0..2 -> 0; (0,0)..(0,2) -> (0,0)
+  mode Insert
+  edit 0..0 -> 1; (0,0)..(0,0) -> (0,1)
+  mode Normal
+
+== lines-cc-middle-no-newline ==
+text: "aa\nX\ncc"
+cursor: 3 @ 1:0
+mode: Normal; selection: -
+register: line "bb\n"
+history: undo=1 redo=0
+pending: ""; last-change: "ccX<Esc>"; recording: -
+effects:
+  edit 3..5 -> 3; (1,0)..(1,2) -> (1,0)
+  mode Insert
+  edit 3..3 -> 4; (1,0)..(1,0) -> (1,1)
+  mode Normal
+
+== lines-cc-final-no-newline ==
+text: "aa\nbb\nX"
+cursor: 6 @ 2:0
+mode: Normal; selection: -
+register: line "cc\n"
+history: undo=1 redo=0
+pending: ""; last-change: "ccX<Esc>"; recording: -
+effects:
+  edit 6..8 -> 6; (2,0)..(2,2) -> (2,0)
+  mode Insert
+  edit 6..6 -> 7; (2,0)..(2,0) -> (2,1)
+  mode Normal
+
+== lines-cc-first-trailing-newline ==
+text: "X\nbb\ncc\n"
+cursor: 0 @ 0:0
+mode: Normal; selection: -
+register: line "aa\n"
+history: undo=1 redo=0
+pending: ""; last-change: "ccX<Esc>"; recording: -
+effects:
+  edit 0..2 -> 0; (0,0)..(0,2) -> (0,0)
+  mode Insert
+  edit 0..0 -> 1; (0,0)..(0,0) -> (0,1)
+  mode Normal
+
+== lines-cc-middle-trailing-newline ==
+text: "aa\nX\ncc\n"
+cursor: 3 @ 1:0
+mode: Normal; selection: -
+register: line "bb\n"
+history: undo=1 redo=0
+pending: ""; last-change: "ccX<Esc>"; recording: -
+effects:
+  edit 3..5 -> 3; (1,0)..(1,2) -> (1,0)
+  mode Insert
+  edit 3..3 -> 4; (1,0)..(1,0) -> (1,1)
+  mode Normal
+
+== lines-cc-final-trailing-newline ==
+text: "aa\nbb\nX\n"
+cursor: 6 @ 2:0
+mode: Normal; selection: -
+register: line "cc\n"
+history: undo=1 redo=0
+pending: ""; last-change: "ccX<Esc>"; recording: -
+effects:
+  edit 6..8 -> 6; (2,0)..(2,2) -> (2,0)
+  mode Insert
+  edit 6..6 -> 7; (2,0)..(2,0) -> (2,1)
+  mode Normal
+
+== lines-cc-single-row ==
+text: "X"
+cursor: 0 @ 0:0
+mode: Normal; selection: -
+register: line "aa\n"
+history: undo=1 redo=0
+pending: ""; last-change: "ccX<Esc>"; recording: -
+effects:
+  edit 0..2 -> 0; (0,0)..(0,2) -> (0,0)
+  mode Insert
+  edit 0..0 -> 1; (0,0)..(0,0) -> (0,1)
+  mode Normal
+
+== lines-yank-put-first-no-newline ==
+text: "aa\naa\nbb\ncc"
+cursor: 3 @ 1:0
+mode: Normal; selection: -
+register: line "aa\n"
+history: undo=1 redo=0
+pending: ""; last-change: "p"; recording: -
+effects:
+  edit 3..3 -> 6; (1,0)..(1,0) -> (2,0)
+
+== lines-yank-put-middle-no-newline ==
+text: "aa\nbb\nbb\ncc"
+cursor: 6 @ 2:0
+mode: Normal; selection: -
+register: line "bb\n"
+history: undo=1 redo=0
+pending: ""; last-change: "p"; recording: -
+effects:
+  edit 6..6 -> 9; (2,0)..(2,0) -> (3,0)
+
+== lines-yank-put-final-no-newline ==
+text: "aa\nbb\ncc\ncc"
+cursor: 9 @ 3:0
+mode: Normal; selection: -
+register: line "cc\n"
+history: undo=1 redo=0
+pending: ""; last-change: "p"; recording: -
+effects:
+  edit 8..8 -> 11; (2,2)..(2,2) -> (3,2)
+
+== lines-yank-put-first-trailing-newline ==
+text: "aa\naa\nbb\ncc\n"
+cursor: 3 @ 1:0
+mode: Normal; selection: -
+register: line "aa\n"
+history: undo=1 redo=0
+pending: ""; last-change: "p"; recording: -
+effects:
+  edit 3..3 -> 6; (1,0)..(1,0) -> (2,0)
+
+== lines-yank-put-middle-trailing-newline ==
+text: "aa\nbb\nbb\ncc\n"
+cursor: 6 @ 2:0
+mode: Normal; selection: -
+register: line "bb\n"
+history: undo=1 redo=0
+pending: ""; last-change: "p"; recording: -
+effects:
+  edit 6..6 -> 9; (2,0)..(2,0) -> (3,0)
+
+== lines-yank-put-final-trailing-newline ==
+text: "aa\nbb\ncc\ncc\n"
+cursor: 9 @ 3:0
+mode: Normal; selection: -
+register: line "cc\n"
+history: undo=1 redo=0
+pending: ""; last-change: "p"; recording: -
+effects:
+  edit 9..9 -> 12; (3,0)..(3,0) -> (4,0)
+
+== lines-yank-put-single-row ==
+text: "aa\naa"
+cursor: 3 @ 1:0
+mode: Normal; selection: -
+register: line "aa\n"
+history: undo=1 redo=0
+pending: ""; last-change: "p"; recording: -
+effects:
+  edit 2..2 -> 5; (0,2)..(0,2) -> (1,2)
+
+== lines-shift-right-first-no-newline ==
+text: "    aa\nbb\ncc"
+cursor: 4 @ 0:4
+mode: Normal; selection: -
+register: char ""
+history: undo=1 redo=0
+pending: ""; last-change: ">>"; recording: -
+effects:
+  edit 0..0 -> 4; (0,0)..(0,0) -> (0,4)
+
+== lines-shift-right-middle-no-newline ==
+text: "aa\n    bb\ncc"
+cursor: 7 @ 1:4
+mode: Normal; selection: -
+register: char ""
+history: undo=1 redo=0
+pending: ""; last-change: ">>"; recording: -
+effects:
+  edit 3..3 -> 7; (1,0)..(1,0) -> (1,4)
+
+== lines-shift-right-final-no-newline ==
+text: "aa\nbb\n    cc"
+cursor: 10 @ 2:4
+mode: Normal; selection: -
+register: char ""
+history: undo=1 redo=0
+pending: ""; last-change: ">>"; recording: -
+effects:
+  edit 6..6 -> 10; (2,0)..(2,0) -> (2,4)
+
+== lines-shift-right-first-trailing-newline ==
+text: "    aa\nbb\ncc\n"
+cursor: 4 @ 0:4
+mode: Normal; selection: -
+register: char ""
+history: undo=1 redo=0
+pending: ""; last-change: ">>"; recording: -
+effects:
+  edit 0..0 -> 4; (0,0)..(0,0) -> (0,4)
+
+== lines-shift-right-middle-trailing-newline ==
+text: "aa\n    bb\ncc\n"
+cursor: 7 @ 1:4
+mode: Normal; selection: -
+register: char ""
+history: undo=1 redo=0
+pending: ""; last-change: ">>"; recording: -
+effects:
+  edit 3..3 -> 7; (1,0)..(1,0) -> (1,4)
+
+== lines-shift-right-final-trailing-newline ==
+text: "aa\nbb\n    cc\n"
+cursor: 10 @ 2:4
+mode: Normal; selection: -
+register: char ""
+history: undo=1 redo=0
+pending: ""; last-change: ">>"; recording: -
+effects:
+  edit 6..6 -> 10; (2,0)..(2,0) -> (2,4)
+
+== lines-shift-right-single-row ==
+text: "    aa"
+cursor: 4 @ 0:4
+mode: Normal; selection: -
+register: char ""
+history: undo=1 redo=0
+pending: ""; last-change: ">>"; recording: -
+effects:
+  edit 0..0 -> 4; (0,0)..(0,0) -> (0,4)
+
+== lines-shift-left-first-no-newline ==
+text: "aa\n    bb\n    cc"
+cursor: 0 @ 0:0
+mode: Normal; selection: -
+register: char ""
+history: undo=1 redo=0
+pending: ""; last-change: "<lt><lt>"; recording: -
+effects:
+  edit 0..4 -> 0; (0,0)..(0,4) -> (0,0)
+
+== lines-shift-left-middle-no-newline ==
+text: "    aa\nbb\n    cc"
+cursor: 7 @ 1:0
+mode: Normal; selection: -
+register: char ""
+history: undo=1 redo=0
+pending: ""; last-change: "<lt><lt>"; recording: -
+effects:
+  edit 7..11 -> 7; (1,0)..(1,4) -> (1,0)
+
+== lines-shift-left-final-no-newline ==
+text: "    aa\n    bb\ncc"
+cursor: 14 @ 2:0
+mode: Normal; selection: -
+register: char ""
+history: undo=1 redo=0
+pending: ""; last-change: "<lt><lt>"; recording: -
+effects:
+  edit 14..18 -> 14; (2,0)..(2,4) -> (2,0)
+
+== lines-shift-left-first-trailing-newline ==
+text: "aa\n    bb\n    cc\n"
+cursor: 0 @ 0:0
+mode: Normal; selection: -
+register: char ""
+history: undo=1 redo=0
+pending: ""; last-change: "<lt><lt>"; recording: -
+effects:
+  edit 0..4 -> 0; (0,0)..(0,4) -> (0,0)
+
+== lines-shift-left-middle-trailing-newline ==
+text: "    aa\nbb\n    cc\n"
+cursor: 7 @ 1:0
+mode: Normal; selection: -
+register: char ""
+history: undo=1 redo=0
+pending: ""; last-change: "<lt><lt>"; recording: -
+effects:
+  edit 7..11 -> 7; (1,0)..(1,4) -> (1,0)
+
+== lines-shift-left-final-trailing-newline ==
+text: "    aa\n    bb\ncc\n"
+cursor: 14 @ 2:0
+mode: Normal; selection: -
+register: char ""
+history: undo=1 redo=0
+pending: ""; last-change: "<lt><lt>"; recording: -
+effects:
+  edit 14..18 -> 14; (2,0)..(2,4) -> (2,0)
+
+== lines-shift-left-single-row ==
+text: "aa"
+cursor: 0 @ 0:0
+mode: Normal; selection: -
+register: char ""
+history: undo=1 redo=0
+pending: ""; last-change: "<lt><lt>"; recording: -
+effects:
+  edit 0..4 -> 0; (0,0)..(0,4) -> (0,0)
+
+== lines-upper-first-no-newline ==
+text: "AA\nbb\ncc"
+cursor: 0 @ 0:0
+mode: Normal; selection: -
+register: char ""
+history: undo=1 redo=0
+pending: ""; last-change: "gUU"; recording: -
+effects:
+  edit 0..2 -> 2; (0,0)..(0,2) -> (0,2)
+
+== lines-upper-middle-no-newline ==
+text: "aa\nBB\ncc"
+cursor: 3 @ 1:0
+mode: Normal; selection: -
+register: char ""
+history: undo=1 redo=0
+pending: ""; last-change: "gUU"; recording: -
+effects:
+  edit 3..5 -> 5; (1,0)..(1,2) -> (1,2)
+
+== lines-upper-final-no-newline ==
+text: "aa\nbb\nCC"
+cursor: 6 @ 2:0
+mode: Normal; selection: -
+register: char ""
+history: undo=1 redo=0
+pending: ""; last-change: "gUU"; recording: -
+effects:
+  edit 6..8 -> 8; (2,0)..(2,2) -> (2,2)
+
+== lines-upper-first-trailing-newline ==
+text: "AA\nbb\ncc\n"
+cursor: 0 @ 0:0
+mode: Normal; selection: -
+register: char ""
+history: undo=1 redo=0
+pending: ""; last-change: "gUU"; recording: -
+effects:
+  edit 0..2 -> 2; (0,0)..(0,2) -> (0,2)
+
+== lines-upper-middle-trailing-newline ==
+text: "aa\nBB\ncc\n"
+cursor: 3 @ 1:0
+mode: Normal; selection: -
+register: char ""
+history: undo=1 redo=0
+pending: ""; last-change: "gUU"; recording: -
+effects:
+  edit 3..5 -> 5; (1,0)..(1,2) -> (1,2)
+
+== lines-upper-final-trailing-newline ==
+text: "aa\nbb\nCC\n"
+cursor: 6 @ 2:0
+mode: Normal; selection: -
+register: char ""
+history: undo=1 redo=0
+pending: ""; last-change: "gUU"; recording: -
+effects:
+  edit 6..8 -> 8; (2,0)..(2,2) -> (2,2)
+
+== lines-upper-single-row ==
+text: "AA"
+cursor: 0 @ 0:0
+mode: Normal; selection: -
+register: char ""
+history: undo=1 redo=0
+pending: ""; last-change: "gUU"; recording: -
+effects:
+  edit 0..2 -> 2; (0,0)..(0,2) -> (0,2)
+
+== lines-lower-first-no-newline ==
+text: "aa\nBB\nCC"
+cursor: 0 @ 0:0
+mode: Normal; selection: -
+register: char ""
+history: undo=1 redo=0
+pending: ""; last-change: "guu"; recording: -
+effects:
+  edit 0..2 -> 2; (0,0)..(0,2) -> (0,2)
+
+== lines-lower-middle-no-newline ==
+text: "AA\nbb\nCC"
+cursor: 3 @ 1:0
+mode: Normal; selection: -
+register: char ""
+history: undo=1 redo=0
+pending: ""; last-change: "guu"; recording: -
+effects:
+  edit 3..5 -> 5; (1,0)..(1,2) -> (1,2)
+
+== lines-lower-final-no-newline ==
+text: "AA\nBB\ncc"
+cursor: 6 @ 2:0
+mode: Normal; selection: -
+register: char ""
+history: undo=1 redo=0
+pending: ""; last-change: "guu"; recording: -
+effects:
+  edit 6..8 -> 8; (2,0)..(2,2) -> (2,2)
+
+== lines-lower-first-trailing-newline ==
+text: "aa\nBB\nCC\n"
+cursor: 0 @ 0:0
+mode: Normal; selection: -
+register: char ""
+history: undo=1 redo=0
+pending: ""; last-change: "guu"; recording: -
+effects:
+  edit 0..2 -> 2; (0,0)..(0,2) -> (0,2)
+
+== lines-lower-middle-trailing-newline ==
+text: "AA\nbb\nCC\n"
+cursor: 3 @ 1:0
+mode: Normal; selection: -
+register: char ""
+history: undo=1 redo=0
+pending: ""; last-change: "guu"; recording: -
+effects:
+  edit 3..5 -> 5; (1,0)..(1,2) -> (1,2)
+
+== lines-lower-final-trailing-newline ==
+text: "AA\nBB\ncc\n"
+cursor: 6 @ 2:0
+mode: Normal; selection: -
+register: char ""
+history: undo=1 redo=0
+pending: ""; last-change: "guu"; recording: -
+effects:
+  edit 6..8 -> 8; (2,0)..(2,2) -> (2,2)
+
+== lines-lower-single-row ==
+text: "aa"
+cursor: 0 @ 0:0
+mode: Normal; selection: -
+register: char ""
+history: undo=1 redo=0
+pending: ""; last-change: "guu"; recording: -
+effects:
+  edit 0..2 -> 2; (0,0)..(0,2) -> (0,2)
+
+== lines-swap-first-no-newline ==
+text: "aA\nBb\nCc"
+cursor: 0 @ 0:0
+mode: Normal; selection: -
+register: char ""
+history: undo=1 redo=0
+pending: ""; last-change: "g~~"; recording: -
+effects:
+  edit 0..2 -> 2; (0,0)..(0,2) -> (0,2)
+
+== lines-swap-middle-no-newline ==
+text: "Aa\nbB\nCc"
+cursor: 3 @ 1:0
+mode: Normal; selection: -
+register: char ""
+history: undo=1 redo=0
+pending: ""; last-change: "g~~"; recording: -
+effects:
+  edit 3..5 -> 5; (1,0)..(1,2) -> (1,2)
+
+== lines-swap-final-no-newline ==
+text: "Aa\nBb\ncC"
+cursor: 6 @ 2:0
+mode: Normal; selection: -
+register: char ""
+history: undo=1 redo=0
+pending: ""; last-change: "g~~"; recording: -
+effects:
+  edit 6..8 -> 8; (2,0)..(2,2) -> (2,2)
+
+== lines-swap-first-trailing-newline ==
+text: "aA\nBb\nCc\n"
+cursor: 0 @ 0:0
+mode: Normal; selection: -
+register: char ""
+history: undo=1 redo=0
+pending: ""; last-change: "g~~"; recording: -
+effects:
+  edit 0..2 -> 2; (0,0)..(0,2) -> (0,2)
+
+== lines-swap-middle-trailing-newline ==
+text: "Aa\nbB\nCc\n"
+cursor: 3 @ 1:0
+mode: Normal; selection: -
+register: char ""
+history: undo=1 redo=0
+pending: ""; last-change: "g~~"; recording: -
+effects:
+  edit 3..5 -> 5; (1,0)..(1,2) -> (1,2)
+
+== lines-swap-final-trailing-newline ==
+text: "Aa\nBb\ncC\n"
+cursor: 6 @ 2:0
+mode: Normal; selection: -
+register: char ""
+history: undo=1 redo=0
+pending: ""; last-change: "g~~"; recording: -
+effects:
+  edit 6..8 -> 8; (2,0)..(2,2) -> (2,2)
+
+== lines-swap-single-row ==
+text: "aA"
+cursor: 0 @ 0:0
+mode: Normal; selection: -
+register: char ""
+history: undo=1 redo=0
+pending: ""; last-change: "g~~"; recording: -
+effects:
+  edit 0..2 -> 2; (0,0)..(0,2) -> (0,2)
+
+== lines-visual-delete-first-no-newline ==
+text: "bb\ncc"
+cursor: 0 @ 0:0
+mode: Normal; selection: -
+register: line "aa\n"
+history: undo=1 redo=0
+pending: ""; last-change: "Vd"; recording: -
+effects:
+  mode Visual(Line)
+  edit 0..3 -> 0; (0,0)..(1,0) -> (0,0)
+  mode Normal
+
+== lines-visual-delete-middle-no-newline ==
+text: "aa\ncc"
+cursor: 3 @ 1:0
+mode: Normal; selection: -
+register: line "bb\n"
+history: undo=1 redo=0
+pending: ""; last-change: "Vd"; recording: -
+effects:
+  mode Visual(Line)
+  edit 3..6 -> 3; (1,0)..(2,0) -> (1,0)
+  mode Normal
+
+== lines-visual-delete-final-no-newline ==
+text: "aa\nbb"
+cursor: 3 @ 1:0
+mode: Normal; selection: -
+register: line "cc\n"
+history: undo=1 redo=0
+pending: ""; last-change: "Vd"; recording: -
+effects:
+  mode Visual(Line)
+  edit 5..8 -> 5; (1,2)..(2,2) -> (1,2)
+  mode Normal
+
+== lines-visual-delete-first-trailing-newline ==
+text: "bb\ncc\n"
+cursor: 0 @ 0:0
+mode: Normal; selection: -
+register: line "aa\n"
+history: undo=1 redo=0
+pending: ""; last-change: "Vd"; recording: -
+effects:
+  mode Visual(Line)
+  edit 0..3 -> 0; (0,0)..(1,0) -> (0,0)
+  mode Normal
+
+== lines-visual-delete-middle-trailing-newline ==
+text: "aa\ncc\n"
+cursor: 3 @ 1:0
+mode: Normal; selection: -
+register: line "bb\n"
+history: undo=1 redo=0
+pending: ""; last-change: "Vd"; recording: -
+effects:
+  mode Visual(Line)
+  edit 3..6 -> 3; (1,0)..(2,0) -> (1,0)
+  mode Normal
+
+== lines-visual-delete-final-trailing-newline ==
+text: "aa\nbb"
+cursor: 3 @ 1:0
+mode: Normal; selection: -
+register: line "cc\n"
+history: undo=1 redo=0
+pending: ""; last-change: "Vd"; recording: -
+effects:
+  mode Visual(Line)
+  edit 5..9 -> 5; (1,2)..(3,0) -> (1,2)
+  mode Normal
+
+== lines-visual-delete-single-row ==
+text: ""
+cursor: 0 @ 0:0
+mode: Normal; selection: -
+register: line "aa\n"
+history: undo=1 redo=0
+pending: ""; last-change: "Vd"; recording: -
+effects:
+  mode Visual(Line)
+  edit 0..2 -> 0; (0,0)..(0,2) -> (0,0)
+  mode Normal
+
+== lines-visual-change-first-no-newline ==
+text: "X\nbb\ncc"
+cursor: 0 @ 0:0
+mode: Normal; selection: -
+register: line "aa\n"
+history: undo=1 redo=0
+pending: ""; last-change: "VcX<Esc>"; recording: -
+effects:
+  mode Visual(Line)
+  edit 0..2 -> 0; (0,0)..(0,2) -> (0,0)
+  mode Insert
+  edit 0..0 -> 1; (0,0)..(0,0) -> (0,1)
+  mode Normal
+
+== lines-visual-change-middle-no-newline ==
+text: "aa\nX\ncc"
+cursor: 3 @ 1:0
+mode: Normal; selection: -
+register: line "bb\n"
+history: undo=1 redo=0
+pending: ""; last-change: "VcX<Esc>"; recording: -
+effects:
+  mode Visual(Line)
+  edit 3..5 -> 3; (1,0)..(1,2) -> (1,0)
+  mode Insert
+  edit 3..3 -> 4; (1,0)..(1,0) -> (1,1)
+  mode Normal
+
+== lines-visual-change-final-no-newline ==
+text: "aa\nbb\nX"
+cursor: 6 @ 2:0
+mode: Normal; selection: -
+register: line "cc\n"
+history: undo=1 redo=0
+pending: ""; last-change: "VcX<Esc>"; recording: -
+effects:
+  mode Visual(Line)
+  edit 6..8 -> 6; (2,0)..(2,2) -> (2,0)
+  mode Insert
+  edit 6..6 -> 7; (2,0)..(2,0) -> (2,1)
+  mode Normal
+
+== lines-visual-change-first-trailing-newline ==
+text: "X\nbb\ncc\n"
+cursor: 0 @ 0:0
+mode: Normal; selection: -
+register: line "aa\n"
+history: undo=1 redo=0
+pending: ""; last-change: "VcX<Esc>"; recording: -
+effects:
+  mode Visual(Line)
+  edit 0..2 -> 0; (0,0)..(0,2) -> (0,0)
+  mode Insert
+  edit 0..0 -> 1; (0,0)..(0,0) -> (0,1)
+  mode Normal
+
+== lines-visual-change-middle-trailing-newline ==
+text: "aa\nX\ncc\n"
+cursor: 3 @ 1:0
+mode: Normal; selection: -
+register: line "bb\n"
+history: undo=1 redo=0
+pending: ""; last-change: "VcX<Esc>"; recording: -
+effects:
+  mode Visual(Line)
+  edit 3..5 -> 3; (1,0)..(1,2) -> (1,0)
+  mode Insert
+  edit 3..3 -> 4; (1,0)..(1,0) -> (1,1)
+  mode Normal
+
+== lines-visual-change-final-trailing-newline ==
+text: "aa\nbb\nX\n"
+cursor: 6 @ 2:0
+mode: Normal; selection: -
+register: line "cc\n"
+history: undo=1 redo=0
+pending: ""; last-change: "VcX<Esc>"; recording: -
+effects:
+  mode Visual(Line)
+  edit 6..8 -> 6; (2,0)..(2,2) -> (2,0)
+  mode Insert
+  edit 6..6 -> 7; (2,0)..(2,0) -> (2,1)
+  mode Normal
+
+== lines-visual-change-single-row ==
+text: "X"
+cursor: 0 @ 0:0
+mode: Normal; selection: -
+register: line "aa\n"
+history: undo=1 redo=0
+pending: ""; last-change: "VcX<Esc>"; recording: -
+effects:
+  mode Visual(Line)
+  edit 0..2 -> 0; (0,0)..(0,2) -> (0,0)
+  mode Insert
+  edit 0..0 -> 1; (0,0)..(0,0) -> (0,1)
+  mode Normal
+
+== lines-visual-yank-first-no-newline ==
+text: "aa\nbb\ncc"
+cursor: 0 @ 0:0
+mode: Normal; selection: -
+register: line "aa\n"
+history: undo=0 redo=0
+pending: ""; last-change: ""; recording: -
+effects:
+  mode Visual(Line)
+  mode Normal
+
+== lines-visual-yank-middle-no-newline ==
+text: "aa\nbb\ncc"
+cursor: 3 @ 1:0
+mode: Normal; selection: -
+register: line "bb\n"
+history: undo=0 redo=0
+pending: ""; last-change: ""; recording: -
+effects:
+  mode Visual(Line)
+  mode Normal
+
+== lines-visual-yank-final-no-newline ==
+text: "aa\nbb\ncc"
+cursor: 6 @ 2:0
+mode: Normal; selection: -
+register: line "cc\n"
+history: undo=0 redo=0
+pending: ""; last-change: ""; recording: -
+effects:
+  mode Visual(Line)
+  mode Normal
+
+== lines-visual-yank-first-trailing-newline ==
+text: "aa\nbb\ncc\n"
+cursor: 0 @ 0:0
+mode: Normal; selection: -
+register: line "aa\n"
+history: undo=0 redo=0
+pending: ""; last-change: ""; recording: -
+effects:
+  mode Visual(Line)
+  mode Normal
+
+== lines-visual-yank-middle-trailing-newline ==
+text: "aa\nbb\ncc\n"
+cursor: 3 @ 1:0
+mode: Normal; selection: -
+register: line "bb\n"
+history: undo=0 redo=0
+pending: ""; last-change: ""; recording: -
+effects:
+  mode Visual(Line)
+  mode Normal
+
+== lines-visual-yank-final-trailing-newline ==
+text: "aa\nbb\ncc\n"
+cursor: 6 @ 2:0
+mode: Normal; selection: -
+register: line "cc\n"
+history: undo=0 redo=0
+pending: ""; last-change: ""; recording: -
+effects:
+  mode Visual(Line)
+  mode Normal
+
+== lines-visual-yank-single-row ==
+text: "aa"
+cursor: 0 @ 0:0
+mode: Normal; selection: -
+register: line "aa\n"
+history: undo=0 redo=0
+pending: ""; last-change: ""; recording: -
+effects:
+  mode Visual(Line)
+  mode Normal
+
+== lines-visual-shift-right-first-no-newline ==
+text: "    aa\nbb\ncc"
+cursor: 4 @ 0:4
+mode: Normal; selection: -
+register: char ""
+history: undo=1 redo=0
+pending: ""; last-change: "V>"; recording: -
+effects:
+  mode Visual(Line)
+  edit 0..0 -> 4; (0,0)..(0,0) -> (0,4)
+  mode Normal
+
+== lines-visual-shift-right-middle-no-newline ==
+text: "aa\n    bb\ncc"
+cursor: 7 @ 1:4
+mode: Normal; selection: -
+register: char ""
+history: undo=1 redo=0
+pending: ""; last-change: "V>"; recording: -
+effects:
+  mode Visual(Line)
+  edit 3..3 -> 7; (1,0)..(1,0) -> (1,4)
+  mode Normal
+
+== lines-visual-shift-right-final-no-newline ==
+text: "aa\nbb\n    cc"
+cursor: 10 @ 2:4
+mode: Normal; selection: -
+register: char ""
+history: undo=1 redo=0
+pending: ""; last-change: "V>"; recording: -
+effects:
+  mode Visual(Line)
+  edit 6..6 -> 10; (2,0)..(2,0) -> (2,4)
+  mode Normal
+
+== lines-visual-shift-right-first-trailing-newline ==
+text: "    aa\nbb\ncc\n"
+cursor: 4 @ 0:4
+mode: Normal; selection: -
+register: char ""
+history: undo=1 redo=0
+pending: ""; last-change: "V>"; recording: -
+effects:
+  mode Visual(Line)
+  edit 0..0 -> 4; (0,0)..(0,0) -> (0,4)
+  mode Normal
+
+== lines-visual-shift-right-middle-trailing-newline ==
+text: "aa\n    bb\ncc\n"
+cursor: 7 @ 1:4
+mode: Normal; selection: -
+register: char ""
+history: undo=1 redo=0
+pending: ""; last-change: "V>"; recording: -
+effects:
+  mode Visual(Line)
+  edit 3..3 -> 7; (1,0)..(1,0) -> (1,4)
+  mode Normal
+
+== lines-visual-shift-right-final-trailing-newline ==
+text: "aa\nbb\n    cc\n"
+cursor: 10 @ 2:4
+mode: Normal; selection: -
+register: char ""
+history: undo=1 redo=0
+pending: ""; last-change: "V>"; recording: -
+effects:
+  mode Visual(Line)
+  edit 6..6 -> 10; (2,0)..(2,0) -> (2,4)
+  mode Normal
+
+== lines-visual-shift-right-single-row ==
+text: "    aa"
+cursor: 4 @ 0:4
+mode: Normal; selection: -
+register: char ""
+history: undo=1 redo=0
+pending: ""; last-change: "V>"; recording: -
+effects:
+  mode Visual(Line)
+  edit 0..0 -> 4; (0,0)..(0,0) -> (0,4)
+  mode Normal
+
+== lines-dd-counted-off-end ==
+text: "aa\nbb"
+cursor: 3 @ 1:0
+mode: Normal; selection: -
+register: line "cc\n"
+history: undo=1 redo=0
+pending: ""; last-change: "2dd"; recording: -
+effects:
+  edit 5..8 -> 5; (1,2)..(2,2) -> (1,2)
+
+== lines-cc-counted-off-end ==
+text: "aa\nbb\nX"
+cursor: 6 @ 2:0
+mode: Normal; selection: -
+register: line "cc\n"
+history: undo=1 redo=0
+pending: ""; last-change: "2ccX<Esc>"; recording: -
+effects:
+  edit 6..8 -> 6; (2,0)..(2,2) -> (2,0)
+  mode Insert
+  edit 6..6 -> 7; (2,0)..(2,0) -> (2,1)
+  mode Normal

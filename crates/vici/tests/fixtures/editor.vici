@@ -885,3 +885,349 @@ keys vdVd
 case empty-replace
 text
 keys rx
+
+---
+# Linewise span regression matrix
+case lines-dd-first-no-newline
+text aa\nbb\ncc
+keys dd
+---
+case lines-dd-middle-no-newline
+text aa\nbb\ncc
+keys jdd
+---
+case lines-dd-final-no-newline
+text aa\nbb\ncc
+keys Gdd
+---
+case lines-dd-first-trailing-newline
+text aa\nbb\ncc\n
+keys dd
+---
+case lines-dd-middle-trailing-newline
+text aa\nbb\ncc\n
+keys jdd
+---
+case lines-dd-final-trailing-newline
+text aa\nbb\ncc\n
+keys Gkdd
+---
+case lines-dd-single-row
+text aa
+keys dd
+---
+case lines-cc-first-no-newline
+text aa\nbb\ncc
+keys ccX<Esc>
+---
+case lines-cc-middle-no-newline
+text aa\nbb\ncc
+keys jccX<Esc>
+---
+case lines-cc-final-no-newline
+text aa\nbb\ncc
+keys GccX<Esc>
+---
+case lines-cc-first-trailing-newline
+text aa\nbb\ncc\n
+keys ccX<Esc>
+---
+case lines-cc-middle-trailing-newline
+text aa\nbb\ncc\n
+keys jccX<Esc>
+---
+case lines-cc-final-trailing-newline
+text aa\nbb\ncc\n
+keys GkccX<Esc>
+---
+case lines-cc-single-row
+text aa
+keys ccX<Esc>
+---
+case lines-yank-put-first-no-newline
+text aa\nbb\ncc
+keys yyp
+---
+case lines-yank-put-middle-no-newline
+text aa\nbb\ncc
+keys jyyp
+---
+case lines-yank-put-final-no-newline
+text aa\nbb\ncc
+keys Gyyp
+---
+case lines-yank-put-first-trailing-newline
+text aa\nbb\ncc\n
+keys yyp
+---
+case lines-yank-put-middle-trailing-newline
+text aa\nbb\ncc\n
+keys jyyp
+---
+case lines-yank-put-final-trailing-newline
+text aa\nbb\ncc\n
+keys Gkyyp
+---
+case lines-yank-put-single-row
+text aa
+keys yyp
+---
+case lines-shift-right-first-no-newline
+text aa\nbb\ncc
+keys >>
+---
+case lines-shift-right-middle-no-newline
+text aa\nbb\ncc
+keys j>>
+---
+case lines-shift-right-final-no-newline
+text aa\nbb\ncc
+keys G>>
+---
+case lines-shift-right-first-trailing-newline
+text aa\nbb\ncc\n
+keys >>
+---
+case lines-shift-right-middle-trailing-newline
+text aa\nbb\ncc\n
+keys j>>
+---
+case lines-shift-right-final-trailing-newline
+text aa\nbb\ncc\n
+keys Gk>>
+---
+case lines-shift-right-single-row
+text aa
+keys >>
+---
+case lines-shift-left-first-no-newline
+text     aa\n    bb\n    cc
+keys <lt><lt>
+---
+case lines-shift-left-middle-no-newline
+text     aa\n    bb\n    cc
+keys j<lt><lt>
+---
+case lines-shift-left-final-no-newline
+text     aa\n    bb\n    cc
+keys G<lt><lt>
+---
+case lines-shift-left-first-trailing-newline
+text     aa\n    bb\n    cc\n
+keys <lt><lt>
+---
+case lines-shift-left-middle-trailing-newline
+text     aa\n    bb\n    cc\n
+keys j<lt><lt>
+---
+case lines-shift-left-final-trailing-newline
+text     aa\n    bb\n    cc\n
+keys Gk<lt><lt>
+---
+case lines-shift-left-single-row
+text     aa
+keys <lt><lt>
+---
+case lines-upper-first-no-newline
+text aa\nbb\ncc
+keys gUU
+---
+case lines-upper-middle-no-newline
+text aa\nbb\ncc
+keys jgUU
+---
+case lines-upper-final-no-newline
+text aa\nbb\ncc
+keys GgUU
+---
+case lines-upper-first-trailing-newline
+text aa\nbb\ncc\n
+keys gUU
+---
+case lines-upper-middle-trailing-newline
+text aa\nbb\ncc\n
+keys jgUU
+---
+case lines-upper-final-trailing-newline
+text aa\nbb\ncc\n
+keys GkgUU
+---
+case lines-upper-single-row
+text aa
+keys gUU
+---
+case lines-lower-first-no-newline
+text AA\nBB\nCC
+keys guu
+---
+case lines-lower-middle-no-newline
+text AA\nBB\nCC
+keys jguu
+---
+case lines-lower-final-no-newline
+text AA\nBB\nCC
+keys Gguu
+---
+case lines-lower-first-trailing-newline
+text AA\nBB\nCC\n
+keys guu
+---
+case lines-lower-middle-trailing-newline
+text AA\nBB\nCC\n
+keys jguu
+---
+case lines-lower-final-trailing-newline
+text AA\nBB\nCC\n
+keys Gkguu
+---
+case lines-lower-single-row
+text AA
+keys guu
+---
+case lines-swap-first-no-newline
+text Aa\nBb\nCc
+keys g~~
+---
+case lines-swap-middle-no-newline
+text Aa\nBb\nCc
+keys jg~~
+---
+case lines-swap-final-no-newline
+text Aa\nBb\nCc
+keys Gg~~
+---
+case lines-swap-first-trailing-newline
+text Aa\nBb\nCc\n
+keys g~~
+---
+case lines-swap-middle-trailing-newline
+text Aa\nBb\nCc\n
+keys jg~~
+---
+case lines-swap-final-trailing-newline
+text Aa\nBb\nCc\n
+keys Gkg~~
+---
+case lines-swap-single-row
+text Aa
+keys g~~
+---
+case lines-visual-delete-first-no-newline
+text aa\nbb\ncc
+keys Vd
+---
+case lines-visual-delete-middle-no-newline
+text aa\nbb\ncc
+keys jVd
+---
+case lines-visual-delete-final-no-newline
+text aa\nbb\ncc
+keys GVd
+---
+case lines-visual-delete-first-trailing-newline
+text aa\nbb\ncc\n
+keys Vd
+---
+case lines-visual-delete-middle-trailing-newline
+text aa\nbb\ncc\n
+keys jVd
+---
+case lines-visual-delete-final-trailing-newline
+text aa\nbb\ncc\n
+keys GkVd
+---
+case lines-visual-delete-single-row
+text aa
+keys Vd
+---
+case lines-visual-change-first-no-newline
+text aa\nbb\ncc
+keys VcX<Esc>
+---
+case lines-visual-change-middle-no-newline
+text aa\nbb\ncc
+keys jVcX<Esc>
+---
+case lines-visual-change-final-no-newline
+text aa\nbb\ncc
+keys GVcX<Esc>
+---
+case lines-visual-change-first-trailing-newline
+text aa\nbb\ncc\n
+keys VcX<Esc>
+---
+case lines-visual-change-middle-trailing-newline
+text aa\nbb\ncc\n
+keys jVcX<Esc>
+---
+case lines-visual-change-final-trailing-newline
+text aa\nbb\ncc\n
+keys GkVcX<Esc>
+---
+case lines-visual-change-single-row
+text aa
+keys VcX<Esc>
+---
+case lines-visual-yank-first-no-newline
+text aa\nbb\ncc
+keys Vy
+---
+case lines-visual-yank-middle-no-newline
+text aa\nbb\ncc
+keys jVy
+---
+case lines-visual-yank-final-no-newline
+text aa\nbb\ncc
+keys GVy
+---
+case lines-visual-yank-first-trailing-newline
+text aa\nbb\ncc\n
+keys Vy
+---
+case lines-visual-yank-middle-trailing-newline
+text aa\nbb\ncc\n
+keys jVy
+---
+case lines-visual-yank-final-trailing-newline
+text aa\nbb\ncc\n
+keys GkVy
+---
+case lines-visual-yank-single-row
+text aa
+keys Vy
+---
+case lines-visual-shift-right-first-no-newline
+text aa\nbb\ncc
+keys V>
+---
+case lines-visual-shift-right-middle-no-newline
+text aa\nbb\ncc
+keys jV>
+---
+case lines-visual-shift-right-final-no-newline
+text aa\nbb\ncc
+keys GV>
+---
+case lines-visual-shift-right-first-trailing-newline
+text aa\nbb\ncc\n
+keys V>
+---
+case lines-visual-shift-right-middle-trailing-newline
+text aa\nbb\ncc\n
+keys jV>
+---
+case lines-visual-shift-right-final-trailing-newline
+text aa\nbb\ncc\n
+keys GkV>
+---
+case lines-visual-shift-right-single-row
+text aa
+keys V>
+---
+case lines-dd-counted-off-end
+text aa\nbb\ncc
+keys G2dd
+---
+case lines-cc-counted-off-end
+text aa\nbb\ncc
+keys G2ccX<Esc>

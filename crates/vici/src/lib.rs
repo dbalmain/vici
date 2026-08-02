@@ -62,8 +62,7 @@ pub use host::{Indent, Viewport};
 pub use key::{Key, KeyCode, Mods, ParseError, key, keys, render};
 pub use keymap::{Binding, Keymap, Layer, Walk, is_count_digit};
 pub use motion::{
-    Bound, Find, STICKY_END, Span, clamp, grapheme_col, object_span, resolve as resolve_motion,
-    row_span, span_rows,
+    Bound, Find, Span, clamp, grapheme_col, object_span, resolve as resolve_motion, row_span,
 };
 pub use pending::{Pending, Resolution};
 

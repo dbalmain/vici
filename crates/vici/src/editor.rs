@@ -366,32 +366,21 @@ impl Editor {
         effects.push(Effect::Edit(self.doc.replace(range, text)));
     }
 
-    fn yank(&mut self, range: &Range<usize>, linewise: bool) {
+    fn yank(&mut self, span: &Span) {
         let buf = self.buffer();
-        let text = if linewise {
-            // A linewise register holds whole rows, newline-terminated. The span's
-            // own text will not do: on the last row it opens with the newline `dd`
-            // needs to take, and `p` would paste that as a blank row.
-            let (first, last) = motion::span_rows(buf, range);
-            let mut text = buf.text_in(buf.row_range(first).start..buf.row_range(last).end);
-            if !text.ends_with('\n') {
-                text.push('\n');
+        let (text, linewise) = match span {
+            Span::Chars(range) => (buf.text_in(range.clone()), false),
+            Span::Lines(rows) => {
+                let first = *rows.start();
+                let last = *rows.end();
+                let mut text = buf.text_in(buf.row_range(first).start..buf.row_range(last).end);
+                if !text.ends_with('\n') {
+                    text.push('\n');
+                }
+                (text, true)
             }
-            text
-        } else {
-            buf.text_in(range.clone())
         };
         self.register = Register { text, linewise };
-    }
-
-    /// Where the caret belongs after a linewise operator: the start of the first
-    /// row the span covered.
-    ///
-    /// Not `range.start`, which is the newline ending the row *above* when the
-    /// span reaches the last row — see [`motion::span_rows`].
-    fn linewise_home(&self, range: &Range<usize>) -> usize {
-        let (first, _) = motion::span_rows(self.buffer(), range);
-        self.buffer().row_content_range(first).start
     }
 
     /// Every command runs inside an undo group, bracketed by the caret on either
@@ -457,10 +446,17 @@ impl Editor {
             Command::SelectObject { scope, object } => {
                 match motion::object_span(self.buffer(), self.cursor, scope, object, repeat) {
                     Some(span) => {
-                        self.anchor = Some(span.range.start);
+                        let range = match span {
+                            Span::Chars(range) => range,
+                            Span::Lines(rows) => {
+                                self.buffer().row_range(*rows.start()).start
+                                    ..self.buffer().row_range(*rows.end()).end
+                            }
+                        };
+                        self.anchor = Some(range.start);
                         let end = motion::clamp(
                             self.buffer(),
-                            span.range.end.saturating_sub(1),
+                            range.end.saturating_sub(1),
                             Bound::OnChar,
                         );
                         self.place_cursor(end);
@@ -507,7 +503,6 @@ impl Editor {
             }
 
             Command::DeleteChar { before } => {
-                let buf = self.buffer();
                 let range = if before {
                     let start = self.step(self.cursor, Motion::Left, repeat, Bound::OnChar);
                     start..self.cursor
@@ -518,8 +513,7 @@ impl Editor {
                 if range.is_empty() {
                     effects.push(Effect::Bell);
                 } else {
-                    let _ = buf;
-                    self.yank(&range, false);
+                    self.yank(&Span::Chars(range.clone()));
                     let start = range.start;
                     self.edit(range, "", &mut effects);
                     self.place_cursor(start);
@@ -815,10 +809,7 @@ impl Editor {
                 if semantics.is_linewise() {
                     let first = buf.byte_to_point(self.cursor.min(landed)).row;
                     let last = buf.byte_to_point(self.cursor.max(landed)).row;
-                    Span {
-                        range: motion::row_span(buf, first, last),
-                        linewise: true,
-                    }
+                    Span::Lines(first..=last)
                 } else {
                     let (start, mut end) = (self.cursor.min(landed), self.cursor.max(landed));
                     if semantics.is_inclusive() {
@@ -834,37 +825,41 @@ impl Editor {
                         )
                         .unwrap_or(end);
                     }
-                    Span {
-                        range: start..end,
-                        linewise: false,
-                    }
+                    Span::Chars(start..end)
                 }
             }
             Target::CurrentRow => {
                 let first = self.cursor_point().row;
-                let last = first + count.unwrap_or(1) - 1;
-                Span {
-                    range: motion::row_span(buf, first, last),
-                    linewise: true,
-                }
+                let last = first
+                    .saturating_add(count.unwrap_or(1).saturating_sub(1))
+                    .min(buf.len_rows() - 1);
+                Span::Lines(first..=last)
             }
             Target::Object { scope, object } => {
                 motion::object_span(buf, self.cursor, scope, object, count.unwrap_or(1))?
             }
-            Target::Selection => self.selection().map(|range| Span {
-                range,
-                linewise: self.mode == Mode::Visual(VisualKind::Line),
-            })?,
+            Target::Selection => match self.mode {
+                Mode::Visual(VisualKind::Char) => Span::Chars(self.selection()?),
+                Mode::Visual(VisualKind::Line) => {
+                    let anchor = self.anchor?;
+                    let first = buf.byte_to_point(anchor.min(self.cursor)).row;
+                    let last = buf.byte_to_point(anchor.max(self.cursor)).row;
+                    Span::Lines(first..=last)
+                }
+                _ => return None,
+            },
         };
         if operator.forces_linewise() {
-            // Via `span_rows`, because a span already covering the last row starts
-            // on the newline of the row above it: reading the row off that byte
-            // would widen the shift by a row it was never aimed at.
-            let (first, last) = motion::span_rows(buf, &span.range);
-            Some(Span {
-                range: motion::row_span(buf, first, last),
-                linewise: true,
-            })
+            match span {
+                Span::Chars(range) => {
+                    let first = buf.byte_to_point(range.start).row;
+                    let last = buf
+                        .byte_to_point(range.end.saturating_sub(1).max(range.start))
+                        .row;
+                    Some(Span::Lines(first..=last))
+                }
+                Span::Lines(_) => Some(span),
+            }
         } else {
             Some(span)
         }
@@ -877,8 +872,11 @@ impl Editor {
         amount: usize,
         effects: &mut Vec<Effect>,
     ) {
-        let Span { range, linewise } = span;
-        if range.is_empty() && operator != Operator::Change && !operator.forces_linewise() {
+        let span_is_empty = match &span {
+            Span::Chars(range) => range.is_empty(),
+            Span::Lines(_) => self.buffer().len_bytes() == 0,
+        };
+        if span_is_empty && operator != Operator::Change && !operator.forces_linewise() {
             effects.push(Effect::Bell);
             // Still drop the selection: a no-op operator must not strand the
             // editor in visual mode, or the next keystroke is interpreted against
@@ -889,25 +887,27 @@ impl Editor {
             return;
         }
         if operator.yanks() {
-            self.yank(&range, linewise);
+            self.yank(&span);
         }
         let was_visual = self.mode.is_visual();
 
         match operator {
             Operator::ShiftRight | Operator::ShiftLeft => {
-                let (first, last) = motion::span_rows(self.buffer(), &range);
+                let Span::Lines(rows) = span else {
+                    unreachable!("shift spans are widened to rows by span_of")
+                };
+                let first = *rows.start();
+                let last = *rows.end();
                 self.shift_rows(first, last, operator, amount, effects);
                 self.cursor = self.buffer().row_content_range(first).start;
                 self.cursor = self.step(self.cursor, Motion::FirstNonBlank, 1, Bound::OnChar);
             }
             Operator::Lower | Operator::Upper | Operator::SwapCase => {
+                let range = span.content_range(self.buffer());
+                let start = span.home(self.buffer());
+                let linewise = span.is_linewise();
                 let text = self.buffer().text_in(range.clone());
                 let recased = recase(&text, operator);
-                let start = if linewise {
-                    self.linewise_home(&range)
-                } else {
-                    range.start
-                };
                 self.edit(range, &recased, effects);
                 self.cursor = motion::clamp(self.buffer(), start, self.bound());
                 if linewise {
@@ -915,15 +915,13 @@ impl Editor {
                 }
             }
             Operator::Yank => {
-                let home = if linewise {
-                    self.linewise_home(&range)
-                } else {
-                    range.start
-                };
+                let home = span.home(self.buffer());
                 self.cursor = motion::clamp(self.buffer(), home, self.bound());
             }
             Operator::Delete => {
-                let start = range.start;
+                let range = span.delete_range(self.buffer());
+                let start = span.home(self.buffer());
+                let linewise = span.is_linewise();
                 self.edit(range, "", effects);
                 self.cursor = motion::clamp(self.buffer(), start, self.bound());
                 if linewise {
@@ -932,13 +930,9 @@ impl Editor {
             }
             Operator::Change => {
                 // Linewise change empties the rows but keeps one, so insert begins
-                // on a blank row rather than joining the next one up.
-                let range = if linewise {
-                    let (first, last) = motion::span_rows(self.buffer(), &range);
-                    self.buffer().row_range(first).start..self.buffer().row_content_range(last).end
-                } else {
-                    range
-                };
+                // on a blank row rather than joining the next one up. That is
+                // exactly the content range: it stops short of the terminator.
+                let range = span.content_range(self.buffer());
                 let start = range.start;
                 self.edit(range, "", effects);
                 self.cursor = start;
