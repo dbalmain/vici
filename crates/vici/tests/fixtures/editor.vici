@@ -1,0 +1,875 @@
+# Regenerate deliberately with: INSTA_UPDATE=always cargo test -p vici --test editor_cases
+# Movement
+case move-right-count
+text select id, name\nfrom users\nwhere id = 1
+keys 3l
+---
+case move-down
+text select id, name\nfrom users\nwhere id = 1
+keys jj
+---
+case move-dollar-and-home
+text select id, name\nfrom users\nwhere id = 1
+keys $0
+---
+case move-goto-last-and-first
+text select id, name\nfrom users\nwhere id = 1
+keys Ggg
+---
+case move-goto-counted-row
+text select id, name\nfrom users\nwhere id = 1
+keys 2G
+---
+case move-dollar-sticky-short-row
+text ab\nlonger row\nxy
+keys $jj
+---
+case move-dollar-sticky-long-row
+text ab\nlonger row\nxy
+keys $j
+---
+case move-clamps-at-last-char
+text ab
+keys lll
+---
+case viewport-half-page
+text 0\n1\n2\n3\n4\n5\n6\n7
+keys j<C-d>
+with viewport=0,6
+---
+case viewport-full-page
+text 0\n1\n2\n3\n4\n5\n6\n7
+keys j<C-f>
+with viewport=0,6
+---
+case viewport-clamps-ends
+text 0\n1\n2
+keys <C-u><C-b>G<C-d><C-f>
+with viewport=0,6
+---
+case viewport-dollar-sticky
+text xx\nlong second\nlong third\nx
+keys $<C-d>
+with viewport=0,4
+---
+case viewport-screen-motions
+text zero\n one\n two\n three\n four\n five\n six\nseven
+keys H2HM3ML2L
+with viewport=2,5
+---
+case viewport-screen-operator-top
+text 0\n1\n2\n3\n4\n5
+keys GdH
+with viewport=2,3
+---
+case viewport-screen-operator-bottom
+text 0\n1\n2\n3\n4\n5
+keys dL
+with viewport=2,3
+---
+case viewport-zero-height-scroll
+text 0\n1\n2
+keys j<C-d><C-u><C-f><C-b>
+---
+case screen-motion-without-viewport
+text zero\none
+keys HML
+---
+# Operators and motions
+case delete-word
+text select id, name\nfrom users\nwhere id = 1
+keys dw
+---
+case delete-word-motion-count
+text select id, name\nfrom users\nwhere id = 1
+keys d2w
+---
+case delete-word-operator-count
+text select id, name\nfrom users\nwhere id = 1
+keys 2dw
+---
+case delete-row
+text select id, name\nfrom users\nwhere id = 1
+keys dd
+---
+case delete-two-rows
+text select id, name\nfrom users\nwhere id = 1
+keys 2dd
+---
+case delete-row-after-motion
+text select id, name\nfrom users\nwhere id = 1
+keys jdd
+---
+case delete-last-row
+text select id, name\nfrom users\nwhere id = 1
+keys Gdd
+---
+case delete-to-row-end
+text select id, name\nfrom users\nwhere id = 1
+keys d$
+---
+case delete-find-inclusive
+text select id, name\nfrom users\nwhere id = 1
+keys df,
+---
+case delete-till-exclusive
+text select id, name\nfrom users\nwhere id = 1
+keys dt,
+---
+case delete-linewise-motion
+text select id, name\nfrom users\nwhere id = 1
+keys dj
+---
+case delete-percent-forward
+text x (a (b) c) y
+keys f(d%
+---
+case delete-percent-backward
+text x (a (b) c) y
+keys $F)d%
+---
+case delete-percent-quote
+text say 'hi' there
+keys d%
+---
+case delete-percent-no-match
+text no brackets here
+keys %
+---
+case delete-inner-word
+text select id, name\nfrom users\nwhere id = 1
+keys diw
+---
+case delete-around-word
+text select id, name\nfrom users\nwhere id = 1
+keys daw
+---
+case change-inner-quote
+text where name = 'dave'
+keys fdci'bob<Esc>
+---
+case change-inner-paren-delimiter
+text f(a, b)
+keys lci(x<Esc>
+---
+case change-inner-paren-seeks
+text f(a, b)
+keys ci(x<Esc>
+---
+case delete-inner-brace-multiline
+text fn f()\n{\n    body\n}
+keys di{
+---
+case delete-around-brace-seeks
+text outer { mid { deep } here } end
+keys da{
+---
+case delete-inner-brace-seek-one
+text outer { mid { deep } here } end
+keys di{
+---
+case delete-inner-brace-seek-two
+text outer { mid { deep } here } end
+keys 2di{
+---
+case delete-inner-brace-operator-count
+text outer { mid { deep } here } end
+keys d2i{
+---
+case delete-around-brace-count
+text outer { mid { deep } here } end
+keys 2da{
+---
+case delete-inner-brace-too-deep
+text outer { mid { deep } here } end
+keys 3di{
+---
+case visual-inner-brace-count
+text outer { mid { deep } here } end
+keys v2i{
+---
+case delete-inner-word-count-two
+text one two three
+keys 2diw
+---
+case delete-inner-word-count-three
+text one two three
+keys 3diw
+---
+case delete-around-word-count-two
+text one two three
+keys 2daw
+---
+case delete-exclusive-end
+text one two
+keys wdw
+---
+case delete-exclusive-end-count
+text one two
+keys d2w
+---
+case delete-big-word-end
+text one two
+keys wdW
+---
+case uppercase-exclusive-end
+text one two
+keys wgUw
+---
+case delete-last-char-with-motion
+text abc
+keys $dl
+---
+case delete-last-char-x
+text abc
+keys $x
+---
+case delete-dollar-before-newline
+text ab\ncd
+keys d$
+---
+case delete-word-end-inclusive
+text one two
+keys de
+---
+case change-word
+text select id, name\nfrom users\nwhere id = 1
+keys cwSELECT<Esc>
+---
+case change-row
+text select id, name\nfrom users\nwhere id = 1
+keys ccselect 1<Esc>
+---
+case change-final-row-no-newline
+text aa\nbb\ncc
+keys GccX<Esc>
+---
+case change-middle-row-no-newline
+text aa\nbb\ncc
+keys jccX<Esc>
+---
+case change-final-row-trailing-newline
+text aa\nbb\ncc\n
+keys GkccX<Esc>
+---
+case delete-final-row-trailing-newline
+text aa\nbb\ncc\n
+keys Gkdd
+---
+# Shifts, yanks, puts, and case
+case shift-row-right
+text one\ntwo\nthree
+keys >>
+---
+case shift-row-left
+text     one\ntwo
+keys <lt><lt>
+---
+case shift-count
+text one\ntwo\nthree
+keys 3>>
+---
+case shift-motion
+text one\ntwo\nthree
+keys >j
+---
+case shift-paragraph
+text one\n\ntwo
+keys >ip
+---
+case shift-object
+text { one }
+keys l>i{
+---
+case shift-visual
+text one\ntwo\nthree
+keys Vj>
+---
+case shift-repeat
+text one\ntwo\nthree
+keys 2>>.
+---
+case shift-indent-tabs
+text \tword
+keys >>
+with indent=4,8,tabs
+---
+case shift-noop
+text one
+keys <lt><lt>
+---
+case shift-whitespace-to-empty
+text     
+keys <lt><lt>
+---
+case shift-empty-noop
+text
+keys >>
+---
+case shift-cursor-first-nonblank
+text   one\ntwo
+keys >j
+---
+case shift-visual-count
+text one\ntwo
+keys Vj3>
+---
+case shift-final-row
+text a\nb\nc
+keys G>>
+---
+case shift-final-row-up
+text a\nb\nc
+keys G>k
+---
+case yank-char-put-before
+text select id, name\nfrom users\nwhere id = 1
+keys yiwP
+---
+case yank-line-put-after
+text select id, name\nfrom users\nwhere id = 1
+keys yyp
+---
+case yank-line-put-before
+text select id, name\nfrom users\nwhere id = 1
+keys yyP
+---
+case yank-final-row-put-after
+text aa\nbb\ncc
+keys Gyyp
+---
+case yank-final-row-put-before
+text aa\nbb\ncc
+keys GyyP
+---
+case yank-first-row-put-final-after
+text aa\nbb\ncc
+keys yyGp
+---
+case yank-first-row-put-final-before
+text aa\nbb\ncc
+keys yyGP
+---
+case delete-then-put
+text select id, name\nfrom users\nwhere id = 1
+keys ddp
+---
+case upper-word
+text one two
+keys gUw
+---
+case lower-word
+text ONE TWO
+keys guw
+---
+case swap-word
+text One Two
+keys g~w
+---
+case upper-count-multiplied
+text one two three
+keys 2gU2w
+---
+case upper-inner-word
+text one two
+keys wgUiw
+---
+case upper-till-space
+text one two
+keys gUt 
+---
+case upper-inner-paren
+text a (b c) d
+keys fbgUi(
+---
+case upper-current-row-short
+text one two\nthree
+keys gUU
+---
+case upper-current-row-long
+text one two\nthree
+keys gUgU
+---
+case swap-current-row
+text One Two\nthree
+keys g~~
+---
+case lower-current-rows
+text ONE\nTWO\nthree
+keys 2guu
+---
+case upper-bad-double
+text one two
+keys gUd
+---
+case upper-keeps-register
+text one two
+keys ywwgUWP
+---
+case visual-upper-word
+text one two three
+keys vwU
+---
+case visual-lower-word
+text ONE TWO three
+keys vwu
+---
+case visual-swap-dollar
+text One Two
+keys v$~
+---
+case visual-upper-lines
+text one\ntwo\nthree
+keys VjU
+---
+case visual-upper-counted-motion
+text one two three
+keys v2wgU
+---
+case upper-undo-and-repeat
+text one two three
+keys gUwuww.w.
+---
+case upper-sharp-s
+text straße
+keys gUiw
+---
+case lower-multibyte
+text CAFÉ NIÑO
+keys guiw
+---
+# Editing and insert mode
+case delete-char
+text select id, name\nfrom users\nwhere id = 1
+keys x
+---
+case delete-char-count
+text select id, name\nfrom users\nwhere id = 1
+keys 3x
+---
+case delete-before-char
+text select id, name\nfrom users\nwhere id = 1
+keys lX
+---
+case replace-char
+text select id, name\nfrom users\nwhere id = 1
+keys rS
+---
+case replace-char-count
+text select id, name\nfrom users\nwhere id = 1
+keys 3rx
+---
+case swap-char
+text select id, name\nfrom users\nwhere id = 1
+keys ~
+---
+case swap-char-count
+text select id, name\nfrom users\nwhere id = 1
+keys 6~
+---
+case join-rows
+text select id, name\nfrom users\nwhere id = 1
+keys J
+---
+case join-trims-indent
+text a\n    b
+keys J
+---
+case join-count
+text select id, name\nfrom users\nwhere id = 1
+keys 3J
+---
+case insert-before
+text select id, name\nfrom users\nwhere id = 1
+keys iX<Esc>
+---
+case insert-after
+text select id, name\nfrom users\nwhere id = 1
+keys aX<Esc>
+---
+case insert-row-end
+text select id, name\nfrom users\nwhere id = 1
+keys AX<Esc>
+---
+case insert-first-nonblank
+text   x
+keys IY<Esc>
+---
+case insert-open-below
+text select id, name\nfrom users\nwhere id = 1
+keys oX<Esc>
+---
+case insert-open-above
+text select id, name\nfrom users\nwhere id = 1
+keys OX<Esc>
+---
+case insert-backspace
+text
+keys iab<BS>c<Esc>
+---
+case insert-control-word
+text
+keys ione two<C-w>three<Esc>
+---
+case insert-enter
+text
+keys ia<CR>b<Esc>
+---
+case insert-backspace-row-boundary
+text ab\ncd
+keys ji<BS><Esc>
+---
+case replace-mode
+text abcdef
+keys RXY<Esc>
+---
+case replace-mode-row-end
+text ab\ncd
+keys $RXYZ<Esc>
+---
+# Visual, undo, redo, dot, and macros
+case visual-char-selection
+text select id, name\nfrom users\nwhere id = 1
+keys vll
+---
+case visual-char-delete
+text select id, name\nfrom users\nwhere id = 1
+keys vlld
+---
+case visual-line-delete
+text select id, name\nfrom users\nwhere id = 1
+keys Vd
+---
+case visual-two-line-delete
+text select id, name\nfrom users\nwhere id = 1
+keys Vjd
+---
+case visual-line-selection
+text select id, name\nfrom users\nwhere id = 1
+keys Vj
+---
+case visual-toggle
+text select id, name\nfrom users\nwhere id = 1
+keys vv
+---
+case visual-escape
+text select id, name\nfrom users\nwhere id = 1
+keys v<Esc>
+---
+case visual-object-selection
+text select id, name\nfrom users\nwhere id = 1
+keys viw
+---
+case visual-object-change
+text select id, name\nfrom users\nwhere id = 1
+keys viwcSELECT<Esc>
+---
+case undo-delete
+text select id, name\nfrom users\nwhere id = 1
+keys ddu
+---
+case redo-delete
+text select id, name\nfrom users\nwhere id = 1
+keys ddu<C-r>
+---
+case delete-end-command
+text select id, name\nfrom users\nwhere id = 1
+keys wD
+---
+case change-end-command
+text select id, name\nfrom users\nwhere id = 1
+keys wCname<Esc>
+---
+case delete-end-count
+text aa\nbb\ncc
+keys 2D
+---
+case delete-end-repeat
+text aa bb\ncc dd
+keys wDj0w.
+---
+case find-till-repeat
+text a.b.c.d
+keys t.;;
+---
+case find-till-reverse
+text a.b.c.d
+keys t.;;,
+---
+case find-backward-till-repeat
+text a.b.c.d
+keys $T.;
+---
+case find-repeat-count
+text a.b.c.d.e
+keys t.2;
+---
+case undo-caret-open
+text select id\nfrom users
+keys lllo-- note<Esc>u
+---
+case redo-caret-open
+text select id\nfrom users
+keys lllo-- note<Esc>u<C-r>
+---
+case insert-session-undo
+text
+keys ihello world<Esc>u
+---
+case change-session-undo
+text select id, name\nfrom users\nwhere id = 1
+keys cwSELECT<Esc>u
+---
+case dot-delete-word
+text select id, name\nfrom users\nwhere id = 1
+keys dw.
+---
+case dot-delete-row
+text select id, name\nfrom users\nwhere id = 1
+keys dd.
+---
+case dot-change
+text one two
+keys ciwX<Esc>w.
+---
+case dot-insert-session
+text
+keys iab<Esc>.
+---
+case dot-count
+text a b c d e
+keys dw3.
+---
+case dot-empty
+text select id, name\nfrom users\nwhere id = 1
+keys .
+---
+case dot-visual-shift
+text a\nb\nc\nd
+keys Vj>jj.
+---
+case dot-visual-delete
+text a\nb\nc\nd\ne
+keys Vjd.
+---
+case dot-visual-change
+text one two three
+keys vwcX<Esc>w.
+---
+case macro-record-play
+text aa\nbb\ncc
+keys qa~0jq@a@a
+---
+case macro-count
+text aa\nbb\ncc
+keys qa~0jq2@a
+---
+case macro-diagonal
+text aa\nbb\ncc
+keys qa~jq@a@a
+---
+case macro-recording-events
+text abc
+keys qaxq
+---
+case macro-unrecorded
+text select id, name\nfrom users\nwhere id = 1
+keys @z
+---
+case macro-self-referential
+text abc
+keys qa@aq@a
+---
+# Effects, pending input, and empty or multibyte buffers
+case typing-effects
+text
+keys iabc<Esc>
+---
+case edit-geometry
+text select id, name\nfrom users\nwhere id = 1
+keys jdd
+---
+case mode-effects
+text select id, name\nfrom users\nwhere id = 1
+keys i<Esc>
+---
+case scroll-effects
+text select id, name\nfrom users\nwhere id = 1
+keys zz<C-d>
+---
+case command-prompt-effect
+text select id, name\nfrom users\nwhere id = 1
+keys :
+---
+case invalid-sequence
+text select id, name\nfrom users\nwhere id = 1
+keys d!
+---
+case pending-command
+text select id, name\nfrom users\nwhere id = 1
+keys 2d
+---
+case empty-delete-char
+text
+keys x
+---
+case empty-delete-row
+text
+keys dd
+---
+case empty-change-word
+text
+keys ciw<Esc>
+---
+case empty-put-join-swap
+text
+keys pPJ~
+---
+case empty-macro
+text
+keys @a
+---
+case combining-grapheme-delete
+text café au lait
+keys 3lx
+---
+case multibyte-motion-and-edit
+text aé́b\ncafé\nx
+keys llj$jkxwbedwu
+---
+# Remaining motion edges and table rows from the former inline suite.
+case move-left-edge
+text abc
+keys h
+---
+case move-first-nonblank
+text   abc
+keys ^
+---
+case move-word-forward
+text one two three
+keys w
+---
+case move-big-word-forward
+text one, two
+keys W
+---
+case move-word-backward
+text one two three
+keys $b
+---
+case move-big-word-backward
+text one, two
+keys $B
+---
+case move-word-end
+text one two three
+keys e
+---
+case move-big-word-end-count
+text one, two three
+keys 2E
+---
+case move-find-forward-count
+text a.b.c.d
+keys 2f.
+---
+case move-find-backward
+text a.b.c.d
+keys $F.
+---
+case move-till-forward
+text a.b.c.d
+keys t.
+---
+case move-till-backward
+text a.b.c.d
+keys $T.
+---
+case move-find-reverse-repeat
+text a.b.c.d
+keys f.;,
+---
+case visual-inner-brace-seeks
+text outer { mid { deep } here } end
+keys vi{
+---
+case visual-inner-brace-count-seeks
+text outer { mid { deep } here } end
+keys v2i{
+---
+case change-first-row-no-newline
+text aa\nbb\ncc
+keys ccX<Esc>
+---
+case visual-change-final-row-no-newline
+text aa\nbb\ncc
+keys GVcX<Esc>
+---
+case change-two-rows-no-newline
+text aa\nbb\ncc
+keys j2ccX<Esc>
+---
+case change-first-row-trailing-newline
+text aa\nbb\ncc\n
+keys ccX<Esc>
+---
+case change-middle-row-trailing-newline
+text aa\nbb\ncc\n
+keys jccX<Esc>
+---
+case visual-change-final-row-trailing-newline
+text aa\nbb\ncc\n
+keys GkVcX<Esc>
+---
+case change-final-only-trailing-newline
+text aa\n
+keys GkccX<Esc>
+---
+case change-two-rows-trailing-newline
+text aa\nbb\ncc\n
+keys j2ccX<Esc>
+---
+case macro-closing-q-excluded
+text abc
+keys qax q@a
+---
+case dot-keeps-last-change-after-motion-undo
+text select id, name\nfrom users\nwhere id = 1
+keys xjjllu
+---
+case invalid-cancelled-sequence
+text select id, name\nfrom users\nwhere id = 1
+keys d<Esc>
+---
+case empty-delete-before
+text
+keys X
+---
+case empty-delete-word
+text
+keys dw
+---
+case empty-delete-inner-word
+text
+keys diw
+---
+case empty-delete-end
+text
+keys D
+---
+case empty-undo-redo
+text
+keys u<C-r>
+---
+case empty-motions
+text
+keys $Ggg
+---
+case empty-visual-operators
+text
+keys vdVd
+---
+case empty-replace
+text
+keys rx

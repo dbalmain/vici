@@ -25,5 +25,8 @@ ropey = { version = "2.0.0-beta.1", default-features = false, features = [
 # unit rather than one `char`.
 unicode-segmentation = "1.13.3"
 
+[dev-dependencies]
+insta = "1"
+
 [lints]
 workspace = true
