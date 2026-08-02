@@ -52,23 +52,16 @@ same way, so the stash is now of historical interest only.
   unticked. (`1f4d2f3` isolates a batch that arrived pre-ticked, if the
   checklist ever needs resetting: `git revert 1f4d2f3`.)
 
-## Next: the position store — marks and the jump list
+## Position store and jump list
 
-Build these together. They are one feature: remembered positions that survive
-edits. Once offsets are shifted against each `Edit`, marks are ~30 lines on top,
-so deferring them saves nothing.
+Remembered positions that survive edits are editor navigation state, so the
+store lives in `Editor`, not `Document`. `Editor::edit` and `Editor::revert`
+shift entries through each applied `Edit`; `set_text` clears them because it
+replaces the whole buffer. Normal-mode `<C-o>`/`<C-i>` navigate the jump list,
+and `Editor::jump_to(offset)` is the public host landing move.
 
-- Store offsets and adjust them against every `Edit` — a `shift(&Edit)` hooked
-  into the one mutation path in `Document`. This makes positions **better than
-  vim**, where marks go stale after an edit.
-- Normal-mode `<C-o>`/`<C-i>` is then a cursor into the ring.
-- `crates/vici/src/editor.rs:441` holds a TODO waiting on this: page and screen
-  motions should push a jump.
-- Expose `Editor::jump_to(offset)` publicly while building it — that is the
-  landing move any host-side jump plugin needs.
-- Then `m{a-z}`, `` `{a-z} ``, `'{a-z}`, and `''`.
-
-Roughly half a day for the store and the jump list.
+Marks are deliberately a separate slice. They share the position arithmetic but
+should not make the document layer own upper-layer navigation state.
 
 ## Then: search
 

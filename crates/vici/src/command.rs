@@ -279,6 +279,11 @@ pub enum Command {
     /// `@{register}`
     PlayMacro(char),
 
+    /// `<C-o>` — go to the older entry in the jump list.
+    JumpBack,
+    /// `<C-i>` — go to the newer entry in the jump list.
+    JumpForward,
+
     Scroll(Scroll),
 
     /// `:` — the host opens a prompt.

@@ -176,8 +176,8 @@ impl Keymap {
     /// The default scheme.
     ///
     /// Covers the subset this core targets: modes, motions, the three operators,
-    /// text objects, counts, dot-repeat, macros, undo, and ex commands. No marks,
-    /// no named registers.
+    /// text objects, counts, dot-repeat, macros, undo, jump navigation, and ex
+    /// commands. No marks, no named registers.
     #[must_use]
     #[allow(clippy::too_many_lines)]
     pub fn vim() -> Self {
@@ -300,6 +300,10 @@ impl Keymap {
         // -- history and repetition ------------------------------------------
         map.bind_spec(Layer::Normal, "u", Cmd(C::Undo))
             .bind_spec(Layer::Normal, "<C-r>", Cmd(C::Redo))
+            // These are normal-layer bindings. Insert-mode `<C-o>` remains
+            // deliberately unbound.
+            .bind_spec(Layer::Normal, "<C-o>", Cmd(C::JumpBack))
+            .bind_spec(Layer::Normal, "<C-i>", Cmd(C::JumpForward))
             .bind_spec(Layer::Normal, ".", Cmd(C::Repeat))
             .bind_spec(Layer::Normal, "q", Await(AwaitChar::RecordMacro))
             .bind_spec(Layer::Normal, "@", Await(AwaitChar::PlayMacro));

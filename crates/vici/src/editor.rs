@@ -1,7 +1,8 @@
 //! The reducer: `(state, Key) -> (state, Vec<Effect>)`.
 //!
 //! This is the only stateful type in the crate. It owns the cursor, the mode, the
-//! pending parser and the register, and it drives [`Document`] and [`motion`].
+//! pending parser, register and jump list, and it drives [`Document`] and
+//! [`motion`].
 //!
 //! # Why the reducer shape earns its keep
 //!
@@ -33,6 +34,8 @@ use crate::pending::{Pending, Resolution};
 /// How deep `.` and `@` may nest before the editor refuses, so a macro that plays
 /// itself terminates instead of overflowing the stack.
 const MAX_REPLAY_DEPTH: usize = 64;
+/// Oldest jump entries are discarded once the list reaches this size.
+const MAX_JUMPS: usize = 100;
 
 /// Something the host must act on.
 ///
@@ -78,6 +81,10 @@ pub struct Editor {
     /// Visual-mode anchor; the other end of the selection.
     anchor: Option<usize>,
     register: Register,
+    /// Places left by far motions and host-side jumps.
+    jumps: Vec<usize>,
+    /// An entry being visited, or `jumps.len()` when the caret is at the present.
+    jump_at: usize,
     last_find: Option<Find>,
     /// Keys of the last buffer-changing command, for `.`.
     last_change: Vec<Key>,
@@ -122,6 +129,8 @@ impl Editor {
             sticky: 0,
             anchor: None,
             register: Register::default(),
+            jumps: Vec::new(),
+            jump_at: 0,
             last_find: None,
             last_change: Vec::new(),
             change_keys: None,
@@ -190,6 +199,21 @@ impl Editor {
     #[must_use]
     pub fn cursor(&self) -> usize {
         self.cursor
+    }
+
+    /// Remembered jump positions, oldest first.
+    #[must_use]
+    pub fn jumps(&self) -> &[usize] {
+        &self.jumps
+    }
+
+    /// Move to a host-supplied location, remembering the position left behind.
+    ///
+    /// The destination is clamped to the buffer and pulled back to a grapheme
+    /// boundary, so byte-oriented hosts cannot leave the caret mid-character.
+    pub fn jump_to(&mut self, offset: usize) {
+        self.push_jump();
+        self.place_cursor(offset);
     }
 
     #[must_use]
@@ -339,6 +363,8 @@ impl Editor {
         self.anchor = None;
         self.pending.reset();
         self.mode = Mode::Normal;
+        self.jumps.clear();
+        self.jump_at = 0;
         edit
     }
 
@@ -363,7 +389,9 @@ impl Editor {
         if range.is_empty() && text.is_empty() {
             return;
         }
-        effects.push(Effect::Edit(self.doc.replace(range, text)));
+        let edit = self.doc.replace(range, text);
+        self.shift_jumps(&edit);
+        effects.push(Effect::Edit(edit));
     }
 
     fn yank(&mut self, span: &Span) {
@@ -405,7 +433,6 @@ impl Editor {
         let mut effects = Vec::new();
         let repeat = count.unwrap_or(1);
 
-        // TODO: Record page and screen motions in the jump list once it exists.
         match command {
             Command::Move(target) => {
                 let bound = self.bound();
@@ -420,6 +447,9 @@ impl Editor {
                     bound,
                 ) {
                     Some(landed) => {
+                        if landed != self.cursor && pushes_jump(target) {
+                            self.push_jump();
+                        }
                         self.cursor = landed;
                         self.remember_find(target);
                         self.update_sticky(target);
@@ -579,6 +609,10 @@ impl Editor {
                 None => effects.push(Effect::Bell),
             },
 
+            Command::JumpBack => self.jump_back(&mut effects),
+
+            Command::JumpForward => self.jump_forward(&mut effects),
+
             Command::Scroll(scroll) => {
                 if self.viewport.height != 0 {
                     let (motion, rows) = match scroll {
@@ -598,7 +632,11 @@ impl Editor {
                             return effects;
                         }
                     };
-                    self.cursor = self.step(self.cursor, motion, rows, self.bound());
+                    let landed = self.step(self.cursor, motion, rows, self.bound());
+                    if landed != self.cursor {
+                        self.push_jump();
+                        self.cursor = landed;
+                    }
                 }
                 effects.push(Effect::Scroll(scroll));
             }
@@ -742,6 +780,62 @@ impl Editor {
         }
     }
 
+    /// Remember the current position and discard destinations beyond it.
+    fn push_jump(&mut self) {
+        self.jumps.truncate(self.jump_at);
+        self.jumps.push(self.cursor);
+        if self.jumps.len() > MAX_JUMPS {
+            self.jumps.remove(0);
+        }
+        self.jump_at = self.jumps.len();
+    }
+
+    fn jump_back(&mut self, effects: &mut Vec<Effect>) {
+        if self.jumps.is_empty() {
+            effects.push(Effect::Bell);
+            return;
+        }
+        if self.jump_at == self.jumps.len() {
+            // Add the present so `<C-i>` can return here, then skip it to reach
+            // the position before the jump that started this traversal.
+            self.push_jump();
+            self.jump_at = self.jumps.len() - 2;
+        } else if self.jump_at == 0 {
+            effects.push(Effect::Bell);
+            return;
+        } else {
+            self.jump_at -= 1;
+        }
+        self.place_cursor(self.jumps[self.jump_at]);
+    }
+
+    /// Return towards the present, ringing at the newest position as
+    /// [`Self::jump_back`] does at the oldest.
+    ///
+    /// Indexing through `get` rather than `jumps[next]` keeps this sound
+    /// without depending on the invariant that `jump_at` is never one short of
+    /// the end — which holds today, but is not worth making load-bearing.
+    fn jump_forward(&mut self, effects: &mut Vec<Effect>) {
+        let next = self.jump_at + 1;
+        let Some(&offset) = self.jumps.get(next) else {
+            effects.push(Effect::Bell);
+            return;
+        };
+        self.place_cursor(offset);
+        // Landing on the last entry means we are back at the present.
+        self.jump_at = if next + 1 == self.jumps.len() {
+            self.jumps.len()
+        } else {
+            next
+        };
+    }
+
+    fn shift_jumps(&mut self, edit: &Edit) {
+        for jump in &mut self.jumps {
+            *jump = edit.shift(*jump);
+        }
+    }
+
     /// Apply the outcome of an undo or redo.
     ///
     /// The caret goes back to where the history says it was. Failing that — a
@@ -753,6 +847,7 @@ impl Editor {
             return;
         }
         for change in &step.changes {
+            self.shift_jumps(&change.edit);
             effects.push(Effect::Edit(change.edit));
         }
         let at = step
@@ -1212,6 +1307,19 @@ impl Editor {
     }
 }
 
+/// Motions that cross enough of the buffer to deserve a return point.
+const fn pushes_jump(motion: Motion) -> bool {
+    matches!(
+        motion,
+        Motion::GotoRow
+            | Motion::GotoFirstRow
+            | Motion::MatchPair
+            | Motion::ScreenTop
+            | Motion::ScreenMiddle
+            | Motion::ScreenBottom
+    )
+}
+
 /// Apply a case-changing operator to a stretch of text.
 ///
 /// Lowering and raising go through `char::to_lowercase`/`to_uppercase`, which are
@@ -1257,5 +1365,18 @@ mod tests {
         editor.type_keys("gg").expect("valid test keys");
         editor.type_keys("dk").expect("valid test keys");
         assert_eq!(editor.buffer().to_string(), "three");
+    }
+
+    #[test]
+    fn host_jumps_clamp_and_the_list_is_capped() {
+        let mut editor = Editor::from_text("a🇦🇺");
+        for _ in 0..=MAX_JUMPS {
+            editor.jump_to(usize::MAX);
+        }
+        assert_eq!(editor.cursor(), 1);
+        assert_eq!(editor.jumps().len(), MAX_JUMPS);
+        assert!(editor.jumps().iter().all(|&jump| jump == 1));
+        editor.set_text("new");
+        assert!(editor.jumps().is_empty());
     }
 }

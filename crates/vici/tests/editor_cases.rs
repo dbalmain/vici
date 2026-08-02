@@ -180,6 +180,7 @@ fn render_case(snapshot: &mut String, name: &str, editor: &Editor, effects: &[Ef
          mode: {mode:?}; selection: {selection}\n\
          register: {register_kind} {register:?}\n\
          history: undo={undo} redo={redo}\n\
+         jumps: {jumps:?}\n\
          pending: {pending:?}; last-change: {last_change:?}; recording: {recording}\n\
          effects:\n",
         text = editor.buffer().to_string(),
@@ -190,6 +191,7 @@ fn render_case(snapshot: &mut String, name: &str, editor: &Editor, effects: &[Ef
         register = editor.register().text,
         undo = history.undo_depth(),
         redo = history.redo_depth(),
+        jumps = editor.jumps(),
         pending = render(editor.pending_keys()),
         last_change = render(editor.last_change()),
     )

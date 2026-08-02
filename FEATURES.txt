@@ -438,7 +438,19 @@
     something instead is a bug worth reporting.
 
 --------------------------------------------------------------
- 18. EDGES
+ 18. JUMP LIST
+--------------------------------------------------------------
+
+[ ] <C-o>  jump back       [ ] <C-i>  jump forward
+[ ] G gg H M L %   leave a jump
+[ ] <C-d> <C-u> <C-f> <C-b>   leave a jump when they move
+
+    The list remembers locations across edits. Insert text before a
+    remembered place, delete text before one, then use <C-o> and
+    confirm it still lands on the intended text.
+
+--------------------------------------------------------------
+ 19. EDGES
 --------------------------------------------------------------
 
     Multibyte — `x` must delete a whole grapheme, and the cursor

@@ -8,6 +8,7 @@ cursor: 3 @ 0:3
 mode: Normal; selection: -
 register: char ""
 history: undo=0 redo=0
+jumps: []
 pending: ""; last-change: ""; recording: -
 effects:
 
@@ -17,6 +18,7 @@ cursor: 27 @ 2:0
 mode: Normal; selection: -
 register: char ""
 history: undo=0 redo=0
+jumps: []
 pending: ""; last-change: ""; recording: -
 effects:
 
@@ -26,6 +28,7 @@ cursor: 0 @ 0:0
 mode: Normal; selection: -
 register: char ""
 history: undo=0 redo=0
+jumps: []
 pending: ""; last-change: ""; recording: -
 effects:
 
@@ -35,6 +38,7 @@ cursor: 0 @ 0:0
 mode: Normal; selection: -
 register: char ""
 history: undo=0 redo=0
+jumps: [0, 27]
 pending: ""; last-change: ""; recording: -
 effects:
 
@@ -44,6 +48,7 @@ cursor: 16 @ 1:0
 mode: Normal; selection: -
 register: char ""
 history: undo=0 redo=0
+jumps: [0]
 pending: ""; last-change: ""; recording: -
 effects:
 
@@ -53,6 +58,7 @@ cursor: 15 @ 2:1
 mode: Normal; selection: -
 register: char ""
 history: undo=0 redo=0
+jumps: []
 pending: ""; last-change: ""; recording: -
 effects:
 
@@ -62,6 +68,7 @@ cursor: 12 @ 1:9
 mode: Normal; selection: -
 register: char ""
 history: undo=0 redo=0
+jumps: []
 pending: ""; last-change: ""; recording: -
 effects:
 
@@ -71,6 +78,7 @@ cursor: 1 @ 0:1
 mode: Normal; selection: -
 register: char ""
 history: undo=0 redo=0
+jumps: []
 pending: ""; last-change: ""; recording: -
 effects:
 
@@ -80,6 +88,7 @@ cursor: 8 @ 4:0
 mode: Normal; selection: -
 register: char ""
 history: undo=0 redo=0
+jumps: [2]
 pending: ""; last-change: ""; recording: -
 effects:
   scroll HalfPageDown
@@ -90,6 +99,7 @@ cursor: 10 @ 5:0
 mode: Normal; selection: -
 register: char ""
 history: undo=0 redo=0
+jumps: [2]
 pending: ""; last-change: ""; recording: -
 effects:
   scroll PageDown
@@ -100,6 +110,7 @@ cursor: 4 @ 2:0
 mode: Normal; selection: -
 register: char ""
 history: undo=0 redo=0
+jumps: [0]
 pending: ""; last-change: ""; recording: -
 effects:
   scroll HalfPageUp
@@ -113,6 +124,7 @@ cursor: 24 @ 2:9
 mode: Normal; selection: -
 register: char ""
 history: undo=0 redo=0
+jumps: [1]
 pending: ""; last-change: ""; recording: -
 effects:
   scroll HalfPageDown
@@ -123,6 +135,7 @@ cursor: 29 @ 5:1
 mode: Normal; selection: -
 register: char ""
 history: undo=0 redo=0
+jumps: [0, 11, 16, 23, 35]
 pending: ""; last-change: ""; recording: -
 effects:
 
@@ -132,6 +145,7 @@ cursor: 2 @ 1:0
 mode: Normal; selection: -
 register: line "2\n3\n4\n5\n"
 history: undo=1 redo=0
+jumps: [0]
 pending: ""; last-change: "dH"; recording: -
 effects:
   edit 3..11 -> 3; (1,1)..(5,1) -> (1,1)
@@ -142,6 +156,7 @@ cursor: 0 @ 0:0
 mode: Normal; selection: -
 register: line "0\n1\n2\n3\n4\n"
 history: undo=1 redo=0
+jumps: []
 pending: ""; last-change: "dL"; recording: -
 effects:
   edit 0..10 -> 0; (0,0)..(5,0) -> (0,0)
@@ -152,6 +167,7 @@ cursor: 2 @ 1:0
 mode: Normal; selection: -
 register: char ""
 history: undo=0 redo=0
+jumps: []
 pending: ""; last-change: ""; recording: -
 effects:
   scroll HalfPageDown
@@ -165,6 +181,7 @@ cursor: 0 @ 0:0
 mode: Normal; selection: -
 register: char ""
 history: undo=0 redo=0
+jumps: []
 pending: ""; last-change: ""; recording: -
 effects:
   bell
@@ -177,6 +194,7 @@ cursor: 0 @ 0:0
 mode: Normal; selection: -
 register: char "select "
 history: undo=1 redo=0
+jumps: []
 pending: ""; last-change: "dw"; recording: -
 effects:
   edit 0..7 -> 0; (0,0)..(0,7) -> (0,0)
@@ -187,6 +205,7 @@ cursor: 0 @ 0:0
 mode: Normal; selection: -
 register: char "select id"
 history: undo=1 redo=0
+jumps: []
 pending: ""; last-change: "d2w"; recording: -
 effects:
   edit 0..9 -> 0; (0,0)..(0,9) -> (0,0)
@@ -197,6 +216,7 @@ cursor: 0 @ 0:0
 mode: Normal; selection: -
 register: char "select id"
 history: undo=1 redo=0
+jumps: []
 pending: ""; last-change: "2dw"; recording: -
 effects:
   edit 0..9 -> 0; (0,0)..(0,9) -> (0,0)
@@ -207,6 +227,7 @@ cursor: 0 @ 0:0
 mode: Normal; selection: -
 register: line "select id, name\n"
 history: undo=1 redo=0
+jumps: []
 pending: ""; last-change: "dd"; recording: -
 effects:
   edit 0..16 -> 0; (0,0)..(1,0) -> (0,0)
@@ -217,6 +238,7 @@ cursor: 0 @ 0:0
 mode: Normal; selection: -
 register: line "select id, name\nfrom users\n"
 history: undo=1 redo=0
+jumps: []
 pending: ""; last-change: "2dd"; recording: -
 effects:
   edit 0..27 -> 0; (0,0)..(2,0) -> (0,0)
@@ -227,6 +249,7 @@ cursor: 16 @ 1:0
 mode: Normal; selection: -
 register: line "from users\n"
 history: undo=1 redo=0
+jumps: []
 pending: ""; last-change: "dd"; recording: -
 effects:
   edit 16..27 -> 16; (1,0)..(2,0) -> (1,0)
@@ -237,6 +260,7 @@ cursor: 16 @ 1:0
 mode: Normal; selection: -
 register: line "where id = 1\n"
 history: undo=1 redo=0
+jumps: [0]
 pending: ""; last-change: "dd"; recording: -
 effects:
   edit 26..39 -> 26; (1,10)..(2,12) -> (1,10)
@@ -247,6 +271,7 @@ cursor: 0 @ 0:0
 mode: Normal; selection: -
 register: char "select id, name"
 history: undo=1 redo=0
+jumps: []
 pending: ""; last-change: "d$"; recording: -
 effects:
   edit 0..15 -> 0; (0,0)..(0,15) -> (0,0)
@@ -257,6 +282,7 @@ cursor: 0 @ 0:0
 mode: Normal; selection: -
 register: char "select id,"
 history: undo=1 redo=0
+jumps: []
 pending: ""; last-change: "df,"; recording: -
 effects:
   edit 0..10 -> 0; (0,0)..(0,10) -> (0,0)
@@ -267,6 +293,7 @@ cursor: 0 @ 0:0
 mode: Normal; selection: -
 register: char "select id"
 history: undo=1 redo=0
+jumps: []
 pending: ""; last-change: "dt,"; recording: -
 effects:
   edit 0..9 -> 0; (0,0)..(0,9) -> (0,0)
@@ -277,6 +304,7 @@ cursor: 0 @ 0:0
 mode: Normal; selection: -
 register: line "select id, name\nfrom users\n"
 history: undo=1 redo=0
+jumps: []
 pending: ""; last-change: "dj"; recording: -
 effects:
   edit 0..27 -> 0; (0,0)..(2,0) -> (0,0)
@@ -287,6 +315,7 @@ cursor: 2 @ 0:2
 mode: Normal; selection: -
 register: char "(a (b) c)"
 history: undo=1 redo=0
+jumps: []
 pending: ""; last-change: "d%"; recording: -
 effects:
   edit 2..11 -> 2; (0,2)..(0,11) -> (0,2)
@@ -297,6 +326,7 @@ cursor: 2 @ 0:2
 mode: Normal; selection: -
 register: char "(a (b) c)"
 history: undo=1 redo=0
+jumps: []
 pending: ""; last-change: "d%"; recording: -
 effects:
   edit 2..11 -> 2; (0,2)..(0,11) -> (0,2)
@@ -307,6 +337,7 @@ cursor: 0 @ 0:0
 mode: Normal; selection: -
 register: char "say 'hi'"
 history: undo=1 redo=0
+jumps: []
 pending: ""; last-change: "d%"; recording: -
 effects:
   edit 0..8 -> 0; (0,0)..(0,8) -> (0,0)
@@ -317,6 +348,7 @@ cursor: 0 @ 0:0
 mode: Normal; selection: -
 register: char ""
 history: undo=0 redo=0
+jumps: []
 pending: ""; last-change: ""; recording: -
 effects:
   bell
@@ -327,6 +359,7 @@ cursor: 0 @ 0:0
 mode: Normal; selection: -
 register: char "select"
 history: undo=1 redo=0
+jumps: []
 pending: ""; last-change: "diw"; recording: -
 effects:
   edit 0..6 -> 0; (0,0)..(0,6) -> (0,0)
@@ -337,6 +370,7 @@ cursor: 0 @ 0:0
 mode: Normal; selection: -
 register: char "select "
 history: undo=1 redo=0
+jumps: []
 pending: ""; last-change: "daw"; recording: -
 effects:
   edit 0..7 -> 0; (0,0)..(0,7) -> (0,0)
@@ -347,6 +381,7 @@ cursor: 16 @ 0:16
 mode: Normal; selection: -
 register: char "dave"
 history: undo=1 redo=0
+jumps: []
 pending: ""; last-change: "ci'bob<Esc>"; recording: -
 effects:
   edit 14..18 -> 14; (0,14)..(0,18) -> (0,14)
@@ -362,6 +397,7 @@ cursor: 2 @ 0:2
 mode: Normal; selection: -
 register: char "a, b"
 history: undo=1 redo=0
+jumps: []
 pending: ""; last-change: "ci(x<Esc>"; recording: -
 effects:
   edit 2..6 -> 2; (0,2)..(0,6) -> (0,2)
@@ -375,6 +411,7 @@ cursor: 2 @ 0:2
 mode: Normal; selection: -
 register: char "a, b"
 history: undo=1 redo=0
+jumps: []
 pending: ""; last-change: "ci(x<Esc>"; recording: -
 effects:
   edit 2..6 -> 2; (0,2)..(0,6) -> (0,2)
@@ -388,6 +425,7 @@ cursor: 9 @ 2:0
 mode: Normal; selection: -
 register: char "    body\n"
 history: undo=1 redo=0
+jumps: []
 pending: ""; last-change: "di{"; recording: -
 effects:
   edit 9..18 -> 9; (2,0)..(3,0) -> (2,0)
@@ -398,6 +436,7 @@ cursor: 6 @ 0:6
 mode: Normal; selection: -
 register: char "{ mid { deep } here }"
 history: undo=1 redo=0
+jumps: []
 pending: ""; last-change: "da{"; recording: -
 effects:
   edit 6..27 -> 6; (0,6)..(0,27) -> (0,6)
@@ -408,6 +447,7 @@ cursor: 7 @ 0:7
 mode: Normal; selection: -
 register: char " mid { deep } here "
 history: undo=1 redo=0
+jumps: []
 pending: ""; last-change: "di{"; recording: -
 effects:
   edit 7..26 -> 7; (0,7)..(0,26) -> (0,7)
@@ -418,6 +458,7 @@ cursor: 13 @ 0:13
 mode: Normal; selection: -
 register: char " deep "
 history: undo=1 redo=0
+jumps: []
 pending: ""; last-change: "2di{"; recording: -
 effects:
   edit 13..19 -> 13; (0,13)..(0,19) -> (0,13)
@@ -428,6 +469,7 @@ cursor: 13 @ 0:13
 mode: Normal; selection: -
 register: char " deep "
 history: undo=1 redo=0
+jumps: []
 pending: ""; last-change: "d2i{"; recording: -
 effects:
   edit 13..19 -> 13; (0,13)..(0,19) -> (0,13)
@@ -438,6 +480,7 @@ cursor: 12 @ 0:12
 mode: Normal; selection: -
 register: char "{ deep }"
 history: undo=1 redo=0
+jumps: []
 pending: ""; last-change: "2da{"; recording: -
 effects:
   edit 12..20 -> 12; (0,12)..(0,20) -> (0,12)
@@ -448,6 +491,7 @@ cursor: 0 @ 0:0
 mode: Normal; selection: -
 register: char ""
 history: undo=0 redo=0
+jumps: []
 pending: ""; last-change: "3di{"; recording: -
 effects:
   bell
@@ -458,6 +502,7 @@ cursor: 18 @ 0:18
 mode: Visual(Char); selection: 13..19
 register: char ""
 history: undo=0 redo=0
+jumps: []
 pending: ""; last-change: ""; recording: -
 effects:
   mode Visual(Char)
@@ -468,6 +513,7 @@ cursor: 0 @ 0:0
 mode: Normal; selection: -
 register: char "one "
 history: undo=1 redo=0
+jumps: []
 pending: ""; last-change: "2diw"; recording: -
 effects:
   edit 0..4 -> 0; (0,0)..(0,4) -> (0,0)
@@ -478,6 +524,7 @@ cursor: 0 @ 0:0
 mode: Normal; selection: -
 register: char "one two"
 history: undo=1 redo=0
+jumps: []
 pending: ""; last-change: "3diw"; recording: -
 effects:
   edit 0..7 -> 0; (0,0)..(0,7) -> (0,0)
@@ -488,6 +535,7 @@ cursor: 0 @ 0:0
 mode: Normal; selection: -
 register: char "one two "
 history: undo=1 redo=0
+jumps: []
 pending: ""; last-change: "2daw"; recording: -
 effects:
   edit 0..8 -> 0; (0,0)..(0,8) -> (0,0)
@@ -498,6 +546,7 @@ cursor: 3 @ 0:3
 mode: Normal; selection: -
 register: char "two"
 history: undo=1 redo=0
+jumps: []
 pending: ""; last-change: "dw"; recording: -
 effects:
   edit 4..7 -> 4; (0,4)..(0,7) -> (0,4)
@@ -508,6 +557,7 @@ cursor: 0 @ 0:0
 mode: Normal; selection: -
 register: char "one two"
 history: undo=1 redo=0
+jumps: []
 pending: ""; last-change: "d2w"; recording: -
 effects:
   edit 0..7 -> 0; (0,0)..(0,7) -> (0,0)
@@ -518,6 +568,7 @@ cursor: 3 @ 0:3
 mode: Normal; selection: -
 register: char "two"
 history: undo=1 redo=0
+jumps: []
 pending: ""; last-change: "dW"; recording: -
 effects:
   edit 4..7 -> 4; (0,4)..(0,7) -> (0,4)
@@ -528,6 +579,7 @@ cursor: 4 @ 0:4
 mode: Normal; selection: -
 register: char ""
 history: undo=1 redo=0
+jumps: []
 pending: ""; last-change: "gUw"; recording: -
 effects:
   edit 4..7 -> 7; (0,4)..(0,7) -> (0,7)
@@ -538,6 +590,7 @@ cursor: 1 @ 0:1
 mode: Normal; selection: -
 register: char "c"
 history: undo=1 redo=0
+jumps: []
 pending: ""; last-change: "dl"; recording: -
 effects:
   edit 2..3 -> 2; (0,2)..(0,3) -> (0,2)
@@ -548,6 +601,7 @@ cursor: 1 @ 0:1
 mode: Normal; selection: -
 register: char "c"
 history: undo=1 redo=0
+jumps: []
 pending: ""; last-change: "x"; recording: -
 effects:
   edit 2..3 -> 2; (0,2)..(0,3) -> (0,2)
@@ -558,6 +612,7 @@ cursor: 0 @ 0:0
 mode: Normal; selection: -
 register: char "ab"
 history: undo=1 redo=0
+jumps: []
 pending: ""; last-change: "d$"; recording: -
 effects:
   edit 0..2 -> 0; (0,0)..(0,2) -> (0,0)
@@ -568,6 +623,7 @@ cursor: 0 @ 0:0
 mode: Normal; selection: -
 register: char "one"
 history: undo=1 redo=0
+jumps: []
 pending: ""; last-change: "de"; recording: -
 effects:
   edit 0..3 -> 0; (0,0)..(0,3) -> (0,0)
@@ -578,6 +634,7 @@ cursor: 5 @ 0:5
 mode: Normal; selection: -
 register: char "select"
 history: undo=1 redo=0
+jumps: []
 pending: ""; last-change: "cwSELECT<Esc>"; recording: -
 effects:
   edit 0..6 -> 0; (0,0)..(0,6) -> (0,0)
@@ -596,6 +653,7 @@ cursor: 7 @ 0:7
 mode: Normal; selection: -
 register: line "select id, name\n"
 history: undo=1 redo=0
+jumps: []
 pending: ""; last-change: "ccselect<Space>1<Esc>"; recording: -
 effects:
   edit 0..15 -> 0; (0,0)..(0,15) -> (0,0)
@@ -616,6 +674,7 @@ cursor: 6 @ 2:0
 mode: Normal; selection: -
 register: line "cc\n"
 history: undo=1 redo=0
+jumps: [0]
 pending: ""; last-change: "ccX<Esc>"; recording: -
 effects:
   edit 6..8 -> 6; (2,0)..(2,2) -> (2,0)
@@ -629,6 +688,7 @@ cursor: 3 @ 1:0
 mode: Normal; selection: -
 register: line "bb\n"
 history: undo=1 redo=0
+jumps: []
 pending: ""; last-change: "ccX<Esc>"; recording: -
 effects:
   edit 3..5 -> 3; (1,0)..(1,2) -> (1,0)
@@ -642,6 +702,7 @@ cursor: 6 @ 2:0
 mode: Normal; selection: -
 register: line "cc\n"
 history: undo=1 redo=0
+jumps: [0]
 pending: ""; last-change: "ccX<Esc>"; recording: -
 effects:
   edit 6..8 -> 6; (2,0)..(2,2) -> (2,0)
@@ -655,6 +716,7 @@ cursor: 3 @ 1:0
 mode: Normal; selection: -
 register: line "cc\n"
 history: undo=1 redo=0
+jumps: [0]
 pending: ""; last-change: "dd"; recording: -
 effects:
   edit 5..9 -> 5; (1,2)..(3,0) -> (1,2)
@@ -665,6 +727,7 @@ cursor: 4 @ 0:4
 mode: Normal; selection: -
 register: char ""
 history: undo=1 redo=0
+jumps: []
 pending: ""; last-change: ">>"; recording: -
 effects:
   edit 0..0 -> 4; (0,0)..(0,0) -> (0,4)
@@ -675,6 +738,7 @@ cursor: 0 @ 0:0
 mode: Normal; selection: -
 register: char ""
 history: undo=1 redo=0
+jumps: []
 pending: ""; last-change: "<lt><lt>"; recording: -
 effects:
   edit 0..4 -> 0; (0,0)..(0,4) -> (0,0)
@@ -685,6 +749,7 @@ cursor: 4 @ 0:4
 mode: Normal; selection: -
 register: char ""
 history: undo=1 redo=0
+jumps: []
 pending: ""; last-change: "3>>"; recording: -
 effects:
   edit 8..8 -> 12; (2,0)..(2,0) -> (2,4)
@@ -697,6 +762,7 @@ cursor: 4 @ 0:4
 mode: Normal; selection: -
 register: char ""
 history: undo=1 redo=0
+jumps: []
 pending: ""; last-change: ">j"; recording: -
 effects:
   edit 4..4 -> 8; (1,0)..(1,0) -> (1,4)
@@ -708,6 +774,7 @@ cursor: 4 @ 0:4
 mode: Normal; selection: -
 register: char ""
 history: undo=1 redo=0
+jumps: []
 pending: ""; last-change: ">ip"; recording: -
 effects:
   edit 0..0 -> 4; (0,0)..(0,0) -> (0,4)
@@ -718,6 +785,7 @@ cursor: 4 @ 0:4
 mode: Normal; selection: -
 register: char ""
 history: undo=1 redo=0
+jumps: []
 pending: ""; last-change: ">i{"; recording: -
 effects:
   edit 0..0 -> 4; (0,0)..(0,0) -> (0,4)
@@ -728,6 +796,7 @@ cursor: 4 @ 0:4
 mode: Normal; selection: -
 register: char ""
 history: undo=1 redo=0
+jumps: []
 pending: ""; last-change: "Vj>"; recording: -
 effects:
   mode Visual(Line)
@@ -741,6 +810,7 @@ cursor: 8 @ 0:8
 mode: Normal; selection: -
 register: char ""
 history: undo=2 redo=0
+jumps: []
 pending: ""; last-change: "2>>"; recording: -
 effects:
   edit 4..4 -> 8; (1,0)..(1,0) -> (1,4)
@@ -754,6 +824,7 @@ cursor: 5 @ 0:5
 mode: Normal; selection: -
 register: char ""
 history: undo=1 redo=0
+jumps: []
 pending: ""; last-change: ">>"; recording: -
 effects:
   edit 0..1 -> 5; (0,0)..(0,1) -> (0,5)
@@ -764,6 +835,7 @@ cursor: 0 @ 0:0
 mode: Normal; selection: -
 register: char ""
 history: undo=0 redo=0
+jumps: []
 pending: ""; last-change: "<lt><lt>"; recording: -
 effects:
 
@@ -773,6 +845,7 @@ cursor: 0 @ 0:0
 mode: Normal; selection: -
 register: char ""
 history: undo=1 redo=0
+jumps: []
 pending: ""; last-change: "<lt><lt>"; recording: -
 effects:
   edit 0..4 -> 0; (0,0)..(0,4) -> (0,0)
@@ -783,6 +856,7 @@ cursor: 0 @ 0:0
 mode: Normal; selection: -
 register: char ""
 history: undo=0 redo=0
+jumps: []
 pending: ""; last-change: ">>"; recording: -
 effects:
 
@@ -792,6 +866,7 @@ cursor: 6 @ 0:6
 mode: Normal; selection: -
 register: char ""
 history: undo=1 redo=0
+jumps: []
 pending: ""; last-change: ">j"; recording: -
 effects:
   edit 6..6 -> 10; (1,0)..(1,0) -> (1,4)
@@ -803,6 +878,7 @@ cursor: 12 @ 0:12
 mode: Normal; selection: -
 register: char ""
 history: undo=1 redo=0
+jumps: []
 pending: ""; last-change: "Vj3>"; recording: -
 effects:
   mode Visual(Line)
@@ -816,6 +892,7 @@ cursor: 8 @ 2:4
 mode: Normal; selection: -
 register: char ""
 history: undo=1 redo=0
+jumps: [0]
 pending: ""; last-change: ">>"; recording: -
 effects:
   edit 4..4 -> 8; (2,0)..(2,0) -> (2,4)
@@ -826,6 +903,7 @@ cursor: 6 @ 1:4
 mode: Normal; selection: -
 register: char ""
 history: undo=1 redo=0
+jumps: [0]
 pending: ""; last-change: ">k"; recording: -
 effects:
   edit 4..4 -> 8; (2,0)..(2,0) -> (2,4)
@@ -837,6 +915,7 @@ cursor: 5 @ 0:5
 mode: Normal; selection: -
 register: char "select"
 history: undo=1 redo=0
+jumps: []
 pending: ""; last-change: "P"; recording: -
 effects:
   edit 0..0 -> 6; (0,0)..(0,0) -> (0,6)
@@ -847,6 +926,7 @@ cursor: 16 @ 1:0
 mode: Normal; selection: -
 register: line "select id, name\n"
 history: undo=1 redo=0
+jumps: []
 pending: ""; last-change: "p"; recording: -
 effects:
   edit 16..16 -> 32; (1,0)..(1,0) -> (2,0)
@@ -857,6 +937,7 @@ cursor: 0 @ 0:0
 mode: Normal; selection: -
 register: line "select id, name\n"
 history: undo=1 redo=0
+jumps: []
 pending: ""; last-change: "P"; recording: -
 effects:
   edit 0..0 -> 16; (0,0)..(0,0) -> (1,0)
@@ -867,6 +948,7 @@ cursor: 9 @ 3:0
 mode: Normal; selection: -
 register: line "cc\n"
 history: undo=1 redo=0
+jumps: [0]
 pending: ""; last-change: "p"; recording: -
 effects:
   edit 8..8 -> 11; (2,2)..(2,2) -> (3,2)
@@ -877,6 +959,7 @@ cursor: 6 @ 2:0
 mode: Normal; selection: -
 register: line "cc\n"
 history: undo=1 redo=0
+jumps: [0]
 pending: ""; last-change: "P"; recording: -
 effects:
   edit 6..6 -> 9; (2,0)..(2,0) -> (3,0)
@@ -887,6 +970,7 @@ cursor: 9 @ 3:0
 mode: Normal; selection: -
 register: line "aa\n"
 history: undo=1 redo=0
+jumps: [0]
 pending: ""; last-change: "p"; recording: -
 effects:
   edit 8..8 -> 11; (2,2)..(2,2) -> (3,2)
@@ -897,6 +981,7 @@ cursor: 6 @ 2:0
 mode: Normal; selection: -
 register: line "aa\n"
 history: undo=1 redo=0
+jumps: [0]
 pending: ""; last-change: "P"; recording: -
 effects:
   edit 6..6 -> 9; (2,0)..(2,0) -> (3,0)
@@ -907,6 +992,7 @@ cursor: 11 @ 1:0
 mode: Normal; selection: -
 register: line "select id, name\n"
 history: undo=2 redo=0
+jumps: []
 pending: ""; last-change: "p"; recording: -
 effects:
   edit 0..16 -> 0; (0,0)..(1,0) -> (0,0)
@@ -918,6 +1004,7 @@ cursor: 0 @ 0:0
 mode: Normal; selection: -
 register: char ""
 history: undo=1 redo=0
+jumps: []
 pending: ""; last-change: "gUw"; recording: -
 effects:
   edit 0..4 -> 4; (0,0)..(0,4) -> (0,4)
@@ -928,6 +1015,7 @@ cursor: 0 @ 0:0
 mode: Normal; selection: -
 register: char ""
 history: undo=1 redo=0
+jumps: []
 pending: ""; last-change: "guw"; recording: -
 effects:
   edit 0..4 -> 4; (0,0)..(0,4) -> (0,4)
@@ -938,6 +1026,7 @@ cursor: 0 @ 0:0
 mode: Normal; selection: -
 register: char ""
 history: undo=1 redo=0
+jumps: []
 pending: ""; last-change: "g~w"; recording: -
 effects:
   edit 0..4 -> 4; (0,0)..(0,4) -> (0,4)
@@ -948,6 +1037,7 @@ cursor: 0 @ 0:0
 mode: Normal; selection: -
 register: char ""
 history: undo=1 redo=0
+jumps: []
 pending: ""; last-change: "2gU2w"; recording: -
 effects:
   edit 0..13 -> 13; (0,0)..(0,13) -> (0,13)
@@ -958,6 +1048,7 @@ cursor: 4 @ 0:4
 mode: Normal; selection: -
 register: char ""
 history: undo=1 redo=0
+jumps: []
 pending: ""; last-change: "gUiw"; recording: -
 effects:
   edit 4..7 -> 7; (0,4)..(0,7) -> (0,7)
@@ -968,6 +1059,7 @@ cursor: 0 @ 0:0
 mode: Normal; selection: -
 register: char ""
 history: undo=1 redo=0
+jumps: []
 pending: ""; last-change: "gUt<Space>"; recording: -
 effects:
   edit 0..3 -> 3; (0,0)..(0,3) -> (0,3)
@@ -978,6 +1070,7 @@ cursor: 3 @ 0:3
 mode: Normal; selection: -
 register: char ""
 history: undo=1 redo=0
+jumps: []
 pending: ""; last-change: "gUi("; recording: -
 effects:
   edit 3..6 -> 6; (0,3)..(0,6) -> (0,6)
@@ -988,6 +1081,7 @@ cursor: 0 @ 0:0
 mode: Normal; selection: -
 register: char ""
 history: undo=1 redo=0
+jumps: []
 pending: ""; last-change: "gUU"; recording: -
 effects:
   edit 0..7 -> 7; (0,0)..(0,7) -> (0,7)
@@ -998,6 +1092,7 @@ cursor: 0 @ 0:0
 mode: Normal; selection: -
 register: char ""
 history: undo=1 redo=0
+jumps: []
 pending: ""; last-change: "gUgU"; recording: -
 effects:
   edit 0..7 -> 7; (0,0)..(0,7) -> (0,7)
@@ -1008,6 +1103,7 @@ cursor: 0 @ 0:0
 mode: Normal; selection: -
 register: char ""
 history: undo=1 redo=0
+jumps: []
 pending: ""; last-change: "g~~"; recording: -
 effects:
   edit 0..7 -> 7; (0,0)..(0,7) -> (0,7)
@@ -1018,6 +1114,7 @@ cursor: 0 @ 0:0
 mode: Normal; selection: -
 register: char ""
 history: undo=1 redo=0
+jumps: []
 pending: ""; last-change: "2guu"; recording: -
 effects:
   edit 0..7 -> 7; (0,0)..(1,3) -> (1,3)
@@ -1028,6 +1125,7 @@ cursor: 0 @ 0:0
 mode: Normal; selection: -
 register: char ""
 history: undo=0 redo=0
+jumps: []
 pending: ""; last-change: ""; recording: -
 effects:
   bell
@@ -1038,6 +1136,7 @@ cursor: 7 @ 0:7
 mode: Normal; selection: -
 register: char "one "
 history: undo=2 redo=0
+jumps: []
 pending: ""; last-change: "P"; recording: -
 effects:
   edit 4..7 -> 7; (0,4)..(0,7) -> (0,7)
@@ -1049,6 +1148,7 @@ cursor: 0 @ 0:0
 mode: Normal; selection: -
 register: char ""
 history: undo=1 redo=0
+jumps: []
 pending: ""; last-change: "vwU"; recording: -
 effects:
   mode Visual(Char)
@@ -1061,6 +1161,7 @@ cursor: 0 @ 0:0
 mode: Normal; selection: -
 register: char ""
 history: undo=1 redo=0
+jumps: []
 pending: ""; last-change: "vwu"; recording: -
 effects:
   mode Visual(Char)
@@ -1073,6 +1174,7 @@ cursor: 0 @ 0:0
 mode: Normal; selection: -
 register: char ""
 history: undo=1 redo=0
+jumps: []
 pending: ""; last-change: "v$~"; recording: -
 effects:
   mode Visual(Char)
@@ -1085,6 +1187,7 @@ cursor: 0 @ 0:0
 mode: Normal; selection: -
 register: char ""
 history: undo=1 redo=0
+jumps: []
 pending: ""; last-change: "VjU"; recording: -
 effects:
   mode Visual(Line)
@@ -1097,6 +1200,7 @@ cursor: 0 @ 0:0
 mode: Normal; selection: -
 register: char ""
 history: undo=1 redo=0
+jumps: []
 pending: ""; last-change: "v2wgU"; recording: -
 effects:
   mode Visual(Char)
@@ -1109,6 +1213,7 @@ cursor: 12 @ 0:12
 mode: Normal; selection: -
 register: char ""
 history: undo=1 redo=0
+jumps: []
 pending: ""; last-change: "gUw"; recording: -
 effects:
   edit 0..4 -> 4; (0,0)..(0,4) -> (0,4)
@@ -1122,6 +1227,7 @@ cursor: 0 @ 0:0
 mode: Normal; selection: -
 register: char ""
 history: undo=1 redo=0
+jumps: []
 pending: ""; last-change: "gUiw"; recording: -
 effects:
   edit 0..7 -> 7; (0,0)..(0,7) -> (0,7)
@@ -1132,6 +1238,7 @@ cursor: 0 @ 0:0
 mode: Normal; selection: -
 register: char ""
 history: undo=1 redo=0
+jumps: []
 pending: ""; last-change: "guiw"; recording: -
 effects:
   edit 0..5 -> 5; (0,0)..(0,5) -> (0,5)
@@ -1142,6 +1249,7 @@ cursor: 0 @ 0:0
 mode: Normal; selection: -
 register: char "s"
 history: undo=1 redo=0
+jumps: []
 pending: ""; last-change: "x"; recording: -
 effects:
   edit 0..1 -> 0; (0,0)..(0,1) -> (0,0)
@@ -1152,6 +1260,7 @@ cursor: 0 @ 0:0
 mode: Normal; selection: -
 register: char "sel"
 history: undo=1 redo=0
+jumps: []
 pending: ""; last-change: "3x"; recording: -
 effects:
   edit 0..3 -> 0; (0,0)..(0,3) -> (0,0)
@@ -1162,6 +1271,7 @@ cursor: 0 @ 0:0
 mode: Normal; selection: -
 register: char "s"
 history: undo=1 redo=0
+jumps: []
 pending: ""; last-change: "X"; recording: -
 effects:
   edit 0..1 -> 0; (0,0)..(0,1) -> (0,0)
@@ -1172,6 +1282,7 @@ cursor: 0 @ 0:0
 mode: Normal; selection: -
 register: char ""
 history: undo=1 redo=0
+jumps: []
 pending: ""; last-change: "rS"; recording: -
 effects:
   edit 0..1 -> 1; (0,0)..(0,1) -> (0,1)
@@ -1182,6 +1293,7 @@ cursor: 0 @ 0:0
 mode: Normal; selection: -
 register: char ""
 history: undo=1 redo=0
+jumps: []
 pending: ""; last-change: "3rx"; recording: -
 effects:
   edit 0..3 -> 3; (0,0)..(0,3) -> (0,3)
@@ -1192,6 +1304,7 @@ cursor: 1 @ 0:1
 mode: Normal; selection: -
 register: char ""
 history: undo=1 redo=0
+jumps: []
 pending: ""; last-change: "~"; recording: -
 effects:
   edit 0..1 -> 1; (0,0)..(0,1) -> (0,1)
@@ -1202,6 +1315,7 @@ cursor: 6 @ 0:6
 mode: Normal; selection: -
 register: char ""
 history: undo=1 redo=0
+jumps: []
 pending: ""; last-change: "6~"; recording: -
 effects:
   edit 0..6 -> 6; (0,0)..(0,6) -> (0,6)
@@ -1212,6 +1326,7 @@ cursor: 15 @ 0:15
 mode: Normal; selection: -
 register: char ""
 history: undo=1 redo=0
+jumps: []
 pending: ""; last-change: "J"; recording: -
 effects:
   edit 15..16 -> 16; (0,15)..(1,0) -> (0,16)
@@ -1222,6 +1337,7 @@ cursor: 1 @ 0:1
 mode: Normal; selection: -
 register: char ""
 history: undo=1 redo=0
+jumps: []
 pending: ""; last-change: "J"; recording: -
 effects:
   edit 1..6 -> 2; (0,1)..(1,4) -> (0,2)
@@ -1232,6 +1348,7 @@ cursor: 26 @ 0:26
 mode: Normal; selection: -
 register: char ""
 history: undo=1 redo=0
+jumps: []
 pending: ""; last-change: "3J"; recording: -
 effects:
   edit 15..16 -> 16; (0,15)..(1,0) -> (0,16)
@@ -1243,6 +1360,7 @@ cursor: 0 @ 0:0
 mode: Normal; selection: -
 register: char ""
 history: undo=1 redo=0
+jumps: []
 pending: ""; last-change: "iX<Esc>"; recording: -
 effects:
   mode Insert
@@ -1255,6 +1373,7 @@ cursor: 1 @ 0:1
 mode: Normal; selection: -
 register: char ""
 history: undo=1 redo=0
+jumps: []
 pending: ""; last-change: "aX<Esc>"; recording: -
 effects:
   mode Insert
@@ -1267,6 +1386,7 @@ cursor: 15 @ 0:15
 mode: Normal; selection: -
 register: char ""
 history: undo=1 redo=0
+jumps: []
 pending: ""; last-change: "AX<Esc>"; recording: -
 effects:
   mode Insert
@@ -1279,6 +1399,7 @@ cursor: 2 @ 0:2
 mode: Normal; selection: -
 register: char ""
 history: undo=1 redo=0
+jumps: []
 pending: ""; last-change: "IY<Esc>"; recording: -
 effects:
   mode Insert
@@ -1291,6 +1412,7 @@ cursor: 16 @ 1:0
 mode: Normal; selection: -
 register: char ""
 history: undo=1 redo=0
+jumps: []
 pending: ""; last-change: "oX<Esc>"; recording: -
 effects:
   edit 15..15 -> 16; (0,15)..(0,15) -> (1,0)
@@ -1304,6 +1426,7 @@ cursor: 0 @ 0:0
 mode: Normal; selection: -
 register: char ""
 history: undo=1 redo=0
+jumps: []
 pending: ""; last-change: "OX<Esc>"; recording: -
 effects:
   edit 0..0 -> 1; (0,0)..(0,0) -> (1,0)
@@ -1317,6 +1440,7 @@ cursor: 1 @ 0:1
 mode: Normal; selection: -
 register: char ""
 history: undo=1 redo=0
+jumps: []
 pending: ""; last-change: "iab<BS>c<Esc>"; recording: -
 effects:
   mode Insert
@@ -1332,6 +1456,7 @@ cursor: 8 @ 0:8
 mode: Normal; selection: -
 register: char ""
 history: undo=1 redo=0
+jumps: []
 pending: ""; last-change: "ione<Space>two<C-w>three<Esc>"; recording: -
 effects:
   mode Insert
@@ -1356,6 +1481,7 @@ cursor: 2 @ 1:0
 mode: Normal; selection: -
 register: char ""
 history: undo=1 redo=0
+jumps: []
 pending: ""; last-change: "ia<CR>b<Esc>"; recording: -
 effects:
   mode Insert
@@ -1370,6 +1496,7 @@ cursor: 1 @ 0:1
 mode: Normal; selection: -
 register: char ""
 history: undo=1 redo=0
+jumps: []
 pending: ""; last-change: "i<BS><Esc>"; recording: -
 effects:
   mode Insert
@@ -1382,6 +1509,7 @@ cursor: 1 @ 0:1
 mode: Normal; selection: -
 register: char ""
 history: undo=1 redo=0
+jumps: []
 pending: ""; last-change: "RXY<Esc>"; recording: -
 effects:
   mode Replace
@@ -1395,6 +1523,7 @@ cursor: 3 @ 0:3
 mode: Normal; selection: -
 register: char ""
 history: undo=1 redo=0
+jumps: []
 pending: ""; last-change: "RXYZ<Esc>"; recording: -
 effects:
   mode Replace
@@ -1409,6 +1538,7 @@ cursor: 2 @ 0:2
 mode: Visual(Char); selection: 0..3
 register: char ""
 history: undo=0 redo=0
+jumps: []
 pending: ""; last-change: ""; recording: -
 effects:
   mode Visual(Char)
@@ -1419,6 +1549,7 @@ cursor: 0 @ 0:0
 mode: Normal; selection: -
 register: char "sel"
 history: undo=1 redo=0
+jumps: []
 pending: ""; last-change: "vlld"; recording: -
 effects:
   mode Visual(Char)
@@ -1431,6 +1562,7 @@ cursor: 0 @ 0:0
 mode: Normal; selection: -
 register: line "select id, name\n"
 history: undo=1 redo=0
+jumps: []
 pending: ""; last-change: "Vd"; recording: -
 effects:
   mode Visual(Line)
@@ -1443,6 +1575,7 @@ cursor: 0 @ 0:0
 mode: Normal; selection: -
 register: line "select id, name\nfrom users\n"
 history: undo=1 redo=0
+jumps: []
 pending: ""; last-change: "Vjd"; recording: -
 effects:
   mode Visual(Line)
@@ -1455,6 +1588,7 @@ cursor: 16 @ 1:0
 mode: Visual(Line); selection: 0..27
 register: char ""
 history: undo=0 redo=0
+jumps: []
 pending: ""; last-change: ""; recording: -
 effects:
   mode Visual(Line)
@@ -1465,6 +1599,7 @@ cursor: 0 @ 0:0
 mode: Normal; selection: -
 register: char ""
 history: undo=0 redo=0
+jumps: []
 pending: ""; last-change: ""; recording: -
 effects:
   mode Visual(Char)
@@ -1476,6 +1611,7 @@ cursor: 0 @ 0:0
 mode: Normal; selection: -
 register: char ""
 history: undo=0 redo=0
+jumps: []
 pending: ""; last-change: ""; recording: -
 effects:
   mode Visual(Char)
@@ -1487,6 +1623,7 @@ cursor: 5 @ 0:5
 mode: Visual(Char); selection: 0..6
 register: char ""
 history: undo=0 redo=0
+jumps: []
 pending: ""; last-change: ""; recording: -
 effects:
   mode Visual(Char)
@@ -1497,6 +1634,7 @@ cursor: 5 @ 0:5
 mode: Normal; selection: -
 register: char "select"
 history: undo=1 redo=0
+jumps: []
 pending: ""; last-change: "viwcSELECT<Esc>"; recording: -
 effects:
   mode Visual(Char)
@@ -1516,6 +1654,7 @@ cursor: 0 @ 0:0
 mode: Normal; selection: -
 register: line "select id, name\n"
 history: undo=0 redo=1
+jumps: []
 pending: ""; last-change: "dd"; recording: -
 effects:
   edit 0..16 -> 0; (0,0)..(1,0) -> (0,0)
@@ -1527,6 +1666,7 @@ cursor: 0 @ 0:0
 mode: Normal; selection: -
 register: line "select id, name\n"
 history: undo=1 redo=0
+jumps: []
 pending: ""; last-change: "dd"; recording: -
 effects:
   edit 0..16 -> 0; (0,0)..(1,0) -> (0,0)
@@ -1539,6 +1679,7 @@ cursor: 6 @ 0:6
 mode: Normal; selection: -
 register: char "id, name"
 history: undo=1 redo=0
+jumps: []
 pending: ""; last-change: "D"; recording: -
 effects:
   edit 7..15 -> 7; (0,7)..(0,15) -> (0,7)
@@ -1549,6 +1690,7 @@ cursor: 10 @ 0:10
 mode: Normal; selection: -
 register: char "id, name"
 history: undo=1 redo=0
+jumps: []
 pending: ""; last-change: "Cname<Esc>"; recording: -
 effects:
   edit 7..15 -> 7; (0,7)..(0,15) -> (0,7)
@@ -1565,6 +1707,7 @@ cursor: 0 @ 0:0
 mode: Normal; selection: -
 register: char "aa\nbb"
 history: undo=1 redo=0
+jumps: []
 pending: ""; last-change: "2D"; recording: -
 effects:
   edit 0..5 -> 0; (0,0)..(1,2) -> (0,0)
@@ -1575,6 +1718,7 @@ cursor: 6 @ 1:2
 mode: Normal; selection: -
 register: char "dd"
 history: undo=2 redo=0
+jumps: []
 pending: ""; last-change: "D"; recording: -
 effects:
   edit 3..5 -> 3; (0,3)..(0,5) -> (0,3)
@@ -1586,6 +1730,7 @@ cursor: 4 @ 0:4
 mode: Normal; selection: -
 register: char ""
 history: undo=0 redo=0
+jumps: []
 pending: ""; last-change: ""; recording: -
 effects:
 
@@ -1595,6 +1740,7 @@ cursor: 2 @ 0:2
 mode: Normal; selection: -
 register: char ""
 history: undo=0 redo=0
+jumps: []
 pending: ""; last-change: ""; recording: -
 effects:
 
@@ -1604,6 +1750,7 @@ cursor: 4 @ 0:4
 mode: Normal; selection: -
 register: char ""
 history: undo=0 redo=0
+jumps: []
 pending: ""; last-change: ""; recording: -
 effects:
 
@@ -1613,6 +1760,7 @@ cursor: 4 @ 0:4
 mode: Normal; selection: -
 register: char ""
 history: undo=0 redo=0
+jumps: []
 pending: ""; last-change: ""; recording: -
 effects:
 
@@ -1622,6 +1770,7 @@ cursor: 3 @ 0:3
 mode: Normal; selection: -
 register: char ""
 history: undo=0 redo=1
+jumps: []
 pending: ""; last-change: "o--<Space>note<Esc>"; recording: -
 effects:
   edit 9..9 -> 10; (0,9)..(0,9) -> (1,0)
@@ -1649,6 +1798,7 @@ cursor: 16 @ 1:6
 mode: Normal; selection: -
 register: char ""
 history: undo=1 redo=0
+jumps: []
 pending: ""; last-change: "o--<Space>note<Esc>"; recording: -
 effects:
   edit 9..9 -> 10; (0,9)..(0,9) -> (1,0)
@@ -1684,6 +1834,7 @@ cursor: 0 @ 0:0
 mode: Normal; selection: -
 register: char ""
 history: undo=0 redo=1
+jumps: []
 pending: ""; last-change: "ihello<Space>world<Esc>"; recording: -
 effects:
   mode Insert
@@ -1717,6 +1868,7 @@ cursor: 0 @ 0:0
 mode: Normal; selection: -
 register: char "select"
 history: undo=0 redo=1
+jumps: []
 pending: ""; last-change: "cwSELECT<Esc>"; recording: -
 effects:
   edit 0..6 -> 0; (0,0)..(0,6) -> (0,0)
@@ -1742,6 +1894,7 @@ cursor: 0 @ 0:0
 mode: Normal; selection: -
 register: char "id"
 history: undo=2 redo=0
+jumps: []
 pending: ""; last-change: "dw"; recording: -
 effects:
   edit 0..7 -> 0; (0,0)..(0,7) -> (0,0)
@@ -1753,6 +1906,7 @@ cursor: 0 @ 0:0
 mode: Normal; selection: -
 register: line "from users\n"
 history: undo=2 redo=0
+jumps: []
 pending: ""; last-change: "dd"; recording: -
 effects:
   edit 0..16 -> 0; (0,0)..(1,0) -> (0,0)
@@ -1764,6 +1918,7 @@ cursor: 2 @ 0:2
 mode: Normal; selection: -
 register: char "two"
 history: undo=2 redo=0
+jumps: []
 pending: ""; last-change: "ciwX<Esc>"; recording: -
 effects:
   edit 0..3 -> 0; (0,0)..(0,3) -> (0,0)
@@ -1781,6 +1936,7 @@ cursor: 2 @ 0:2
 mode: Normal; selection: -
 register: char ""
 history: undo=2 redo=0
+jumps: []
 pending: ""; last-change: "iab<Esc>"; recording: -
 effects:
   mode Insert
@@ -1798,6 +1954,7 @@ cursor: 0 @ 0:0
 mode: Normal; selection: -
 register: char "d "
 history: undo=2 redo=0
+jumps: []
 pending: ""; last-change: "dw"; recording: -
 effects:
   edit 0..2 -> 0; (0,0)..(0,2) -> (0,0)
@@ -1811,6 +1968,7 @@ cursor: 0 @ 0:0
 mode: Normal; selection: -
 register: char ""
 history: undo=0 redo=0
+jumps: []
 pending: ""; last-change: ""; recording: -
 effects:
   bell
@@ -1821,6 +1979,7 @@ cursor: 16 @ 2:4
 mode: Normal; selection: -
 register: char ""
 history: undo=2 redo=0
+jumps: []
 pending: ""; last-change: "Vj>"; recording: -
 effects:
   mode Visual(Line)
@@ -1838,6 +1997,7 @@ cursor: 0 @ 0:0
 mode: Normal; selection: -
 register: line "c\nd\n"
 history: undo=2 redo=0
+jumps: []
 pending: ""; last-change: "Vjd"; recording: -
 effects:
   mode Visual(Line)
@@ -1853,6 +2013,7 @@ cursor: 4 @ 0:4
 mode: Normal; selection: -
 register: char "three"
 history: undo=2 redo=0
+jumps: []
 pending: ""; last-change: "vwcX<Esc>"; recording: -
 effects:
   mode Visual(Char)
@@ -1872,6 +2033,7 @@ cursor: 6 @ 2:0
 mode: Normal; selection: -
 register: char ""
 history: undo=3 redo=0
+jumps: []
 pending: ""; last-change: "~"; recording: -
 effects:
   recording @a
@@ -1886,6 +2048,7 @@ cursor: 6 @ 2:0
 mode: Normal; selection: -
 register: char ""
 history: undo=2 redo=0
+jumps: []
 pending: ""; last-change: "~"; recording: -
 effects:
   recording @a
@@ -1900,6 +2063,7 @@ cursor: 7 @ 2:1
 mode: Normal; selection: -
 register: char ""
 history: undo=3 redo=0
+jumps: []
 pending: ""; last-change: "~"; recording: -
 effects:
   recording @a
@@ -1914,6 +2078,7 @@ cursor: 0 @ 0:0
 mode: Normal; selection: -
 register: char "a"
 history: undo=1 redo=0
+jumps: []
 pending: ""; last-change: "x"; recording: -
 effects:
   recording @a
@@ -1926,6 +2091,7 @@ cursor: 0 @ 0:0
 mode: Normal; selection: -
 register: char ""
 history: undo=0 redo=0
+jumps: []
 pending: ""; last-change: ""; recording: -
 effects:
   bell
@@ -1936,6 +2102,7 @@ cursor: 0 @ 0:0
 mode: Normal; selection: -
 register: char ""
 history: undo=0 redo=0
+jumps: []
 pending: ""; last-change: ""; recording: -
 effects:
   recording @a
@@ -1949,6 +2116,7 @@ cursor: 2 @ 0:2
 mode: Normal; selection: -
 register: char ""
 history: undo=1 redo=0
+jumps: []
 pending: ""; last-change: "iabc<Esc>"; recording: -
 effects:
   mode Insert
@@ -1963,6 +2131,7 @@ cursor: 16 @ 1:0
 mode: Normal; selection: -
 register: line "from users\n"
 history: undo=1 redo=0
+jumps: []
 pending: ""; last-change: "dd"; recording: -
 effects:
   edit 16..27 -> 16; (1,0)..(2,0) -> (1,0)
@@ -1973,6 +2142,7 @@ cursor: 0 @ 0:0
 mode: Normal; selection: -
 register: char ""
 history: undo=0 redo=0
+jumps: []
 pending: ""; last-change: "i<Esc>"; recording: -
 effects:
   mode Insert
@@ -1984,6 +2154,7 @@ cursor: 0 @ 0:0
 mode: Normal; selection: -
 register: char ""
 history: undo=0 redo=0
+jumps: []
 pending: ""; last-change: ""; recording: -
 effects:
   scroll Center
@@ -1995,6 +2166,7 @@ cursor: 0 @ 0:0
 mode: Normal; selection: -
 register: char ""
 history: undo=0 redo=0
+jumps: []
 pending: ""; last-change: ""; recording: -
 effects:
   command prompt :
@@ -2005,6 +2177,7 @@ cursor: 0 @ 0:0
 mode: Normal; selection: -
 register: char ""
 history: undo=0 redo=0
+jumps: []
 pending: ""; last-change: ""; recording: -
 effects:
   bell
@@ -2015,6 +2188,7 @@ cursor: 0 @ 0:0
 mode: Normal; selection: -
 register: char ""
 history: undo=0 redo=0
+jumps: []
 pending: "2d"; last-change: ""; recording: -
 effects:
 
@@ -2024,6 +2198,7 @@ cursor: 0 @ 0:0
 mode: Normal; selection: -
 register: char ""
 history: undo=0 redo=0
+jumps: []
 pending: ""; last-change: "x"; recording: -
 effects:
   bell
@@ -2034,6 +2209,7 @@ cursor: 0 @ 0:0
 mode: Normal; selection: -
 register: char ""
 history: undo=0 redo=0
+jumps: []
 pending: ""; last-change: "dd"; recording: -
 effects:
   bell
@@ -2044,6 +2220,7 @@ cursor: 0 @ 0:0
 mode: Normal; selection: -
 register: char ""
 history: undo=0 redo=0
+jumps: []
 pending: ""; last-change: "ciw<Esc>"; recording: -
 effects:
   bell
@@ -2054,6 +2231,7 @@ cursor: 0 @ 0:0
 mode: Normal; selection: -
 register: char ""
 history: undo=0 redo=0
+jumps: []
 pending: ""; last-change: "~"; recording: -
 effects:
   bell
@@ -2067,6 +2245,7 @@ cursor: 0 @ 0:0
 mode: Normal; selection: -
 register: char ""
 history: undo=0 redo=0
+jumps: []
 pending: ""; last-change: ""; recording: -
 effects:
   bell
@@ -2077,6 +2256,7 @@ cursor: 3 @ 0:3
 mode: Normal; selection: -
 register: char "e\u{301}"
 history: undo=1 redo=0
+jumps: []
 pending: ""; last-change: "x"; recording: -
 effects:
   edit 3..6 -> 3; (0,3)..(0,6) -> (0,3)
@@ -2087,6 +2267,7 @@ cursor: 9 @ 1:2
 mode: Normal; selection: -
 register: char "f\n"
 history: undo=1 redo=1
+jumps: []
 pending: ""; last-change: "dw"; recording: -
 effects:
   edit 10..12 -> 10; (1,3)..(1,5) -> (1,3)
@@ -2099,6 +2280,7 @@ cursor: 3 @ 0:3
 mode: Normal; selection: -
 register: char "日"
 history: undo=2 redo=0
+jumps: []
 pending: ""; last-change: "p"; recording: -
 effects:
   edit 0..3 -> 0; (0,0)..(0,3) -> (0,0)
@@ -2110,6 +2292,7 @@ cursor: 0 @ 0:0
 mode: Normal; selection: -
 register: char "日"
 history: undo=2 redo=0
+jumps: []
 pending: ""; last-change: "P"; recording: -
 effects:
   edit 0..3 -> 0; (0,0)..(0,3) -> (0,0)
@@ -2121,6 +2304,7 @@ cursor: 0 @ 0:0
 mode: Normal; selection: -
 register: char ""
 history: undo=0 redo=0
+jumps: []
 pending: ""; last-change: ""; recording: -
 effects:
 
@@ -2130,6 +2314,7 @@ cursor: 0 @ 0:0
 mode: Normal; selection: -
 register: char ""
 history: undo=0 redo=0
+jumps: []
 pending: ""; last-change: ""; recording: -
 effects:
 
@@ -2139,6 +2324,7 @@ cursor: 2 @ 0:2
 mode: Normal; selection: -
 register: char ""
 history: undo=0 redo=0
+jumps: []
 pending: ""; last-change: ""; recording: -
 effects:
 
@@ -2148,6 +2334,7 @@ cursor: 4 @ 0:4
 mode: Normal; selection: -
 register: char ""
 history: undo=0 redo=0
+jumps: []
 pending: ""; last-change: ""; recording: -
 effects:
 
@@ -2157,6 +2344,7 @@ cursor: 5 @ 0:5
 mode: Normal; selection: -
 register: char ""
 history: undo=0 redo=0
+jumps: []
 pending: ""; last-change: ""; recording: -
 effects:
 
@@ -2166,6 +2354,7 @@ cursor: 8 @ 0:8
 mode: Normal; selection: -
 register: char ""
 history: undo=0 redo=0
+jumps: []
 pending: ""; last-change: ""; recording: -
 effects:
 
@@ -2175,6 +2364,7 @@ cursor: 5 @ 0:5
 mode: Normal; selection: -
 register: char ""
 history: undo=0 redo=0
+jumps: []
 pending: ""; last-change: ""; recording: -
 effects:
 
@@ -2184,6 +2374,7 @@ cursor: 2 @ 0:2
 mode: Normal; selection: -
 register: char ""
 history: undo=0 redo=0
+jumps: []
 pending: ""; last-change: ""; recording: -
 effects:
 
@@ -2193,6 +2384,7 @@ cursor: 7 @ 0:7
 mode: Normal; selection: -
 register: char ""
 history: undo=0 redo=0
+jumps: []
 pending: ""; last-change: ""; recording: -
 effects:
 
@@ -2202,6 +2394,7 @@ cursor: 3 @ 0:3
 mode: Normal; selection: -
 register: char ""
 history: undo=0 redo=0
+jumps: []
 pending: ""; last-change: ""; recording: -
 effects:
 
@@ -2211,6 +2404,7 @@ cursor: 5 @ 0:5
 mode: Normal; selection: -
 register: char ""
 history: undo=0 redo=0
+jumps: []
 pending: ""; last-change: ""; recording: -
 effects:
 
@@ -2220,6 +2414,7 @@ cursor: 0 @ 0:0
 mode: Normal; selection: -
 register: char ""
 history: undo=0 redo=0
+jumps: []
 pending: ""; last-change: ""; recording: -
 effects:
 
@@ -2229,6 +2424,7 @@ cursor: 6 @ 0:6
 mode: Normal; selection: -
 register: char ""
 history: undo=0 redo=0
+jumps: []
 pending: ""; last-change: ""; recording: -
 effects:
 
@@ -2238,6 +2434,7 @@ cursor: 1 @ 0:1
 mode: Normal; selection: -
 register: char ""
 history: undo=0 redo=0
+jumps: []
 pending: ""; last-change: ""; recording: -
 effects:
 
@@ -2247,6 +2444,7 @@ cursor: 25 @ 0:25
 mode: Visual(Char); selection: 7..26
 register: char ""
 history: undo=0 redo=0
+jumps: []
 pending: ""; last-change: ""; recording: -
 effects:
   mode Visual(Char)
@@ -2257,6 +2455,7 @@ cursor: 18 @ 0:18
 mode: Visual(Char); selection: 13..19
 register: char ""
 history: undo=0 redo=0
+jumps: []
 pending: ""; last-change: ""; recording: -
 effects:
   mode Visual(Char)
@@ -2267,6 +2466,7 @@ cursor: 0 @ 0:0
 mode: Normal; selection: -
 register: line "aa\n"
 history: undo=1 redo=0
+jumps: []
 pending: ""; last-change: "ccX<Esc>"; recording: -
 effects:
   edit 0..2 -> 0; (0,0)..(0,2) -> (0,0)
@@ -2280,6 +2480,7 @@ cursor: 6 @ 2:0
 mode: Normal; selection: -
 register: line "cc\n"
 history: undo=1 redo=0
+jumps: [0]
 pending: ""; last-change: "VcX<Esc>"; recording: -
 effects:
   mode Visual(Line)
@@ -2294,6 +2495,7 @@ cursor: 3 @ 1:0
 mode: Normal; selection: -
 register: line "bb\ncc\n"
 history: undo=1 redo=0
+jumps: []
 pending: ""; last-change: "2ccX<Esc>"; recording: -
 effects:
   edit 3..8 -> 3; (1,0)..(2,2) -> (1,0)
@@ -2307,6 +2509,7 @@ cursor: 0 @ 0:0
 mode: Normal; selection: -
 register: line "aa\n"
 history: undo=1 redo=0
+jumps: []
 pending: ""; last-change: "ccX<Esc>"; recording: -
 effects:
   edit 0..2 -> 0; (0,0)..(0,2) -> (0,0)
@@ -2320,6 +2523,7 @@ cursor: 3 @ 1:0
 mode: Normal; selection: -
 register: line "bb\n"
 history: undo=1 redo=0
+jumps: []
 pending: ""; last-change: "ccX<Esc>"; recording: -
 effects:
   edit 3..5 -> 3; (1,0)..(1,2) -> (1,0)
@@ -2333,6 +2537,7 @@ cursor: 6 @ 2:0
 mode: Normal; selection: -
 register: line "cc\n"
 history: undo=1 redo=0
+jumps: [0]
 pending: ""; last-change: "VcX<Esc>"; recording: -
 effects:
   mode Visual(Line)
@@ -2347,6 +2552,7 @@ cursor: 0 @ 0:0
 mode: Normal; selection: -
 register: line "aa\n"
 history: undo=1 redo=0
+jumps: [0]
 pending: ""; last-change: "ccX<Esc>"; recording: -
 effects:
   edit 0..2 -> 0; (0,0)..(0,2) -> (0,0)
@@ -2360,6 +2566,7 @@ cursor: 3 @ 1:0
 mode: Normal; selection: -
 register: line "bb\ncc\n"
 history: undo=1 redo=0
+jumps: []
 pending: ""; last-change: "2ccX<Esc>"; recording: -
 effects:
   edit 3..8 -> 3; (1,0)..(2,2) -> (1,0)
@@ -2373,6 +2580,7 @@ cursor: 0 @ 0:0
 mode: Normal; selection: -
 register: char "c"
 history: undo=2 redo=0
+jumps: []
 pending: ""; last-change: "x"; recording: -
 effects:
   recording @a
@@ -2386,6 +2594,7 @@ cursor: 0 @ 0:0
 mode: Normal; selection: -
 register: char "s"
 history: undo=0 redo=1
+jumps: []
 pending: ""; last-change: "x"; recording: -
 effects:
   edit 0..1 -> 0; (0,0)..(0,1) -> (0,0)
@@ -2397,6 +2606,7 @@ cursor: 0 @ 0:0
 mode: Normal; selection: -
 register: char ""
 history: undo=0 redo=0
+jumps: []
 pending: ""; last-change: ""; recording: -
 effects:
 
@@ -2406,6 +2616,7 @@ cursor: 0 @ 0:0
 mode: Normal; selection: -
 register: char ""
 history: undo=0 redo=0
+jumps: []
 pending: ""; last-change: "X"; recording: -
 effects:
   bell
@@ -2416,6 +2627,7 @@ cursor: 0 @ 0:0
 mode: Normal; selection: -
 register: char ""
 history: undo=0 redo=0
+jumps: []
 pending: ""; last-change: "dw"; recording: -
 effects:
   bell
@@ -2426,6 +2638,7 @@ cursor: 0 @ 0:0
 mode: Normal; selection: -
 register: char ""
 history: undo=0 redo=0
+jumps: []
 pending: ""; last-change: "diw"; recording: -
 effects:
   bell
@@ -2436,6 +2649,7 @@ cursor: 0 @ 0:0
 mode: Normal; selection: -
 register: char ""
 history: undo=0 redo=0
+jumps: []
 pending: ""; last-change: "D"; recording: -
 effects:
   bell
@@ -2446,6 +2660,7 @@ cursor: 0 @ 0:0
 mode: Normal; selection: -
 register: char ""
 history: undo=0 redo=0
+jumps: []
 pending: ""; last-change: ""; recording: -
 effects:
   bell
@@ -2457,6 +2672,7 @@ cursor: 0 @ 0:0
 mode: Normal; selection: -
 register: char ""
 history: undo=0 redo=0
+jumps: []
 pending: ""; last-change: ""; recording: -
 effects:
 
@@ -2466,6 +2682,7 @@ cursor: 0 @ 0:0
 mode: Normal; selection: -
 register: char ""
 history: undo=0 redo=0
+jumps: []
 pending: ""; last-change: "Vd"; recording: -
 effects:
   mode Visual(Char)
@@ -2481,6 +2698,7 @@ cursor: 0 @ 0:0
 mode: Normal; selection: -
 register: char ""
 history: undo=0 redo=0
+jumps: []
 pending: ""; last-change: "rx"; recording: -
 effects:
   bell
@@ -2491,6 +2709,7 @@ cursor: 0 @ 0:0
 mode: Normal; selection: -
 register: line "aa\n"
 history: undo=1 redo=0
+jumps: []
 pending: ""; last-change: "dd"; recording: -
 effects:
   edit 0..3 -> 0; (0,0)..(1,0) -> (0,0)
@@ -2501,6 +2720,7 @@ cursor: 3 @ 1:0
 mode: Normal; selection: -
 register: line "bb\n"
 history: undo=1 redo=0
+jumps: []
 pending: ""; last-change: "dd"; recording: -
 effects:
   edit 3..6 -> 3; (1,0)..(2,0) -> (1,0)
@@ -2511,6 +2731,7 @@ cursor: 3 @ 1:0
 mode: Normal; selection: -
 register: line "cc\n"
 history: undo=1 redo=0
+jumps: [0]
 pending: ""; last-change: "dd"; recording: -
 effects:
   edit 5..8 -> 5; (1,2)..(2,2) -> (1,2)
@@ -2521,6 +2742,7 @@ cursor: 0 @ 0:0
 mode: Normal; selection: -
 register: line "aa\n"
 history: undo=1 redo=0
+jumps: []
 pending: ""; last-change: "dd"; recording: -
 effects:
   edit 0..3 -> 0; (0,0)..(1,0) -> (0,0)
@@ -2531,6 +2753,7 @@ cursor: 3 @ 1:0
 mode: Normal; selection: -
 register: line "bb\n"
 history: undo=1 redo=0
+jumps: []
 pending: ""; last-change: "dd"; recording: -
 effects:
   edit 3..6 -> 3; (1,0)..(2,0) -> (1,0)
@@ -2541,6 +2764,7 @@ cursor: 3 @ 1:0
 mode: Normal; selection: -
 register: line "cc\n"
 history: undo=1 redo=0
+jumps: [0]
 pending: ""; last-change: "dd"; recording: -
 effects:
   edit 5..9 -> 5; (1,2)..(3,0) -> (1,2)
@@ -2551,6 +2775,7 @@ cursor: 0 @ 0:0
 mode: Normal; selection: -
 register: line "aa\n"
 history: undo=1 redo=0
+jumps: []
 pending: ""; last-change: "dd"; recording: -
 effects:
   edit 0..2 -> 0; (0,0)..(0,2) -> (0,0)
@@ -2561,6 +2786,7 @@ cursor: 0 @ 0:0
 mode: Normal; selection: -
 register: line "aa\n"
 history: undo=1 redo=0
+jumps: []
 pending: ""; last-change: "ccX<Esc>"; recording: -
 effects:
   edit 0..2 -> 0; (0,0)..(0,2) -> (0,0)
@@ -2574,6 +2800,7 @@ cursor: 3 @ 1:0
 mode: Normal; selection: -
 register: line "bb\n"
 history: undo=1 redo=0
+jumps: []
 pending: ""; last-change: "ccX<Esc>"; recording: -
 effects:
   edit 3..5 -> 3; (1,0)..(1,2) -> (1,0)
@@ -2587,6 +2814,7 @@ cursor: 6 @ 2:0
 mode: Normal; selection: -
 register: line "cc\n"
 history: undo=1 redo=0
+jumps: [0]
 pending: ""; last-change: "ccX<Esc>"; recording: -
 effects:
   edit 6..8 -> 6; (2,0)..(2,2) -> (2,0)
@@ -2600,6 +2828,7 @@ cursor: 0 @ 0:0
 mode: Normal; selection: -
 register: line "aa\n"
 history: undo=1 redo=0
+jumps: []
 pending: ""; last-change: "ccX<Esc>"; recording: -
 effects:
   edit 0..2 -> 0; (0,0)..(0,2) -> (0,0)
@@ -2613,6 +2842,7 @@ cursor: 3 @ 1:0
 mode: Normal; selection: -
 register: line "bb\n"
 history: undo=1 redo=0
+jumps: []
 pending: ""; last-change: "ccX<Esc>"; recording: -
 effects:
   edit 3..5 -> 3; (1,0)..(1,2) -> (1,0)
@@ -2626,6 +2856,7 @@ cursor: 6 @ 2:0
 mode: Normal; selection: -
 register: line "cc\n"
 history: undo=1 redo=0
+jumps: [0]
 pending: ""; last-change: "ccX<Esc>"; recording: -
 effects:
   edit 6..8 -> 6; (2,0)..(2,2) -> (2,0)
@@ -2639,6 +2870,7 @@ cursor: 0 @ 0:0
 mode: Normal; selection: -
 register: line "aa\n"
 history: undo=1 redo=0
+jumps: []
 pending: ""; last-change: "ccX<Esc>"; recording: -
 effects:
   edit 0..2 -> 0; (0,0)..(0,2) -> (0,0)
@@ -2652,6 +2884,7 @@ cursor: 3 @ 1:0
 mode: Normal; selection: -
 register: line "aa\n"
 history: undo=1 redo=0
+jumps: []
 pending: ""; last-change: "p"; recording: -
 effects:
   edit 3..3 -> 6; (1,0)..(1,0) -> (2,0)
@@ -2662,6 +2895,7 @@ cursor: 6 @ 2:0
 mode: Normal; selection: -
 register: line "bb\n"
 history: undo=1 redo=0
+jumps: []
 pending: ""; last-change: "p"; recording: -
 effects:
   edit 6..6 -> 9; (2,0)..(2,0) -> (3,0)
@@ -2672,6 +2906,7 @@ cursor: 9 @ 3:0
 mode: Normal; selection: -
 register: line "cc\n"
 history: undo=1 redo=0
+jumps: [0]
 pending: ""; last-change: "p"; recording: -
 effects:
   edit 8..8 -> 11; (2,2)..(2,2) -> (3,2)
@@ -2682,6 +2917,7 @@ cursor: 3 @ 1:0
 mode: Normal; selection: -
 register: line "aa\n"
 history: undo=1 redo=0
+jumps: []
 pending: ""; last-change: "p"; recording: -
 effects:
   edit 3..3 -> 6; (1,0)..(1,0) -> (2,0)
@@ -2692,6 +2928,7 @@ cursor: 6 @ 2:0
 mode: Normal; selection: -
 register: line "bb\n"
 history: undo=1 redo=0
+jumps: []
 pending: ""; last-change: "p"; recording: -
 effects:
   edit 6..6 -> 9; (2,0)..(2,0) -> (3,0)
@@ -2702,6 +2939,7 @@ cursor: 9 @ 3:0
 mode: Normal; selection: -
 register: line "cc\n"
 history: undo=1 redo=0
+jumps: [0]
 pending: ""; last-change: "p"; recording: -
 effects:
   edit 9..9 -> 12; (3,0)..(3,0) -> (4,0)
@@ -2712,6 +2950,7 @@ cursor: 3 @ 1:0
 mode: Normal; selection: -
 register: line "aa\n"
 history: undo=1 redo=0
+jumps: []
 pending: ""; last-change: "p"; recording: -
 effects:
   edit 2..2 -> 5; (0,2)..(0,2) -> (1,2)
@@ -2722,6 +2961,7 @@ cursor: 4 @ 0:4
 mode: Normal; selection: -
 register: char ""
 history: undo=1 redo=0
+jumps: []
 pending: ""; last-change: ">>"; recording: -
 effects:
   edit 0..0 -> 4; (0,0)..(0,0) -> (0,4)
@@ -2732,6 +2972,7 @@ cursor: 7 @ 1:4
 mode: Normal; selection: -
 register: char ""
 history: undo=1 redo=0
+jumps: []
 pending: ""; last-change: ">>"; recording: -
 effects:
   edit 3..3 -> 7; (1,0)..(1,0) -> (1,4)
@@ -2742,6 +2983,7 @@ cursor: 10 @ 2:4
 mode: Normal; selection: -
 register: char ""
 history: undo=1 redo=0
+jumps: [0]
 pending: ""; last-change: ">>"; recording: -
 effects:
   edit 6..6 -> 10; (2,0)..(2,0) -> (2,4)
@@ -2752,6 +2994,7 @@ cursor: 4 @ 0:4
 mode: Normal; selection: -
 register: char ""
 history: undo=1 redo=0
+jumps: []
 pending: ""; last-change: ">>"; recording: -
 effects:
   edit 0..0 -> 4; (0,0)..(0,0) -> (0,4)
@@ -2762,6 +3005,7 @@ cursor: 7 @ 1:4
 mode: Normal; selection: -
 register: char ""
 history: undo=1 redo=0
+jumps: []
 pending: ""; last-change: ">>"; recording: -
 effects:
   edit 3..3 -> 7; (1,0)..(1,0) -> (1,4)
@@ -2772,6 +3016,7 @@ cursor: 10 @ 2:4
 mode: Normal; selection: -
 register: char ""
 history: undo=1 redo=0
+jumps: [0]
 pending: ""; last-change: ">>"; recording: -
 effects:
   edit 6..6 -> 10; (2,0)..(2,0) -> (2,4)
@@ -2782,6 +3027,7 @@ cursor: 4 @ 0:4
 mode: Normal; selection: -
 register: char ""
 history: undo=1 redo=0
+jumps: []
 pending: ""; last-change: ">>"; recording: -
 effects:
   edit 0..0 -> 4; (0,0)..(0,0) -> (0,4)
@@ -2792,6 +3038,7 @@ cursor: 0 @ 0:0
 mode: Normal; selection: -
 register: char ""
 history: undo=1 redo=0
+jumps: []
 pending: ""; last-change: "<lt><lt>"; recording: -
 effects:
   edit 0..4 -> 0; (0,0)..(0,4) -> (0,0)
@@ -2802,6 +3049,7 @@ cursor: 7 @ 1:0
 mode: Normal; selection: -
 register: char ""
 history: undo=1 redo=0
+jumps: []
 pending: ""; last-change: "<lt><lt>"; recording: -
 effects:
   edit 7..11 -> 7; (1,0)..(1,4) -> (1,0)
@@ -2812,6 +3060,7 @@ cursor: 14 @ 2:0
 mode: Normal; selection: -
 register: char ""
 history: undo=1 redo=0
+jumps: [0]
 pending: ""; last-change: "<lt><lt>"; recording: -
 effects:
   edit 14..18 -> 14; (2,0)..(2,4) -> (2,0)
@@ -2822,6 +3071,7 @@ cursor: 0 @ 0:0
 mode: Normal; selection: -
 register: char ""
 history: undo=1 redo=0
+jumps: []
 pending: ""; last-change: "<lt><lt>"; recording: -
 effects:
   edit 0..4 -> 0; (0,0)..(0,4) -> (0,0)
@@ -2832,6 +3082,7 @@ cursor: 7 @ 1:0
 mode: Normal; selection: -
 register: char ""
 history: undo=1 redo=0
+jumps: []
 pending: ""; last-change: "<lt><lt>"; recording: -
 effects:
   edit 7..11 -> 7; (1,0)..(1,4) -> (1,0)
@@ -2842,6 +3093,7 @@ cursor: 14 @ 2:0
 mode: Normal; selection: -
 register: char ""
 history: undo=1 redo=0
+jumps: [0]
 pending: ""; last-change: "<lt><lt>"; recording: -
 effects:
   edit 14..18 -> 14; (2,0)..(2,4) -> (2,0)
@@ -2852,6 +3104,7 @@ cursor: 0 @ 0:0
 mode: Normal; selection: -
 register: char ""
 history: undo=1 redo=0
+jumps: []
 pending: ""; last-change: "<lt><lt>"; recording: -
 effects:
   edit 0..4 -> 0; (0,0)..(0,4) -> (0,0)
@@ -2862,6 +3115,7 @@ cursor: 0 @ 0:0
 mode: Normal; selection: -
 register: char ""
 history: undo=1 redo=0
+jumps: []
 pending: ""; last-change: "gUU"; recording: -
 effects:
   edit 0..2 -> 2; (0,0)..(0,2) -> (0,2)
@@ -2872,6 +3126,7 @@ cursor: 3 @ 1:0
 mode: Normal; selection: -
 register: char ""
 history: undo=1 redo=0
+jumps: []
 pending: ""; last-change: "gUU"; recording: -
 effects:
   edit 3..5 -> 5; (1,0)..(1,2) -> (1,2)
@@ -2882,6 +3137,7 @@ cursor: 6 @ 2:0
 mode: Normal; selection: -
 register: char ""
 history: undo=1 redo=0
+jumps: [0]
 pending: ""; last-change: "gUU"; recording: -
 effects:
   edit 6..8 -> 8; (2,0)..(2,2) -> (2,2)
@@ -2892,6 +3148,7 @@ cursor: 0 @ 0:0
 mode: Normal; selection: -
 register: char ""
 history: undo=1 redo=0
+jumps: []
 pending: ""; last-change: "gUU"; recording: -
 effects:
   edit 0..2 -> 2; (0,0)..(0,2) -> (0,2)
@@ -2902,6 +3159,7 @@ cursor: 3 @ 1:0
 mode: Normal; selection: -
 register: char ""
 history: undo=1 redo=0
+jumps: []
 pending: ""; last-change: "gUU"; recording: -
 effects:
   edit 3..5 -> 5; (1,0)..(1,2) -> (1,2)
@@ -2912,6 +3170,7 @@ cursor: 6 @ 2:0
 mode: Normal; selection: -
 register: char ""
 history: undo=1 redo=0
+jumps: [0]
 pending: ""; last-change: "gUU"; recording: -
 effects:
   edit 6..8 -> 8; (2,0)..(2,2) -> (2,2)
@@ -2922,6 +3181,7 @@ cursor: 0 @ 0:0
 mode: Normal; selection: -
 register: char ""
 history: undo=1 redo=0
+jumps: []
 pending: ""; last-change: "gUU"; recording: -
 effects:
   edit 0..2 -> 2; (0,0)..(0,2) -> (0,2)
@@ -2932,6 +3192,7 @@ cursor: 0 @ 0:0
 mode: Normal; selection: -
 register: char ""
 history: undo=1 redo=0
+jumps: []
 pending: ""; last-change: "guu"; recording: -
 effects:
   edit 0..2 -> 2; (0,0)..(0,2) -> (0,2)
@@ -2942,6 +3203,7 @@ cursor: 3 @ 1:0
 mode: Normal; selection: -
 register: char ""
 history: undo=1 redo=0
+jumps: []
 pending: ""; last-change: "guu"; recording: -
 effects:
   edit 3..5 -> 5; (1,0)..(1,2) -> (1,2)
@@ -2952,6 +3214,7 @@ cursor: 6 @ 2:0
 mode: Normal; selection: -
 register: char ""
 history: undo=1 redo=0
+jumps: [0]
 pending: ""; last-change: "guu"; recording: -
 effects:
   edit 6..8 -> 8; (2,0)..(2,2) -> (2,2)
@@ -2962,6 +3225,7 @@ cursor: 0 @ 0:0
 mode: Normal; selection: -
 register: char ""
 history: undo=1 redo=0
+jumps: []
 pending: ""; last-change: "guu"; recording: -
 effects:
   edit 0..2 -> 2; (0,0)..(0,2) -> (0,2)
@@ -2972,6 +3236,7 @@ cursor: 3 @ 1:0
 mode: Normal; selection: -
 register: char ""
 history: undo=1 redo=0
+jumps: []
 pending: ""; last-change: "guu"; recording: -
 effects:
   edit 3..5 -> 5; (1,0)..(1,2) -> (1,2)
@@ -2982,6 +3247,7 @@ cursor: 6 @ 2:0
 mode: Normal; selection: -
 register: char ""
 history: undo=1 redo=0
+jumps: [0]
 pending: ""; last-change: "guu"; recording: -
 effects:
   edit 6..8 -> 8; (2,0)..(2,2) -> (2,2)
@@ -2992,6 +3258,7 @@ cursor: 0 @ 0:0
 mode: Normal; selection: -
 register: char ""
 history: undo=1 redo=0
+jumps: []
 pending: ""; last-change: "guu"; recording: -
 effects:
   edit 0..2 -> 2; (0,0)..(0,2) -> (0,2)
@@ -3002,6 +3269,7 @@ cursor: 0 @ 0:0
 mode: Normal; selection: -
 register: char ""
 history: undo=1 redo=0
+jumps: []
 pending: ""; last-change: "g~~"; recording: -
 effects:
   edit 0..2 -> 2; (0,0)..(0,2) -> (0,2)
@@ -3012,6 +3280,7 @@ cursor: 3 @ 1:0
 mode: Normal; selection: -
 register: char ""
 history: undo=1 redo=0
+jumps: []
 pending: ""; last-change: "g~~"; recording: -
 effects:
   edit 3..5 -> 5; (1,0)..(1,2) -> (1,2)
@@ -3022,6 +3291,7 @@ cursor: 6 @ 2:0
 mode: Normal; selection: -
 register: char ""
 history: undo=1 redo=0
+jumps: [0]
 pending: ""; last-change: "g~~"; recording: -
 effects:
   edit 6..8 -> 8; (2,0)..(2,2) -> (2,2)
@@ -3032,6 +3302,7 @@ cursor: 0 @ 0:0
 mode: Normal; selection: -
 register: char ""
 history: undo=1 redo=0
+jumps: []
 pending: ""; last-change: "g~~"; recording: -
 effects:
   edit 0..2 -> 2; (0,0)..(0,2) -> (0,2)
@@ -3042,6 +3313,7 @@ cursor: 3 @ 1:0
 mode: Normal; selection: -
 register: char ""
 history: undo=1 redo=0
+jumps: []
 pending: ""; last-change: "g~~"; recording: -
 effects:
   edit 3..5 -> 5; (1,0)..(1,2) -> (1,2)
@@ -3052,6 +3324,7 @@ cursor: 6 @ 2:0
 mode: Normal; selection: -
 register: char ""
 history: undo=1 redo=0
+jumps: [0]
 pending: ""; last-change: "g~~"; recording: -
 effects:
   edit 6..8 -> 8; (2,0)..(2,2) -> (2,2)
@@ -3062,6 +3335,7 @@ cursor: 0 @ 0:0
 mode: Normal; selection: -
 register: char ""
 history: undo=1 redo=0
+jumps: []
 pending: ""; last-change: "g~~"; recording: -
 effects:
   edit 0..2 -> 2; (0,0)..(0,2) -> (0,2)
@@ -3072,6 +3346,7 @@ cursor: 0 @ 0:0
 mode: Normal; selection: -
 register: line "aa\n"
 history: undo=1 redo=0
+jumps: []
 pending: ""; last-change: "Vd"; recording: -
 effects:
   mode Visual(Line)
@@ -3084,6 +3359,7 @@ cursor: 3 @ 1:0
 mode: Normal; selection: -
 register: line "bb\n"
 history: undo=1 redo=0
+jumps: []
 pending: ""; last-change: "Vd"; recording: -
 effects:
   mode Visual(Line)
@@ -3096,6 +3372,7 @@ cursor: 3 @ 1:0
 mode: Normal; selection: -
 register: line "cc\n"
 history: undo=1 redo=0
+jumps: [0]
 pending: ""; last-change: "Vd"; recording: -
 effects:
   mode Visual(Line)
@@ -3108,6 +3385,7 @@ cursor: 0 @ 0:0
 mode: Normal; selection: -
 register: line "aa\n"
 history: undo=1 redo=0
+jumps: []
 pending: ""; last-change: "Vd"; recording: -
 effects:
   mode Visual(Line)
@@ -3120,6 +3398,7 @@ cursor: 3 @ 1:0
 mode: Normal; selection: -
 register: line "bb\n"
 history: undo=1 redo=0
+jumps: []
 pending: ""; last-change: "Vd"; recording: -
 effects:
   mode Visual(Line)
@@ -3132,6 +3411,7 @@ cursor: 3 @ 1:0
 mode: Normal; selection: -
 register: line "cc\n"
 history: undo=1 redo=0
+jumps: [0]
 pending: ""; last-change: "Vd"; recording: -
 effects:
   mode Visual(Line)
@@ -3144,6 +3424,7 @@ cursor: 0 @ 0:0
 mode: Normal; selection: -
 register: line "aa\n"
 history: undo=1 redo=0
+jumps: []
 pending: ""; last-change: "Vd"; recording: -
 effects:
   mode Visual(Line)
@@ -3156,6 +3437,7 @@ cursor: 0 @ 0:0
 mode: Normal; selection: -
 register: line "aa\n"
 history: undo=1 redo=0
+jumps: []
 pending: ""; last-change: "VcX<Esc>"; recording: -
 effects:
   mode Visual(Line)
@@ -3170,6 +3452,7 @@ cursor: 3 @ 1:0
 mode: Normal; selection: -
 register: line "bb\n"
 history: undo=1 redo=0
+jumps: []
 pending: ""; last-change: "VcX<Esc>"; recording: -
 effects:
   mode Visual(Line)
@@ -3184,6 +3467,7 @@ cursor: 6 @ 2:0
 mode: Normal; selection: -
 register: line "cc\n"
 history: undo=1 redo=0
+jumps: [0]
 pending: ""; last-change: "VcX<Esc>"; recording: -
 effects:
   mode Visual(Line)
@@ -3198,6 +3482,7 @@ cursor: 0 @ 0:0
 mode: Normal; selection: -
 register: line "aa\n"
 history: undo=1 redo=0
+jumps: []
 pending: ""; last-change: "VcX<Esc>"; recording: -
 effects:
   mode Visual(Line)
@@ -3212,6 +3497,7 @@ cursor: 3 @ 1:0
 mode: Normal; selection: -
 register: line "bb\n"
 history: undo=1 redo=0
+jumps: []
 pending: ""; last-change: "VcX<Esc>"; recording: -
 effects:
   mode Visual(Line)
@@ -3226,6 +3512,7 @@ cursor: 6 @ 2:0
 mode: Normal; selection: -
 register: line "cc\n"
 history: undo=1 redo=0
+jumps: [0]
 pending: ""; last-change: "VcX<Esc>"; recording: -
 effects:
   mode Visual(Line)
@@ -3240,6 +3527,7 @@ cursor: 0 @ 0:0
 mode: Normal; selection: -
 register: line "aa\n"
 history: undo=1 redo=0
+jumps: []
 pending: ""; last-change: "VcX<Esc>"; recording: -
 effects:
   mode Visual(Line)
@@ -3254,6 +3542,7 @@ cursor: 0 @ 0:0
 mode: Normal; selection: -
 register: line "aa\n"
 history: undo=0 redo=0
+jumps: []
 pending: ""; last-change: ""; recording: -
 effects:
   mode Visual(Line)
@@ -3265,6 +3554,7 @@ cursor: 3 @ 1:0
 mode: Normal; selection: -
 register: line "bb\n"
 history: undo=0 redo=0
+jumps: []
 pending: ""; last-change: ""; recording: -
 effects:
   mode Visual(Line)
@@ -3276,6 +3566,7 @@ cursor: 6 @ 2:0
 mode: Normal; selection: -
 register: line "cc\n"
 history: undo=0 redo=0
+jumps: [0]
 pending: ""; last-change: ""; recording: -
 effects:
   mode Visual(Line)
@@ -3287,6 +3578,7 @@ cursor: 0 @ 0:0
 mode: Normal; selection: -
 register: line "aa\n"
 history: undo=0 redo=0
+jumps: []
 pending: ""; last-change: ""; recording: -
 effects:
   mode Visual(Line)
@@ -3298,6 +3590,7 @@ cursor: 3 @ 1:0
 mode: Normal; selection: -
 register: line "bb\n"
 history: undo=0 redo=0
+jumps: []
 pending: ""; last-change: ""; recording: -
 effects:
   mode Visual(Line)
@@ -3309,6 +3602,7 @@ cursor: 6 @ 2:0
 mode: Normal; selection: -
 register: line "cc\n"
 history: undo=0 redo=0
+jumps: [0]
 pending: ""; last-change: ""; recording: -
 effects:
   mode Visual(Line)
@@ -3320,6 +3614,7 @@ cursor: 0 @ 0:0
 mode: Normal; selection: -
 register: line "aa\n"
 history: undo=0 redo=0
+jumps: []
 pending: ""; last-change: ""; recording: -
 effects:
   mode Visual(Line)
@@ -3331,6 +3626,7 @@ cursor: 4 @ 0:4
 mode: Normal; selection: -
 register: char ""
 history: undo=1 redo=0
+jumps: []
 pending: ""; last-change: "V>"; recording: -
 effects:
   mode Visual(Line)
@@ -3343,6 +3639,7 @@ cursor: 7 @ 1:4
 mode: Normal; selection: -
 register: char ""
 history: undo=1 redo=0
+jumps: []
 pending: ""; last-change: "V>"; recording: -
 effects:
   mode Visual(Line)
@@ -3355,6 +3652,7 @@ cursor: 10 @ 2:4
 mode: Normal; selection: -
 register: char ""
 history: undo=1 redo=0
+jumps: [0]
 pending: ""; last-change: "V>"; recording: -
 effects:
   mode Visual(Line)
@@ -3367,6 +3665,7 @@ cursor: 4 @ 0:4
 mode: Normal; selection: -
 register: char ""
 history: undo=1 redo=0
+jumps: []
 pending: ""; last-change: "V>"; recording: -
 effects:
   mode Visual(Line)
@@ -3379,6 +3678,7 @@ cursor: 7 @ 1:4
 mode: Normal; selection: -
 register: char ""
 history: undo=1 redo=0
+jumps: []
 pending: ""; last-change: "V>"; recording: -
 effects:
   mode Visual(Line)
@@ -3391,6 +3691,7 @@ cursor: 10 @ 2:4
 mode: Normal; selection: -
 register: char ""
 history: undo=1 redo=0
+jumps: [0]
 pending: ""; last-change: "V>"; recording: -
 effects:
   mode Visual(Line)
@@ -3403,6 +3704,7 @@ cursor: 4 @ 0:4
 mode: Normal; selection: -
 register: char ""
 history: undo=1 redo=0
+jumps: []
 pending: ""; last-change: "V>"; recording: -
 effects:
   mode Visual(Line)
@@ -3415,6 +3717,7 @@ cursor: 3 @ 1:0
 mode: Normal; selection: -
 register: line "cc\n"
 history: undo=1 redo=0
+jumps: [0]
 pending: ""; last-change: "2dd"; recording: -
 effects:
   edit 5..8 -> 5; (1,2)..(2,2) -> (1,2)
@@ -3425,9 +3728,168 @@ cursor: 6 @ 2:0
 mode: Normal; selection: -
 register: line "cc\n"
 history: undo=1 redo=0
+jumps: [0]
 pending: ""; last-change: "2ccX<Esc>"; recording: -
 effects:
   edit 6..8 -> 6; (2,0)..(2,2) -> (2,0)
   mode Insert
   edit 6..6 -> 7; (2,0)..(2,0) -> (2,1)
   mode Normal
+
+== jumps-back-after-goto-last ==
+text: "one\ntwo\nthree"
+cursor: 0 @ 0:0
+mode: Normal; selection: -
+register: char ""
+history: undo=0 redo=0
+jumps: [0, 8]
+pending: ""; last-change: ""; recording: -
+effects:
+
+== jumps-forward-after-going-back ==
+text: "one\ntwo\nthree"
+cursor: 8 @ 2:0
+mode: Normal; selection: -
+register: char ""
+history: undo=0 redo=0
+jumps: [0, 8]
+pending: ""; last-change: ""; recording: -
+effects:
+
+== jumps-back-empty-rings ==
+text: "one"
+cursor: 0 @ 0:0
+mode: Normal; selection: -
+register: char ""
+history: undo=0 redo=0
+jumps: []
+pending: ""; last-change: ""; recording: -
+effects:
+  bell
+
+== jumps-forward-at-present-rings ==
+text: "one\ntwo\nthree"
+cursor: 8 @ 2:0
+mode: Normal; selection: -
+register: char ""
+history: undo=0 redo=0
+jumps: [0]
+pending: ""; last-change: ""; recording: -
+effects:
+  bell
+
+== jumps-forward-past-newest-rings ==
+text: "one\ntwo\nthree"
+cursor: 8 @ 2:0
+mode: Normal; selection: -
+register: char ""
+history: undo=0 redo=0
+jumps: [0, 8]
+pending: ""; last-change: ""; recording: -
+effects:
+  bell
+
+== jumps-gg-pushes ==
+text: "one\ntwo"
+cursor: 0 @ 0:0
+mode: Normal; selection: -
+register: char ""
+history: undo=0 redo=0
+jumps: [0, 4]
+pending: ""; last-change: ""; recording: -
+effects:
+
+== jumps-g-pushes ==
+text: "one\ntwo"
+cursor: 4 @ 1:0
+mode: Normal; selection: -
+register: char ""
+history: undo=0 redo=0
+jumps: [0]
+pending: ""; last-change: ""; recording: -
+effects:
+
+== jumps-percent-pushes ==
+text: "(one)"
+cursor: 4 @ 0:4
+mode: Normal; selection: -
+register: char ""
+history: undo=0 redo=0
+jumps: [0]
+pending: ""; last-change: ""; recording: -
+effects:
+
+== jumps-screen-top-pushes ==
+text: "zero\n one\n two\n three"
+cursor: 6 @ 1:1
+mode: Normal; selection: -
+register: char ""
+history: undo=0 redo=0
+jumps: [0]
+pending: ""; last-change: ""; recording: -
+effects:
+
+== jumps-screen-middle-pushes ==
+text: "zero\n one\n two\n three"
+cursor: 11 @ 2:1
+mode: Normal; selection: -
+register: char ""
+history: undo=0 redo=0
+jumps: [0]
+pending: ""; last-change: ""; recording: -
+effects:
+
+== jumps-screen-bottom-pushes ==
+text: "zero\n one\n two\n three"
+cursor: 16 @ 3:1
+mode: Normal; selection: -
+register: char ""
+history: undo=0 redo=0
+jumps: [0]
+pending: ""; last-change: ""; recording: -
+effects:
+
+== jumps-word-motion-does-not-push ==
+text: "one two"
+cursor: 4 @ 0:4
+mode: Normal; selection: -
+register: char ""
+history: undo=0 redo=0
+jumps: []
+pending: ""; last-change: ""; recording: -
+effects:
+
+== jumps-shift-after-insert-before ==
+text: "Xone\ntwo"
+cursor: 0 @ 0:0
+mode: Normal; selection: -
+register: char ""
+history: undo=1 redo=0
+jumps: [0, 5]
+pending: ""; last-change: "iX<Esc>"; recording: -
+effects:
+  mode Insert
+  edit 0..0 -> 1; (0,0)..(0,0) -> (0,1)
+  mode Normal
+
+== jumps-shift-after-delete-before ==
+text: "ne\ntwo"
+cursor: 0 @ 0:0
+mode: Normal; selection: -
+register: char "o"
+history: undo=1 redo=0
+jumps: [0, 3]
+pending: ""; last-change: "x"; recording: -
+effects:
+  edit 0..1 -> 0; (0,0)..(0,1) -> (0,0)
+
+== jumps-collapse-when-deleted ==
+text: ""
+cursor: 0 @ 0:0
+mode: Normal; selection: -
+register: line "one\ntwo\n"
+history: undo=1 redo=0
+jumps: [0]
+pending: ""; last-change: "dG"; recording: -
+effects:
+  edit 0..7 -> 0; (0,0)..(1,3) -> (0,0)

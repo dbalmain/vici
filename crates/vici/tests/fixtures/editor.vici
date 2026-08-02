@@ -1231,3 +1231,67 @@ keys G2dd
 case lines-cc-counted-off-end
 text aa\nbb\ncc
 keys G2ccX<Esc>
+---
+# Jump list
+case jumps-back-after-goto-last
+text one\ntwo\nthree
+keys G<C-o>
+---
+case jumps-forward-after-going-back
+text one\ntwo\nthree
+keys G<C-o><C-i>
+---
+case jumps-back-empty-rings
+text one
+keys <C-o>
+---
+case jumps-forward-at-present-rings
+text one\ntwo\nthree
+keys G<C-i>
+---
+case jumps-forward-past-newest-rings
+text one\ntwo\nthree
+keys G<C-o><C-i><C-i>
+---
+case jumps-gg-pushes
+text one\ntwo
+keys Ggg
+---
+case jumps-g-pushes
+text one\ntwo
+keys G
+---
+case jumps-percent-pushes
+text (one)
+keys %
+---
+case jumps-screen-top-pushes
+text zero\n one\n two\n three
+keys H
+with viewport=1,3
+---
+case jumps-screen-middle-pushes
+text zero\n one\n two\n three
+keys M
+with viewport=1,3
+---
+case jumps-screen-bottom-pushes
+text zero\n one\n two\n three
+keys L
+with viewport=1,3
+---
+case jumps-word-motion-does-not-push
+text one two
+keys w
+---
+case jumps-shift-after-insert-before
+text one\ntwo
+keys G<C-o>iX<Esc>
+---
+case jumps-shift-after-delete-before
+text one\ntwo
+keys G<C-o>x
+---
+case jumps-collapse-when-deleted
+text one\ntwo
+keys wggdG

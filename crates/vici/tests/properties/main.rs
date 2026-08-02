@@ -86,6 +86,15 @@ fn script_strategy() -> impl Strategy<Value = Vec<Key>> {
         "G",
         "gg",
         "%",
+        "H",
+        "M",
+        "L",
+        "<C-d>",
+        "<C-u>",
+        "<C-f>",
+        "<C-b>",
+        "<C-o>",
+        "<C-i>",
         "dw",
         "ciw<Esc>",
         "yi(",
@@ -347,6 +356,40 @@ proptest! {
     }
 
     #[test]
+    fn shift_preserves_content((text, range, replacement) in replace_case(), choice in any::<u8>()) {
+        let buffer = Buffer::from_text(&text);
+        let change = buffer.stage_replace(range.clone(), &replacement);
+        let edit = change.edit;
+        // At an insertion point, `offset == old_end_byte == start_byte` uses
+        // the earlier "at or before start" rule, so select a later byte.
+        let first = if edit.is_insertion() {
+            edit.old_end_byte + 1
+        } else {
+            edit.old_end_byte
+        };
+        prop_assume!(first < text.len());
+        let offset = first + usize::from(choice) % (text.len() - first);
+        let mut post = text.clone();
+        post.replace_range(range, &replacement);
+        prop_assert_eq!(post.as_bytes()[edit.shift(offset)], text.as_bytes()[offset]);
+    }
+
+    #[test]
+    fn shift_is_monotonic_and_in_bounds((text, range, replacement) in replace_case()) {
+        let buffer = Buffer::from_text(&text);
+        let edit = buffer.stage_replace(range.clone(), &replacement).edit;
+        let mut post = text.clone();
+        post.replace_range(range, &replacement);
+        for first in 0..=text.len() {
+            prop_assert!(edit.shift(first) <= post.len());
+            for second in first..=text.len() {
+                prop_assert!(edit.shift(first) <= edit.shift(second));
+                prop_assert!(edit.shift(second) <= post.len());
+            }
+        }
+    }
+
+    #[test]
     fn undo_returns_original_bytes(text in text_strategy(), script in script_strategy()) {
         let mut editor = Editor::from_text(&text);
         editor.handle_keys(&script);
@@ -406,6 +449,17 @@ proptest! {
                 prop_assert!(grapheme_boundary(buffer, selection.start));
                 prop_assert!(grapheme_boundary(buffer, selection.end));
             }
+        }
+    }
+
+    #[test]
+    fn jump_entries_stay_legal(text in text_strategy(), script in script_strategy()) {
+        let mut editor = Editor::from_text(&text);
+        editor.handle_keys(&script);
+        let buffer = editor.buffer();
+        for &jump in editor.jumps() {
+            prop_assert!(jump <= buffer.len_bytes());
+            prop_assert!(grapheme_boundary(buffer, jump));
         }
     }
 

@@ -44,6 +44,27 @@ pub struct Edit {
 }
 
 impl Edit {
+    /// Shift an offset from this edit's pre-image into its post-image.
+    ///
+    /// - `offset <= start_byte` stays unchanged.
+    /// - Otherwise, `offset >= old_end_byte` becomes
+    ///   `(offset - old_end_byte) + new_end_byte`; subtracting first cannot
+    ///   underflow in this branch.
+    /// - Otherwise, the offset was in removed text and collapses to `start_byte`.
+    ///
+    /// This is the one gravity rule for every remembered position; callers do
+    /// not choose an affinity.
+    #[must_use]
+    pub const fn shift(&self, offset: usize) -> usize {
+        if offset <= self.start_byte {
+            offset
+        } else if offset >= self.old_end_byte {
+            (offset - self.old_end_byte) + self.new_end_byte
+        } else {
+            self.start_byte
+        }
+    }
+
     /// The geometry of the change that would put things back.
     ///
     /// The struct is symmetric, so this is just a swap of the two end fields —
