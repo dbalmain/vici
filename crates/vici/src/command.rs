@@ -3,6 +3,8 @@
 //! Everything here is plain data — no closures, no function pointers — so a
 //! keymap can be deserialised from config later without redesign.
 
+use crate::motion::Find;
+
 /// Editing mode.
 ///
 /// Operator-pending is deliberately *not* a mode. It is transient parser state
@@ -67,12 +69,7 @@ pub enum Motion {
         big: bool,
     },
     /// `f` / `F` / `t` / `T`
-    Find {
-        target: char,
-        backward: bool,
-        /// `t`/`T` stop short of the target.
-        till: bool,
-    },
+    Find(Find),
     /// `;` / `,`
     RepeatFind {
         reverse: bool,
@@ -118,7 +115,7 @@ impl Motion {
             // earlier. So `dt,` deletes up to but not including the comma, which
             // requires including the character `t` landed on. Backward `F`/`T` are
             // exclusive, leaving the character under the cursor alone.
-            Self::Find { backward, .. } => !backward,
+            Self::Find(Find { backward, .. }) => !backward,
             _ => false,
         }
     }
@@ -279,7 +276,6 @@ pub enum Command {
 
     /// `q{register}` — a second `q` stops recording.
     RecordMacro(char),
-    StopRecording,
     /// `@{register}`
     PlayMacro(char),
 
@@ -327,20 +323,22 @@ mod tests {
 
         // Both forward finds are inclusive of where they land: `t` lands one
         // character earlier, which is how `dt,` stops before the comma.
-        let forward = |till| Motion::Find {
-            target: ',',
-            backward: false,
-            till,
+        let forward = |till| {
+            Motion::Find(Find {
+                target: ',',
+                backward: false,
+                till,
+            })
         };
         assert!(forward(false).is_inclusive());
         assert!(forward(true).is_inclusive());
         // Backward finds leave the character under the cursor alone.
         assert!(
-            !Motion::Find {
+            !Motion::Find(Find {
                 target: ',',
                 backward: true,
                 till: false
-            }
+            })
             .is_inclusive()
         );
     }

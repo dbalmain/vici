@@ -16,6 +16,7 @@
 use crate::command::{AwaitChar, Command, Mode, Motion, ObjectScope, Operator, Target, TextObject};
 use crate::key::{Key, KeyCode};
 use crate::keymap::{Binding, Keymap, Layer, Walk};
+use crate::motion::Find;
 
 /// What feeding one key produced.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -45,8 +46,8 @@ pub enum Resolution {
 #[derive(Debug, Clone, Default)]
 pub struct Pending {
     keys: Vec<Key>,
-    /// Partial path through the current layer's trie.
-    path: Vec<Key>,
+    /// Start of the partial path through the current layer's bindings.
+    path_start: usize,
     count_before: Option<usize>,
     count_after: Option<usize>,
     operator: Option<Operator>,
@@ -63,7 +64,7 @@ impl Pending {
     /// Nothing accumulated — the next key starts a fresh command.
     #[must_use]
     pub fn is_idle(&self) -> bool {
-        self.path.is_empty()
+        self.path_start == self.keys.len()
             && self.count_before.is_none()
             && self.count_after.is_none()
             && self.operator.is_none()
@@ -101,6 +102,7 @@ impl Pending {
         // `<Esc>` abandons a partial sequence. When nothing is pending it falls
         // through to the keymap, where it means "return to normal mode".
         let idle = self.is_idle();
+        let path_is_empty = self.path_start == self.keys.len();
         self.keys.push(key);
         if key.code == KeyCode::Esc && !idle {
             return self.cancel();
@@ -122,9 +124,7 @@ impl Pending {
 
         // Counts accumulate only at the start of a key path, and a leading `0` is
         // the first-column motion rather than a digit — the classic ambiguity.
-        if self.path.is_empty()
-            && let Some(digit) = key.as_digit()
-        {
+        if path_is_empty && let Some(digit) = key.as_digit() {
             let digit = digit as usize;
             let slot = if self.operator.is_some() {
                 &mut self.count_after
@@ -133,17 +133,17 @@ impl Pending {
             };
             if !(digit == 0 && slot.is_none()) {
                 *slot = Some(slot.unwrap_or(0).saturating_mul(10).saturating_add(digit));
+                self.path_start = self.keys.len();
                 return Resolution::Pending;
             }
         }
 
-        self.path.push(key);
         let layer = if self.operator.is_some() {
             Layer::Operator
         } else {
             Layer::of(mode)
         };
-        match keymap.walk(layer, &self.path) {
+        match keymap.walk(layer, &self.keys[self.path_start..]) {
             Walk::Prefix => Resolution::Pending,
             Walk::Unbound => self.reject(),
             Walk::Bound(binding) => self.apply(binding, mode),
@@ -151,15 +151,14 @@ impl Pending {
     }
 
     fn feed_insert(&mut self, key: Key, keymap: &Keymap) -> Resolution {
-        self.path.push(key);
-        match keymap.walk(Layer::Insert, &self.path) {
+        match keymap.walk(Layer::Insert, &self.keys[self.path_start..]) {
             Walk::Prefix => Resolution::Pending,
             Walk::Bound(Binding::Command(command)) => self.finish(command),
             // Operators and object scopes are meaningless while inserting.
             Walk::Bound(_) => self.reject(),
             Walk::Unbound => {
                 // An unbound printable key is text.
-                if self.path.len() == 1
+                if self.keys.len() - self.path_start == 1
                     && let Some(ch) = key.as_text()
                 {
                     self.finish(Command::InsertText(ch))
@@ -171,7 +170,7 @@ impl Pending {
     }
 
     fn apply(&mut self, binding: Binding, mode: Mode) -> Resolution {
-        self.path.clear();
+        self.path_start = self.keys.len();
         match binding {
             Binding::Command(command) => {
                 // An operator needs a target; a plain command is not one.
@@ -220,11 +219,11 @@ impl Pending {
         self.awaiting = None;
         match awaiting {
             AwaitChar::Find { backward, till } => {
-                let motion = Motion::Find {
+                let motion = Motion::Find(Find {
                     target: ch,
                     backward,
                     till,
-                };
+                });
                 self.finish(self.with_motion(motion))
             }
             // These take no target, so a pending operator is a syntax error.
@@ -457,21 +456,21 @@ mod tests {
     fn character_arguments() {
         assert_eq!(
             cmd("f,").0,
-            Command::Move(Motion::Find {
+            Command::Move(Motion::Find(Find {
                 target: ',',
                 backward: false,
                 till: false
-            })
+            }))
         );
         assert_eq!(
             cmd("dt;").0,
             Command::Operate {
                 operator: Operator::Delete,
-                target: Target::Motion(Motion::Find {
+                target: Target::Motion(Motion::Find(Find {
                     target: ';',
                     backward: false,
                     till: true
-                })
+                }))
             }
         );
         assert_eq!(cmd("rx").0, Command::ReplaceChar('x'));

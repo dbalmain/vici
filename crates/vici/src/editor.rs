@@ -580,13 +580,6 @@ impl Editor {
                 effects.push(Effect::RecordingStarted(register));
             }
 
-            Command::StopRecording => {
-                if let Some((register, script)) = self.recording.take() {
-                    self.macros.insert(register, script);
-                    effects.push(Effect::RecordingStopped(register));
-                }
-            }
-
             Command::PlayMacro(register) => match self.macros.get(&register).cloned() {
                 Some(script) => effects.extend(self.replay(&script, repeat)),
                 None => effects.push(Effect::Bell),
@@ -708,27 +701,17 @@ impl Editor {
     /// exclusive, which silently costs `d;` a character.
     fn effective(&self, motion: Motion) -> Motion {
         match (motion, self.last_find) {
-            (Motion::RepeatFind { reverse }, Some(find)) => Motion::Find {
-                target: find.target,
+            (Motion::RepeatFind { reverse }, Some(find)) => Motion::Find(Find {
                 backward: find.backward != reverse,
-                till: find.till,
-            },
+                ..find
+            }),
             _ => motion,
         }
     }
 
     fn remember_find(&mut self, motion: Motion) {
-        if let Motion::Find {
-            target,
-            backward,
-            till,
-        } = motion
-        {
-            self.last_find = Some(Find {
-                target,
-                backward,
-                till,
-            });
+        if let Motion::Find(find) = motion {
+            self.last_find = Some(find);
         }
     }
 

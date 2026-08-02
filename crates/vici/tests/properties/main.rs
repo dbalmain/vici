@@ -199,19 +199,19 @@ fn motions() -> Vec<(Motion, Option<Find>)> {
         (Motion::WordEnd { big: false }, None),
         (Motion::WordEnd { big: true }, None),
         (
-            Motion::Find {
+            Motion::Find(Find {
                 target: 'a',
                 backward: false,
                 till: false,
-            },
+            }),
             None,
         ),
         (
-            Motion::Find {
+            Motion::Find(Find {
                 target: 'a',
                 backward: true,
                 till: true,
-            },
+            }),
             None,
         ),
         (

@@ -561,21 +561,7 @@ pub fn resolve(
             }
             pos
         }
-        Motion::Find {
-            target,
-            backward,
-            till,
-        } => find_in_row(
-            buf,
-            from,
-            Find {
-                target,
-                backward,
-                till,
-            },
-            repeat,
-            false,
-        )?,
+        Motion::Find(find) => find_in_row(buf, from, find, repeat, false)?,
         Motion::RepeatFind { reverse } => {
             let mut find = last_find?;
             if reverse {
@@ -1125,10 +1111,12 @@ mod tests {
 
     #[test]
     fn find_within_the_row() {
-        let find = |target, backward, till| Motion::Find {
-            target,
-            backward,
-            till,
+        let find = |target, backward, till| {
+            Motion::Find(Find {
+                target,
+                backward,
+                till,
+            })
         };
         // `select id, name`, comma at 9.
         assert_eq!(go(SQL, 0, find(',', false, false), None), 9);
@@ -1151,11 +1139,11 @@ mod tests {
             resolve(
                 &buf,
                 0,
-                Motion::Find {
+                Motion::Find(Find {
                     target: 'u',
                     backward: false,
                     till: false
-                },
+                }),
                 None,
                 0,
                 None,

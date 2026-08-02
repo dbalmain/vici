@@ -1,4 +1,4 @@
-//! The keymap: a prefix tree from key sequences to bindings.
+//! The keymap: bindings indexed by key sequence.
 //!
 //! Layered the way vi's own `:map` commands are, because the ambiguity is real:
 //! `i` enters insert mode in normal mode but means *inner* while an operator is
@@ -65,12 +65,6 @@ pub enum Binding {
     Await(AwaitChar),
 }
 
-#[derive(Debug, Clone)]
-enum Node {
-    Leaf(Binding),
-    Branch(BTreeMap<Key, Node>),
-}
-
 /// The result of walking a key path through one layer.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Walk {
@@ -85,10 +79,10 @@ pub enum Walk {
 /// Key sequences to bindings, per layer.
 #[derive(Debug, Clone, Default)]
 pub struct Keymap {
-    normal: BTreeMap<Key, Node>,
-    operator: BTreeMap<Key, Node>,
-    visual: BTreeMap<Key, Node>,
-    insert: BTreeMap<Key, Node>,
+    normal: BTreeMap<Vec<Key>, Binding>,
+    operator: BTreeMap<Vec<Key>, Binding>,
+    visual: BTreeMap<Vec<Key>, Binding>,
+    insert: BTreeMap<Vec<Key>, Binding>,
     objects: BTreeMap<Key, TextObject>,
 }
 
@@ -99,7 +93,7 @@ impl Keymap {
         Self::default()
     }
 
-    fn layer(&self, layer: Layer) -> &BTreeMap<Key, Node> {
+    fn layer(&self, layer: Layer) -> &BTreeMap<Vec<Key>, Binding> {
         match layer {
             Layer::Normal => &self.normal,
             Layer::Operator => &self.operator,
@@ -108,7 +102,7 @@ impl Keymap {
         }
     }
 
-    fn layer_mut(&mut self, layer: Layer) -> &mut BTreeMap<Key, Node> {
+    fn layer_mut(&mut self, layer: Layer) -> &mut BTreeMap<Vec<Key>, Binding> {
         match layer {
             Layer::Normal => &mut self.normal,
             Layer::Operator => &mut self.operator,
@@ -126,7 +120,13 @@ impl Keymap {
     /// If `sequence` is empty.
     pub fn bind(&mut self, layer: Layer, sequence: &[Key], binding: Binding) -> &mut Self {
         assert!(!sequence.is_empty(), "cannot bind an empty key sequence");
-        insert_path(self.layer_mut(layer), sequence, binding);
+        let map = self.layer_mut(layer);
+        // A layer cannot hold both a binding and descendants below it. This
+        // preserves the trie representation's no-ambiguity invariant.
+        map.retain(|existing, _| {
+            !existing.starts_with(sequence) && !sequence.starts_with(existing)
+        });
+        map.insert(sequence.to_vec(), binding);
         self
     }
 
@@ -141,7 +141,8 @@ impl Keymap {
 
     /// Remove a binding, and any subtree beneath it.
     pub fn unbind(&mut self, layer: Layer, sequence: &[Key]) -> &mut Self {
-        remove_path(self.layer_mut(layer), sequence);
+        self.layer_mut(layer)
+            .retain(|existing, _| !existing.starts_with(sequence));
         self
     }
 
@@ -152,7 +153,7 @@ impl Keymap {
     /// being able to shadow individual keys.
     #[must_use]
     pub fn walk(&self, layer: Layer, path: &[Key]) -> Walk {
-        match walk_path(self.layer(layer), path) {
+        match walk(self.layer(layer), path) {
             Walk::Unbound => match layer.fallback() {
                 Some(next) => self.walk(next, path),
                 None => Walk::Unbound,
@@ -376,49 +377,18 @@ impl Keymap {
     }
 }
 
-fn insert_path(map: &mut BTreeMap<Key, Node>, path: &[Key], binding: Binding) {
-    let Some((first, rest)) = path.split_first() else {
-        return;
-    };
-    if rest.is_empty() {
-        map.insert(*first, Node::Leaf(binding));
-        return;
-    }
-    let entry = map
-        .entry(*first)
-        .or_insert_with(|| Node::Branch(BTreeMap::new()));
-    if !matches!(entry, Node::Branch(_)) {
-        *entry = Node::Branch(BTreeMap::new());
-    }
-    let Node::Branch(children) = entry else {
-        unreachable!("just replaced with a branch")
-    };
-    insert_path(children, rest, binding);
-}
-
-fn remove_path(map: &mut BTreeMap<Key, Node>, path: &[Key]) {
-    let Some((first, rest)) = path.split_first() else {
-        return;
-    };
-    if rest.is_empty() {
-        map.remove(first);
-        return;
-    }
-    if let Some(Node::Branch(children)) = map.get_mut(first) {
-        remove_path(children, rest);
-    }
-}
-
-fn walk_path(map: &BTreeMap<Key, Node>, path: &[Key]) -> Walk {
-    let Some((first, rest)) = path.split_first() else {
+fn walk(map: &BTreeMap<Vec<Key>, Binding>, path: &[Key]) -> Walk {
+    if path.is_empty() {
         return Walk::Prefix;
-    };
-    match map.get(first) {
-        Some(Node::Leaf(binding)) if rest.is_empty() => Walk::Bound(*binding),
-        // Nothing here, or more keys after a complete binding: either way this
-        // layer has no answer, so the caller may try its fallback.
-        None | Some(Node::Leaf(_)) => Walk::Unbound,
-        Some(Node::Branch(children)) => walk_path(children, rest),
+    }
+    if let Some(binding) = map.get(path) {
+        return Walk::Bound(*binding);
+    }
+    // The first sequence at or after `path` is the only candidate: anything
+    // extending `path` sorts immediately after it, so one lookup settles it.
+    match map.range(path.to_vec()..).next() {
+        Some((sequence, _)) if sequence.starts_with(path) => Walk::Prefix,
+        _ => Walk::Unbound,
     }
 }
 
