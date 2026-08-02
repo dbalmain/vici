@@ -69,7 +69,7 @@ deserialised from config without redesigning anything.
 ## What's implemented
 
 Normal, insert, replace and visual (character and line) modes. Motions
-`h j k l 0 ^ $ w W b B e E f F t T ; , G gg H M L`. Operators `d c y > <` over
+`h j k l 0 ^ $ w W b B e E f F t T ; , G gg H M L %`. Operators `d c y > <` over
 motions, doubled (`dd`, `>>`, `<<`), and text objects `iw aw i( a( i" a" ip` and
 friends. Counts, including the multiplication in `2d3w`. `x X r ~ J p P`, all
 six insert entries, undo, redo, `U`, dot-repeat and macros.
@@ -96,7 +96,7 @@ nothing and behave correctly for free — including `.` after an insert session.
   is not yet an API for the host to hand a match back. Next on the list.
 - **Registers and marks.** One unnamed register, deliberately. This is a core
   for self-contained single-buffer editing, not a vi clone.
-- **Visual block**, `%`, and the `D C s S` shortcuts.
+- **Visual block** and the `D C s S` shortcuts.
 - **Display width.** The sticky column for `j`/`k` counts graphemes, not
   terminal cells, so it diverges from vi on tabs and CJK. Width is the view's
   knowledge; `motion.rs` documents where a layout trait would plug in.

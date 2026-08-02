@@ -419,6 +419,42 @@ pub fn row_span(buf: &Buffer, first: usize, last: usize) -> Range<usize> {
     start..end
 }
 
+/// `%` — the match of the first delimiter on the row at or after the cursor.
+///
+/// Brackets are looked for first, so `%` does exactly what vi does wherever vi
+/// does anything at all: it takes the first bracket on the row and jumps to its
+/// partner, in either direction. Quotes are ours — vi rings on them — and are
+/// only consulted when the row holds no bracket, so no vi behaviour is displaced.
+///
+/// The search is row-local, as vi's is: a bracket on the next row is not this
+/// row's business.
+fn match_pair(buf: &Buffer, at: usize) -> Option<usize> {
+    const PAIRS: [(char, char); 3] = [('(', ')'), ('[', ']'), ('{', '}')];
+    const QUOTES: [char; 3] = ['"', '\'', '`'];
+
+    let end = buf.row_content_range(buf.byte_to_point(at).row).end;
+    let mut pos = at;
+    let mut quote = None;
+    while pos < end {
+        let ch = char_at(buf, pos)?;
+        if let Some(&(open, close)) = PAIRS
+            .iter()
+            .find(|&&(open, close)| ch == open || ch == close)
+        {
+            let (start, finish) = enclosing_pair(buf, pos, open, close)?;
+            return Some(if pos == start { finish } else { start });
+        }
+        if quote.is_none() && QUOTES.contains(&ch) {
+            quote = Some((pos, ch));
+        }
+        pos = advance_char(buf, pos);
+    }
+
+    let (pos, ch) = quote?;
+    let (start, finish) = enclosing_quotes(buf, pos, ch)?;
+    Some(if pos == start { finish } else { start })
+}
+
 fn screen_motion(buf: &Buffer, motion: Motion, repeat: usize, viewport: Viewport) -> Option<usize> {
     // A zero height means no host has reported a screen, so screen-relative
     // motions have no meaningful target rather than pretending row zero is it.
@@ -551,6 +587,7 @@ pub fn resolve(
             let target_row = count.map_or(0, |n| n.saturating_sub(1).min(rows - 1));
             first_non_blank(buf, target_row)
         }
+        Motion::MatchPair => match_pair(buf, from)?,
         Motion::ScreenTop | Motion::ScreenMiddle | Motion::ScreenBottom => {
             screen_motion(buf, motion, repeat, viewport)?
         }
@@ -1419,6 +1456,43 @@ mod tests {
         // Past the stray close, the pair is reachable again.
         let span = obj(&buf, 4, ObjectScope::Inner, BRACES).unwrap();
         assert_eq!(buf.text_in(span.range), " a ");
+    }
+
+    #[test]
+    fn match_pair_jumps_to_the_partner() {
+        let buf = Buffer::from_text("x (a (b) c) y");
+        let go = |from| resolve(&buf, from, Motion::MatchPair, None, 0, None, Bound::OnChar);
+        // From before the pair: the first bracket on the row is the one that counts.
+        assert_eq!(go(0), Some(10));
+        assert_eq!(go(2), Some(10));
+        // From the closing end, back to the opening one.
+        assert_eq!(go(10), Some(2));
+        // A nested pair matches its own partner.
+        assert_eq!(go(5), Some(7));
+        // Past the last bracket there is nothing left to match.
+        assert_eq!(go(12), None);
+
+        // The search stays on the row, as vi's does.
+        let buf = Buffer::from_text("x\n(a)");
+        assert_eq!(
+            resolve(&buf, 0, Motion::MatchPair, None, 0, None, Bound::OnChar),
+            None
+        );
+    }
+
+    #[test]
+    fn match_pair_falls_back_to_quotes() {
+        // A bracket on the row still wins, so nothing vi does is displaced.
+        let buf = Buffer::from_text("say \"hi\" (x)");
+        assert_eq!(
+            resolve(&buf, 0, Motion::MatchPair, None, 0, None, Bound::OnChar),
+            Some(11)
+        );
+        // With no bracket to be had, the quotes match instead — vi would ring.
+        let buf = Buffer::from_text("say 'hi' there");
+        let go = |from| resolve(&buf, from, Motion::MatchPair, None, 0, None, Bound::OnChar);
+        assert_eq!(go(0), Some(7));
+        assert_eq!(go(7), Some(4));
     }
 
     #[test]

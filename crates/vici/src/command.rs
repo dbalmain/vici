@@ -81,6 +81,8 @@ pub enum Motion {
     GotoRow,
     /// `gg` — count as an absolute row, else the first row.
     GotoFirstRow,
+    /// `%` — the match of the first bracket on the row, or of a quote.
+    MatchPair,
     /// `H` — a counted row from the top of the reported screen.
     ScreenTop,
     /// `M` — the middle row of the reported screen.
@@ -109,7 +111,9 @@ impl Motion {
     #[must_use]
     pub const fn is_inclusive(self) -> bool {
         match self {
-            Self::WordEnd { .. } | Self::LastColumn => true,
+            // `%` takes the delimiter it lands on with it, in either direction:
+            // `d%` from either end of a pair deletes both and everything between.
+            Self::WordEnd { .. } | Self::LastColumn | Self::MatchPair => true,
             // Forward `f` and `t` are both inclusive; `t` simply lands a character
             // earlier. So `dt,` deletes up to but not including the comma, which
             // requires including the character `t` landed on. Backward `F`/`T` are
