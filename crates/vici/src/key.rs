@@ -402,6 +402,12 @@ mod tests {
     }
 
     #[test]
+    fn a_bare_less_than_needs_the_named_spelling() {
+        assert!(keys("<").is_err());
+        assert_eq!(keys("<lt>").unwrap(), vec![Key::char('<')]);
+    }
+
+    #[test]
     fn text_and_digits() {
         assert_eq!(Key::char('x').as_text(), Some('x'));
         assert_eq!(Key::ctrl('x').as_text(), None);

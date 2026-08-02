@@ -374,6 +374,8 @@ mod tests {
             ("dd", Operator::Delete),
             ("cc", Operator::Change),
             ("yy", Operator::Yank),
+            (">>", Operator::ShiftRight),
+            ("<lt><lt>", Operator::ShiftLeft),
         ] {
             assert_eq!(
                 cmd(spec),

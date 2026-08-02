@@ -28,10 +28,18 @@ use ratatui::widgets::{Block, Paragraph};
 use ratatui::{DefaultTerminal, Frame};
 use unicode_width::UnicodeWidthChar;
 
-use vici::{Editor, Effect, Key, KeyCode, Mode, Mods, Scroll, VisualKind, render};
+use vici::{Editor, Effect, Indent, Key, KeyCode, Mode, Mods, Scroll, VisualKind, render};
 
 /// Tab width. Purely a view decision — the buffer stores a single `\t` byte.
+///
+/// The core is handed this same number as [`Indent::tab_width`], because `<<` on
+/// a tab-indented row has to remove what the screen shows. One constant with two
+/// readers; a second copy is how the view and the shift arithmetic would drift.
 const TABSTOP: usize = 8;
+/// Columns one `>>` moves by. vim's `shiftwidth`.
+const SHIFTWIDTH: usize = 4;
+/// Render new indentation with tabs. Inverse of vim's `expandtab`.
+const INDENT_WITH_TABS: bool = false;
 const LOG_CAP: usize = 500;
 
 fn main() -> io::Result<()> {
@@ -90,7 +98,11 @@ struct App {
 impl App {
     fn new(path: PathBuf, text: &str, message: String) -> Self {
         Self {
-            editor: Editor::from_text(text),
+            editor: Editor::from_text(text).with_indent(Indent {
+                shift_width: SHIFTWIDTH,
+                tab_width: TABSTOP,
+                use_tabs: INDENT_WITH_TABS,
+            }),
             path,
             top: 0,
             height: 1,

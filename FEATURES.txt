@@ -158,6 +158,25 @@
     newline. Scroll to the bottom and try it.
 
 --------------------------------------------------------------
+ 7A. SHIFT — host-configured indentation
+--------------------------------------------------------------
+
+[ ] >>  shift this row right       [ ] <<  shift it left
+[ ] 3>> shift this row and two more
+[ ] >j  shift this row and the next
+[ ] >ip shift a paragraph          [ ] >i{ shift a braces block
+[ ] Vj> shift a visual line selection
+[ ] >> then .  repeat the shift
+      one row to indent
+      second row to indent
+
+    Watch the effect log: one Edit per changed row, but one `u`
+    restores the whole shift. Empty rows stay empty; whitespace-only
+    rows do move. `>w` still shifts its whole row, because shift is
+    always linewise. The host's Indent configuration chooses shift and
+    tab widths, plus whether new indents use tabs.
+
+--------------------------------------------------------------
  8. TEXT OBJECTS
 --------------------------------------------------------------
 

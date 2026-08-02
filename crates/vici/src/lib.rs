@@ -43,6 +43,7 @@ mod document;
 mod edit;
 mod editor;
 mod history;
+mod host;
 mod key;
 mod keymap;
 mod motion;
@@ -57,6 +58,7 @@ pub use document::{Document, Revert};
 pub use edit::{Change, Edit, Point};
 pub use editor::{Editor, Effect, Register};
 pub use history::{History, LinearHistory, NoHistory, Step};
+pub use host::Indent;
 pub use key::{Key, KeyCode, Mods, ParseError, key, keys, render};
 pub use keymap::{Binding, Keymap, Layer, Walk, is_count_digit};
 pub use motion::{

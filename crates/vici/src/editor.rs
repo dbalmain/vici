@@ -24,6 +24,7 @@ use crate::command::{Command, InsertAt, Mode, Motion, Operator, Scroll, Target, 
 use crate::document::{Document, Revert};
 use crate::edit::{Edit, Point};
 use crate::history::{History, LinearHistory};
+use crate::host::Indent;
 use crate::key::{Key, ParseError, keys};
 use crate::keymap::Keymap;
 use crate::motion::{self, Bound, Find, STICKY_END, Span};
@@ -75,6 +76,7 @@ pub struct Register {
 pub struct Editor<H: History = LinearHistory> {
     doc: Document<H>,
     keymap: Keymap,
+    indent: Indent,
     pending: Pending,
     mode: Mode,
     cursor: usize,
@@ -120,6 +122,7 @@ impl<H: History> Editor<H> {
         Self {
             doc: Document::with_history(text, history),
             keymap,
+            indent: Indent::default(),
             pending: Pending::new(),
             mode: Mode::Normal,
             cursor: 0,
@@ -138,6 +141,24 @@ impl<H: History> Editor<H> {
     }
 
     // -- queries ---------------------------------------------------------
+
+    /// Configure indentation before returning this editor.
+    #[must_use]
+    pub fn with_indent(mut self, indent: Indent) -> Self {
+        self.indent = indent;
+        self
+    }
+
+    /// The host-supplied indentation policy used by shift operators.
+    #[must_use]
+    pub const fn indent(&self) -> Indent {
+        self.indent
+    }
+
+    /// Replace the host-supplied indentation policy used by shift operators.
+    pub fn set_indent(&mut self, indent: Indent) {
+        self.indent = indent;
+    }
 
     #[must_use]
     pub fn buffer(&self) -> &Buffer {
@@ -391,7 +412,14 @@ impl<H: History> Editor<H> {
             Command::Operate { operator, target } => {
                 self.remember_target_find(target);
                 match self.span_of(operator, target, count) {
-                    Some(span) => self.operate(operator, span, &mut effects),
+                    Some(span) => {
+                        let amount = if self.mode.is_visual() {
+                            count.unwrap_or(1)
+                        } else {
+                            1
+                        };
+                        self.operate(operator, span, amount, &mut effects);
+                    }
                     None => effects.push(Effect::Bell),
                 }
             }
@@ -731,7 +759,7 @@ impl<H: History> Editor<H> {
     /// Resolve an operator's target to a span.
     fn span_of(&self, operator: Operator, target: Target, count: Option<usize>) -> Option<Span> {
         let buf = self.buffer();
-        match target {
+        let span = match target {
             Target::Motion(motion) => {
                 // vi's one famous irregularity: `cw` behaves like `ce`, so that
                 // changing a word does not swallow the space after it.
@@ -773,42 +801,62 @@ impl<H: History> Editor<H> {
                 if semantics.is_linewise() {
                     let first = buf.byte_to_point(self.cursor.min(landed)).row;
                     let last = buf.byte_to_point(self.cursor.max(landed)).row;
-                    return Some(Span {
+                    Span {
                         range: motion::row_span(buf, first, last),
                         linewise: true,
-                    });
+                    }
+                } else {
+                    let (start, mut end) = (self.cursor.min(landed), self.cursor.max(landed));
+                    if semantics.is_inclusive() {
+                        end =
+                            motion::resolve(buf, end, Motion::Right, None, 0, None, Bound::PastEnd)
+                                .unwrap_or(end);
+                    }
+                    Span {
+                        range: start..end,
+                        linewise: false,
+                    }
                 }
-                let (start, mut end) = (self.cursor.min(landed), self.cursor.max(landed));
-                if semantics.is_inclusive() {
-                    end = motion::resolve(buf, end, Motion::Right, None, 0, None, Bound::PastEnd)
-                        .unwrap_or(end);
-                }
-                Some(Span {
-                    range: start..end,
-                    linewise: false,
-                })
             }
             Target::CurrentRow => {
                 let first = self.cursor_point().row;
                 let last = first + count.unwrap_or(1) - 1;
-                Some(Span {
+                Span {
                     range: motion::row_span(buf, first, last),
                     linewise: true,
-                })
+                }
             }
             Target::Object { scope, object } => {
-                motion::object_span(buf, self.cursor, scope, object, count.unwrap_or(1))
+                motion::object_span(buf, self.cursor, scope, object, count.unwrap_or(1))?
             }
             Target::Selection => self.selection().map(|range| Span {
                 range,
                 linewise: self.mode == Mode::Visual(VisualKind::Line),
-            }),
+            })?,
+        };
+        if operator.forces_linewise() {
+            let first = buf.byte_to_point(span.range.start).row;
+            let last = buf
+                .byte_to_point(span.range.end.saturating_sub(1).max(span.range.start))
+                .row;
+            Some(Span {
+                range: motion::row_span(buf, first, last),
+                linewise: true,
+            })
+        } else {
+            Some(span)
         }
     }
 
-    fn operate(&mut self, operator: Operator, span: Span, effects: &mut Vec<Effect>) {
+    fn operate(
+        &mut self,
+        operator: Operator,
+        span: Span,
+        amount: usize,
+        effects: &mut Vec<Effect>,
+    ) {
         let Span { range, linewise } = span;
-        if range.is_empty() && operator != Operator::Change {
+        if range.is_empty() && operator != Operator::Change && !operator.forces_linewise() {
             effects.push(Effect::Bell);
             // Still drop the selection: a no-op operator must not strand the
             // editor in visual mode, or the next keystroke is interpreted against
@@ -824,6 +872,16 @@ impl<H: History> Editor<H> {
         let was_visual = self.mode.is_visual();
 
         match operator {
+            Operator::ShiftRight | Operator::ShiftLeft => {
+                let first = self.buffer().byte_to_point(range.start).row;
+                let last = self
+                    .buffer()
+                    .byte_to_point(range.end.saturating_sub(1).max(range.start))
+                    .row;
+                self.shift_rows(first, last, operator, amount, effects);
+                self.cursor = self.buffer().row_content_range(first).start;
+                self.cursor = self.step(self.cursor, Motion::FirstNonBlank, 1, Bound::OnChar);
+            }
             Operator::Lower | Operator::Upper | Operator::SwapCase => {
                 let text = self.buffer().text_in(range.clone());
                 let recased = recase(&text, operator);
@@ -871,6 +929,61 @@ impl<H: History> Editor<H> {
             self.leave_visual(effects);
         }
         self.sticky = motion::grapheme_col(self.buffer(), self.cursor);
+    }
+
+    /// Shift rows from bottom to top so replacing one indent cannot invalidate an
+    /// offset still needed by an earlier row. Empty rows stay untouched, while a
+    /// whitespace-only row is deliberately still an indent worth changing.
+    fn shift_rows(
+        &mut self,
+        first: usize,
+        last: usize,
+        operator: Operator,
+        amount: usize,
+        effects: &mut Vec<Effect>,
+    ) {
+        let columns = self.indent.shift_width.saturating_mul(amount);
+        let tab_width = self.indent.tab_width.max(1);
+        for row in (first..=last).rev() {
+            let content = self.buffer().row_content_range(row);
+            if content.is_empty() {
+                continue;
+            }
+            let text = self.buffer().text_in(content.clone());
+            let indent_len = text
+                .bytes()
+                .take_while(|byte| matches!(byte, b' ' | b'\t'))
+                .count();
+            let old =
+                text.as_bytes()[..indent_len]
+                    .iter()
+                    .fold(0_usize, |width, byte| match byte {
+                        b' ' => width + 1,
+                        b'\t' => width + (tab_width - width % tab_width),
+                        _ => width,
+                    });
+            let new = match operator {
+                Operator::ShiftRight => old.saturating_add(columns),
+                Operator::ShiftLeft => old.saturating_sub(columns),
+                _ => unreachable!("shift_rows only receives shift operators"),
+            };
+            let rendered = if self.indent.use_tabs {
+                format!(
+                    "{}{}",
+                    "\t".repeat(new / tab_width),
+                    " ".repeat(new % tab_width)
+                )
+            } else {
+                " ".repeat(new)
+            };
+            if rendered != text[..indent_len] {
+                self.edit(
+                    content.start..content.start + indent_len,
+                    &rendered,
+                    effects,
+                );
+            }
+        }
     }
 
     fn leave_visual(&mut self, effects: &mut Vec<Effect>) {
@@ -1051,7 +1164,13 @@ impl<H: History> Editor<H> {
             // One-shot changes record immediately — but only outside a session,
             // whose keys are already accumulating.
             Command::Operate {
-                operator: Operator::Delete | Operator::Lower | Operator::Upper | Operator::SwapCase,
+                operator:
+                    Operator::Delete
+                    | Operator::Lower
+                    | Operator::Upper
+                    | Operator::SwapCase
+                    | Operator::ShiftRight
+                    | Operator::ShiftLeft,
                 ..
             }
             | Command::DeleteChar { .. }
@@ -1077,7 +1196,12 @@ fn recase(text: &str, operator: Operator) -> String {
     match operator {
         Operator::Lower => text.chars().flat_map(char::to_lowercase).collect(),
         Operator::Upper => text.chars().flat_map(char::to_uppercase).collect(),
-        _ => text.chars().map(swap_case).collect(),
+        Operator::SwapCase => text.chars().map(swap_case).collect(),
+        Operator::Delete
+        | Operator::Change
+        | Operator::Yank
+        | Operator::ShiftRight
+        | Operator::ShiftLeft => unreachable!("recase only receives case operators"),
     }
 }
 
@@ -1156,6 +1280,88 @@ mod tests {
         assert_eq!(typed(SQL, "dd"), "from users\nwhere id = 1");
         assert_eq!(typed(SQL, "2dd"), "where id = 1");
         assert_eq!(typed(SQL, "jdd"), "select id, name\nwhere id = 1");
+    }
+
+    #[test]
+    fn shift_operators_are_linewise_and_repeatable() {
+        assert_eq!(typed("one\ntwo\nthree", ">>"), "    one\ntwo\nthree");
+        assert_eq!(typed("    one\ntwo", "<lt><lt>"), "one\ntwo");
+        assert_eq!(
+            typed("one\ntwo\nthree", "3>>"),
+            "    one\n    two\n    three"
+        );
+        assert_eq!(typed("one\ntwo\nthree", ">j"), "    one\n    two\nthree");
+        assert_eq!(typed("one\n\ntwo", ">ip"), "    one\n\ntwo");
+        assert_eq!(typed("{ one }", "l>i{"), "    { one }");
+        assert_eq!(typed("one\n\ntwo", "3>>"), "    one\n\n    two");
+        // A characterwise target is widened once in `span_of`, not per target.
+        assert_eq!(typed("one two", ">w"), "    one two");
+        assert_eq!(typed("one\ntwo\nthree", "Vj>"), "    one\n    two\nthree");
+        assert_eq!(
+            typed("one\ntwo\nthree", "2>>."),
+            "        one\n        two\nthree"
+        );
+    }
+
+    #[test]
+    fn shifts_respect_host_indent_and_history() {
+        let tabs = Indent {
+            shift_width: 4,
+            tab_width: 8,
+            use_tabs: true,
+        };
+        let mut ed = Editor::from_text("\tword").with_indent(tabs);
+        ed.type_keys(">>").unwrap();
+        assert_eq!(ed.buffer().to_string(), "\t    word");
+        ed.type_keys("<lt><lt>").unwrap();
+        assert_eq!(ed.buffer().to_string(), "\tword");
+
+        let mut ed = Editor::from_text("one\ntwo");
+        let effects = ed.type_keys(">j").unwrap();
+        assert_eq!(
+            effects
+                .iter()
+                .filter(|effect| matches!(effect, Effect::Edit(_)))
+                .count(),
+            2
+        );
+        ed.type_keys("u").unwrap();
+        assert_eq!(ed.buffer().to_string(), "one\ntwo");
+
+        // Like case operators, shifting leaves the unnamed register alone.
+        let ed = editor("one two", "yw>>p");
+        assert_eq!(ed.register().text, "one ");
+    }
+
+    #[test]
+    fn shift_noops_do_not_emit_edits_and_land_on_the_first_non_blank() {
+        let mut ed = Editor::from_text("one");
+        assert!(
+            ed.type_keys("<lt><lt>")
+                .unwrap()
+                .iter()
+                .all(|effect| !matches!(effect, Effect::Edit(_)))
+        );
+        assert_eq!(typed("    ", "<lt><lt>"), "");
+
+        let mut ed = Editor::from_text("");
+        assert!(
+            ed.type_keys(">>")
+                .unwrap()
+                .iter()
+                .all(|effect| !matches!(effect, Effect::Edit(_)))
+        );
+
+        let ed = editor("  one\ntwo", ">j");
+        assert_eq!(ed.cursor_point(), Point::new(0, 6));
+    }
+
+    #[test]
+    fn visual_shift_count_is_an_indent_amount() {
+        assert_eq!(
+            typed("one\ntwo", "Vj3>"),
+            "            one\n            two"
+        );
     }
 
     #[test]

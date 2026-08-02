@@ -69,10 +69,18 @@ deserialised from config without redesigning anything.
 ## What's implemented
 
 Normal, insert, replace and visual (character and line) modes. Motions
-`h j k l 0 ^ $ w W b B e E f F t T ; , G gg`. Operators `d c y` over motions,
-doubled (`dd`), and text objects `iw aw i( a( i" a" ip` and friends. Counts,
-including the multiplication in `2d3w`. `x X r ~ J p P`, all six insert entries,
-undo, redo, `U`, dot-repeat and macros.
+`h j k l 0 ^ $ w W b B e E f F t T ; , G gg`. Operators `d c y > <` over
+motions, doubled (`dd`, `>>`, `<<`), and text objects `iw aw i( a( i" a" ip` and
+friends. Counts, including the multiplication in `2d3w`. `x X r ~ J p P`, all
+six insert entries, undo, redo, `U`, dot-repeat and macros.
+
+Shifting has to know what an indent is worth, so the host supplies an `Indent`:
+shift width, tab width, and whether to render tabs. That is the one place
+display width reaches the core, and it arrives as a parameter rather than as
+ownership of layout. A host that expands tabs on screen must hand over the same
+tab width it renders with, or `<<` removes something other than what you can
+see.
+
 
 Dot-repeat and macros are both implemented as key replay, so they cost almost
 nothing and behave correctly for free — including `.` after an insert session.

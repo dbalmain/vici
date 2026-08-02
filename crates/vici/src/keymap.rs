@@ -235,6 +235,10 @@ impl Keymap {
         map.bind_spec(Layer::Normal, "d", Op(Operator::Delete))
             .bind_spec(Layer::Normal, "c", Op(Operator::Change))
             .bind_spec(Layer::Normal, "y", Op(Operator::Yank))
+            .bind_spec(Layer::Normal, ">", Op(Operator::ShiftRight))
+            // `<` starts bracketed key names in the notation parser, so its
+            // spelling here must be `<lt>`.
+            .bind_spec(Layer::Normal, "<lt>", Op(Operator::ShiftLeft))
             .bind_spec(Layer::Normal, "gu", Op(Operator::Lower))
             .bind_spec(Layer::Normal, "gU", Op(Operator::Upper))
             .bind_spec(Layer::Normal, "g~", Op(Operator::SwapCase));
@@ -446,6 +450,14 @@ mod tests {
             walk(&map, Layer::Normal, "d"),
             Walk::Bound(Binding::Operator(Operator::Delete))
         );
+        assert_eq!(
+            walk(&map, Layer::Normal, ">"),
+            Walk::Bound(Binding::Operator(Operator::ShiftRight))
+        );
+        assert_eq!(
+            walk(&map, Layer::Normal, "<lt>"),
+            Walk::Bound(Binding::Operator(Operator::ShiftLeft))
+        );
     }
 
     #[test]
@@ -483,6 +495,12 @@ mod tests {
         assert_eq!(
             walk(&map, Layer::Operator, "gg"),
             Walk::Bound(Binding::Motion(Motion::GotoFirstRow))
+        );
+        // Shift binds in normal once: operator doubling and visual mode reach it
+        // through the same fallback rather than special bindings.
+        assert_eq!(
+            walk(&map, Layer::Visual, ">"),
+            Walk::Bound(Binding::Operator(Operator::ShiftRight))
         );
     }
 

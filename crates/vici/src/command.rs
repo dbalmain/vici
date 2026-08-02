@@ -153,6 +153,10 @@ pub enum Operator {
     Delete,
     Change,
     Yank,
+    /// `>`
+    ShiftRight,
+    /// `<`
+    ShiftLeft,
     /// `gu`
     Lower,
     /// `gU`
@@ -164,11 +168,20 @@ pub enum Operator {
 impl Operator {
     /// Whether this operator fills the register.
     ///
-    /// The case-changing operators do not: `gUW` leaves whatever you last yanked
-    /// alone, so a `p` afterwards still pastes it.
+    /// Case-changing and shift operators do not: `gUW` or `>>` leave whatever
+    /// you last yanked alone, so a `p` afterwards still pastes it.
     #[must_use]
     pub const fn yanks(self) -> bool {
         matches!(self, Self::Delete | Self::Change | Self::Yank)
+    }
+
+    /// Whether this operator widens every target to complete rows.
+    ///
+    /// Shifting is linewise even over a characterwise motion or visual
+    /// selection: `>w` shifts the row containing the word, not just the word.
+    #[must_use]
+    pub const fn forces_linewise(self) -> bool {
+        matches!(self, Self::ShiftRight | Self::ShiftLeft)
     }
 }
 
