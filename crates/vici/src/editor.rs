@@ -389,10 +389,31 @@ impl<H: History> Editor<H> {
     }
 
     fn yank(&mut self, range: &Range<usize>, linewise: bool) {
-        self.register = Register {
-            text: self.buffer().text_in(range.clone()),
-            linewise,
+        let buf = self.buffer();
+        let text = if linewise {
+            // A linewise register holds whole rows, newline-terminated. The span's
+            // own text will not do: on the last row it opens with the newline `dd`
+            // needs to take, and `p` would paste that as a blank row.
+            let (first, last) = motion::span_rows(buf, range);
+            let mut text = buf.text_in(buf.row_range(first).start..buf.row_range(last).end);
+            if !text.ends_with('\n') {
+                text.push('\n');
+            }
+            text
+        } else {
+            buf.text_in(range.clone())
         };
+        self.register = Register { text, linewise };
+    }
+
+    /// Where the caret belongs after a linewise operator: the start of the first
+    /// row the span covered.
+    ///
+    /// Not `range.start`, which is the newline ending the row *above* when the
+    /// span reaches the last row — see [`motion::span_rows`].
+    fn linewise_home(&self, range: &Range<usize>) -> usize {
+        let (first, _) = motion::span_rows(self.buffer(), range);
+        self.buffer().row_content_range(first).start
     }
 
     /// Every command runs inside an undo group, bracketed by the caret on either
@@ -899,10 +920,10 @@ impl<H: History> Editor<H> {
             })?,
         };
         if operator.forces_linewise() {
-            let first = buf.byte_to_point(span.range.start).row;
-            let last = buf
-                .byte_to_point(span.range.end.saturating_sub(1).max(span.range.start))
-                .row;
+            // Via `span_rows`, because a span already covering the last row starts
+            // on the newline of the row above it: reading the row off that byte
+            // would widen the shift by a row it was never aimed at.
+            let (first, last) = motion::span_rows(buf, &span.range);
             Some(Span {
                 range: motion::row_span(buf, first, last),
                 linewise: true,
@@ -937,11 +958,7 @@ impl<H: History> Editor<H> {
 
         match operator {
             Operator::ShiftRight | Operator::ShiftLeft => {
-                let first = self.buffer().byte_to_point(range.start).row;
-                let last = self
-                    .buffer()
-                    .byte_to_point(range.end.saturating_sub(1).max(range.start))
-                    .row;
+                let (first, last) = motion::span_rows(self.buffer(), &range);
                 self.shift_rows(first, last, operator, amount, effects);
                 self.cursor = self.buffer().row_content_range(first).start;
                 self.cursor = self.step(self.cursor, Motion::FirstNonBlank, 1, Bound::OnChar);
@@ -949,7 +966,11 @@ impl<H: History> Editor<H> {
             Operator::Lower | Operator::Upper | Operator::SwapCase => {
                 let text = self.buffer().text_in(range.clone());
                 let recased = recase(&text, operator);
-                let start = range.start;
+                let start = if linewise {
+                    self.linewise_home(&range)
+                } else {
+                    range.start
+                };
                 self.edit(range, &recased, effects);
                 self.cursor = motion::clamp(self.buffer(), start, self.bound());
                 if linewise {
@@ -957,7 +978,12 @@ impl<H: History> Editor<H> {
                 }
             }
             Operator::Yank => {
-                self.cursor = motion::clamp(self.buffer(), range.start, self.bound());
+                let home = if linewise {
+                    self.linewise_home(&range)
+                } else {
+                    range.start
+                };
+                self.cursor = motion::clamp(self.buffer(), home, self.bound());
             }
             Operator::Delete => {
                 let start = range.start;
@@ -1163,19 +1189,36 @@ impl<H: History> Editor<H> {
         let text = self.register.text.repeat(repeat);
         if self.register.linewise {
             let row = self.cursor_point().row;
-            let at = if before {
-                self.buffer().row_range(row).start
-            } else {
-                self.buffer().row_range(row).end
-            };
+            let rows = self.buffer().row_range(row);
             // Ensure the pasted block is newline-terminated so rows stay whole.
             let text = if text.ends_with('\n') {
                 text
             } else {
                 format!("{text}\n")
             };
+            // A file that does not end in a newline has no row break to paste
+            // after, so putting below its final row has to supply one — and give
+            // up its own trailing newline in exchange, so the file ends as it
+            // began.
+            let last_byte = self.buffer().len_bytes();
+            let break_first = !before
+                && rows.end == last_byte
+                && last_byte > 0
+                && self.buffer().byte(last_byte - 1) != b'\n';
+            let (at, text) = if before {
+                (rows.start, text)
+            } else if break_first {
+                (
+                    rows.end,
+                    format!("\n{}", text.strip_suffix('\n').unwrap_or(&text)),
+                )
+            } else {
+                (rows.end, text)
+            };
             self.edit(at..at, &text, effects);
-            self.cursor = self.step(at, Motion::FirstNonBlank, 1, Bound::OnChar);
+            // The pasted rows start after the break this had to open.
+            let home = if break_first { at + 1 } else { at };
+            self.cursor = self.step(home, Motion::FirstNonBlank, 1, Bound::OnChar);
         } else {
             let at = if before {
                 self.cursor
@@ -1539,6 +1582,30 @@ mod tests {
             typed("one\ntwo", "Vj3>"),
             "            one\n            two"
         );
+    }
+
+    #[test]
+    fn linewise_operators_on_the_last_row_stay_on_it() {
+        // A linewise span that reaches the last row opens with the newline ending
+        // the row *above* — the one `dd` has to take. Every other linewise
+        // operator has to allow for that, or it works a row too high.
+        assert_eq!(typed("a\nb\nc", "G>>"), "a\nb\n    c");
+        assert_eq!(typed("a\nb\nc", "G>k"), "a\n    b\n    c");
+
+        // A linewise register holds whole rows, so a put does not paste that
+        // leading newline as a blank row...
+        assert_eq!(typed("aa\nbb\ncc", "Gyyp"), "aa\nbb\ncc\ncc");
+        assert_eq!(typed("aa\nbb\ncc", "GyyP"), "aa\nbb\ncc\ncc");
+        // ...and putting below a file with no trailing newline opens a row break
+        // rather than joining onto the row that is already there.
+        assert_eq!(typed("aa\nbb\ncc", "yyGp"), "aa\nbb\ncc\naa");
+        assert_eq!(typed("aa\nbb\ncc", "yyGP"), "aa\nbb\naa\ncc");
+
+        // And the caret lands on a row the operator covered.
+        let ed = editor("aa\nbb\ncc", "GgUU");
+        assert_eq!(ed.buffer().to_string(), "aa\nbb\nCC");
+        assert_eq!(ed.cursor_point().row, 2);
+        assert_eq!(editor("aa\nbb\ncc", "j2gUU").cursor_point().row, 1);
     }
 
     #[test]

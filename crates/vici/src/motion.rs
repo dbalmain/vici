@@ -380,6 +380,30 @@ fn find_in_row(
 // motion resolution
 // ---------------------------------------------------------------------------
 
+/// The rows a span covers.
+///
+/// Nearly the inverse of [`row_span`], but not simply the rows its end bytes sit
+/// on: a linewise span that reaches the final row *starts* at the newline ending
+/// the row above it, because that is the newline `dd` has to take. Reading the
+/// first row straight off `range.start` therefore lands a row too high.
+///
+/// Correcting for that is only safe where the row holding that byte has content
+/// of its own. A span starting on a genuinely empty row starts on that row's own
+/// newline, which is indistinguishable byte for byte — so the emptiness of the
+/// row is what tells the two apart.
+#[must_use]
+pub fn span_rows(buf: &Buffer, range: &Range<usize>) -> (usize, usize) {
+    let mut first = buf.byte_to_point(range.start).row;
+    let content = buf.row_content_range(first);
+    if !content.is_empty() && range.start >= content.end && first + 1 < buf.len_rows() {
+        first += 1;
+    }
+    let last = buf
+        .byte_to_point(range.end.saturating_sub(1).max(range.start))
+        .row;
+    (first, last.max(first))
+}
+
 /// Byte range covering rows `first..=last`, including the final row's newline
 /// when there is one. This is what a linewise operator deletes.
 #[must_use]
