@@ -207,8 +207,18 @@
 [x] dip  inner paragraph — the blank-line-delimited block
 [x] dap
 
-    Note: `i(` needs the cursor inside or on a delimiter. On the
-    `c` of `call` it correctly does nothing. That is not a bug.
+ Seeking, when the cursor is in no pair at all:
+      the cursor here, the parens (over there) after it
+[ ] di(  from the start of the row — it looks forward
+[ ] di(  from *after* the parens — nothing, vi never seeks back
+[ ] di{  from the row above a block, which is the useful one:
+      fn example() {
+          the whole body goes, from up on the signature
+      }
+
+    Quotes seek too, but only within the row — `di"` from the
+    start of a row reaches a string later on it. Brackets seek
+    across rows, quotes do not. That asymmetry is vi's.
 
  Counts, which mean something different for each kind of object:
       outer { mid { deep } here } end
@@ -217,6 +227,13 @@
 [ ] 2da{  the same, taking the braces with it
 [ ] 3di{  nothing to climb, so it rings the bell
 [ ] d2i{  the count works either side of the operator
+
+    A count is the nesting level you want, counted from where you
+    stand — so from *outside* a block it runs the other way:
+[ ] di{   from `outer`, the outermost braces ahead
+[ ] 2di{  one level *in* — the braces around `deep`
+[ ] 3di{  nothing nested that deep, so it rings
+[ ] 2di{  on `outer {a} {b} end` — siblings are not a level
 
       one two three four
 [ ] 2diw  a word and the space after it — whitespace is a run

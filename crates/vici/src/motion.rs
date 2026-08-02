@@ -624,7 +624,14 @@ fn word_object(
     })
 }
 
-/// The delimiter pair `count` levels out from the cursor.
+/// The delimiter pair `count` nesting levels from the cursor.
+///
+/// Which direction that counts in depends on where the cursor is, and both
+/// directions are vi's. Inside a pair the count climbs *outward*: `2di{` takes the
+/// pair around the pair the cursor is in. Inside none, vi seeks forward to the
+/// next pair and the count descends *inward* from it, so `2di{` on a function's
+/// signature row reaches a block nested inside its body. Either way the count is
+/// the nesting level you asked for, counted from where you stand.
 fn pair_at_level(
     buf: &Buffer,
     at: usize,
@@ -632,9 +639,20 @@ fn pair_at_level(
     close: char,
     count: usize,
 ) -> Option<(usize, usize)> {
-    let (mut start, mut end) = enclosing_pair(buf, at, open, close)?;
-    // A count climbs out that many levels of nesting: `2di{` takes the pair around
-    // the pair the cursor is in.
+    match enclosing_pair(buf, at, open, close) {
+        Some(pair) => climb_out(buf, pair, open, close, count),
+        None => descend_into(buf, seek_pair(buf, at, open, close)?, open, close, count),
+    }
+}
+
+/// Climb `count - 1` levels out of the pair the cursor is in.
+fn climb_out(
+    buf: &Buffer,
+    (mut start, mut end): (usize, usize),
+    open: char,
+    close: char,
+    count: usize,
+) -> Option<(usize, usize)> {
     for _ in 1..count {
         if start == 0 {
             return None;
@@ -649,6 +667,52 @@ fn pair_at_level(
         (start, end) = (outer_start, outer_end);
     }
     Some((start, end))
+}
+
+/// Descend `count - 1` levels into the first pair nested inside this one.
+fn descend_into(
+    buf: &Buffer,
+    (mut start, mut end): (usize, usize),
+    open: char,
+    close: char,
+    count: usize,
+) -> Option<(usize, usize)> {
+    for _ in 1..count {
+        // The *first* pair nested inside, so `2di{` on `{ a {b} c {d} e }` takes
+        // `{b}`. Siblings are not levels: with nothing nested inside, there is
+        // nowhere to descend to and the object fails rather than settling for the
+        // pair we already have.
+        let inner = next_open(buf, advance_char(buf, start), end, open, close)?;
+        (start, end) = enclosing_pair(buf, inner, open, close)?;
+    }
+    Some((start, end))
+}
+
+/// The pair that starts next, for a cursor sitting inside none.
+///
+/// vi does not seek backwards, so a pair the cursor has already passed is out of
+/// reach — `di{` after a `{…}` does nothing rather than reaching back for it.
+fn seek_pair(buf: &Buffer, at: usize, open: char, close: char) -> Option<(usize, usize)> {
+    let start = next_open(buf, at, buf.len_bytes(), open, close)?;
+    enclosing_pair(buf, start, open, close)
+}
+
+/// The first `open` in `from..limit`, or `None` if a `close` turns up first.
+///
+/// Giving up on a `close` is what vi does, and it costs nothing here: in balanced
+/// text an unmatched `close` ahead of the cursor means the cursor is inside a pair,
+/// which [`enclosing_pair`] has already found. Only unbalanced text can reach it.
+fn next_open(buf: &Buffer, from: usize, limit: usize, open: char, close: char) -> Option<usize> {
+    let mut pos = from;
+    while pos < limit {
+        match char_at(buf, pos) {
+            Some(ch) if ch == open => return Some(pos),
+            Some(ch) if ch == close => return None,
+            _ => {}
+        }
+        pos = advance_char(buf, pos);
+    }
+    None
 }
 
 /// The span between a pair of delimiters, with or without the delimiters.
@@ -1191,6 +1255,63 @@ mod tests {
         // Siblings are not levels: `(a)(b)` encloses nothing, however it is read.
         let buf = Buffer::from_text("(a)(b)");
         assert_eq!(object_span(&buf, 4, ObjectScope::Inner, PARENS, 2), None);
+    }
+
+    #[test]
+    fn a_delimited_object_seeks_forward_when_the_cursor_is_outside() {
+        let buf = Buffer::from_text("foo { a { b { c } d } e } baz");
+        let text = |count| {
+            buf.text_in(
+                object_span(&buf, 0, ObjectScope::Inner, BRACES, count)
+                    .expect("object resolves")
+                    .range,
+            )
+        };
+        // From `foo`, level 1 is the outermost pair ahead...
+        assert_eq!(text(1), " a { b { c } d } e ");
+        // ...and the count descends inward from there, rather than climbing out of
+        // a pair the cursor was never in.
+        assert_eq!(text(2), " b { c } d ");
+        assert_eq!(text(3), " c ");
+        assert_eq!(object_span(&buf, 0, ObjectScope::Inner, BRACES, 4), None);
+    }
+
+    #[test]
+    fn seeking_descends_into_the_first_nested_pair() {
+        let buf = Buffer::from_text("foo { a {b} c {d} e }");
+        let span = object_span(&buf, 0, ObjectScope::Inner, BRACES, 2).unwrap();
+        assert_eq!(buf.text_in(span.range), "b");
+
+        // Siblings are no more a level to descend into than one to climb out of.
+        let buf = Buffer::from_text("foo {a} {b} baz");
+        let span = obj(&buf, 0, ObjectScope::Inner, BRACES).unwrap();
+        assert_eq!(buf.text_in(span.range), "a");
+        assert_eq!(object_span(&buf, 0, ObjectScope::Inner, BRACES, 2), None);
+    }
+
+    #[test]
+    fn seeking_crosses_rows() {
+        let buf = Buffer::from_text("fn f()\n{\n    body\n}\n");
+        // From the signature row, `i{` reaches the block below it — which is the
+        // whole point of seeking, and why it is not row-scoped the way quotes are.
+        let span = obj(&buf, 3, ObjectScope::Inner, BRACES).unwrap();
+        assert_eq!(buf.text_in(span.range), "\n    body\n");
+    }
+
+    #[test]
+    fn seeking_does_not_look_backwards() {
+        let buf = Buffer::from_text("{ a } foo");
+        // On `foo`, with the only pair behind: vi leaves it alone.
+        assert_eq!(obj(&buf, 6, ObjectScope::Inner, BRACES), None);
+    }
+
+    #[test]
+    fn an_unmatched_close_stops_the_seek() {
+        let buf = Buffer::from_text("x } y { a } z");
+        assert_eq!(obj(&buf, 0, ObjectScope::Inner, BRACES), None);
+        // Past the stray close, the pair is reachable again.
+        let span = obj(&buf, 4, ObjectScope::Inner, BRACES).unwrap();
+        assert_eq!(buf.text_in(span.range), " a ");
     }
 
     #[test]

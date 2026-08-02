@@ -1568,9 +1568,44 @@ mod tests {
             typed("where name = 'dave'", "fdci'bob<Esc>"),
             "where name = 'bob'"
         );
-        // `i(` needs the cursor inside or on a delimiter, as in vi; on the `f` it
-        // resolves to nothing.
+        // On the delimiter itself counts as inside, as in vi.
         assert_eq!(typed("f(a, b)", "lci(x<Esc>"), "f(x)");
+    }
+
+    #[test]
+    fn a_delimited_object_seeks_forward_from_outside() {
+        // On the `f`, in no pair at all: vi looks forward for one rather than
+        // failing, and it looks past the end of the row.
+        assert_eq!(typed("f(a, b)", "ci(x<Esc>"), "f(x)");
+        assert_eq!(typed("fn f()\n{\n    body\n}", "di{"), "fn f()\n{}");
+        assert_eq!(
+            typed("outer { mid { deep } here } end", "da{"),
+            "outer  end"
+        );
+    }
+
+    #[test]
+    fn a_count_descends_when_the_object_had_to_seek() {
+        const NESTED: &str = "outer { mid { deep } here } end";
+
+        // From outside, the count is still the nesting level you want — but the
+        // levels now run inward from the pair the seek found, since there is no
+        // enclosing pair to climb out of.
+        assert_eq!(typed(NESTED, "di{"), "outer {} end");
+        assert_eq!(typed(NESTED, "2di{"), "outer { mid {} here } end");
+        assert_eq!(typed(NESTED, "d2i{"), "outer { mid {} here } end");
+        assert_eq!(typed(NESTED, "2da{"), "outer { mid  here } end");
+
+        // Nothing nested that deep, so it rings and changes nothing.
+        let ed = editor(NESTED, "3di{");
+        assert_eq!(ed.buffer().to_string(), NESTED);
+
+        // And a visual object seeks the same way.
+        let ed = editor(NESTED, "v2i{");
+        assert_eq!(
+            ed.selection().map(|range| ed.buffer().text_in(range)),
+            Some(" deep ".to_string())
+        );
     }
 
     #[test]
