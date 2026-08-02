@@ -163,23 +163,6 @@ fn grapheme_boundary(buffer: &Buffer, byte: usize) -> bool {
             .any(|(index, _)| byte == range.start + index)
 }
 
-fn has_multi_codepoint_grapheme(text: &str) -> bool {
-    text.graphemes(true)
-        .any(|grapheme| grapheme.chars().nth(1).is_some())
-}
-
-fn has_key(script: &[Key], ch: char) -> bool {
-    script.contains(&Key::char(ch))
-}
-
-fn puts_with_possible_multibyte_register(text: &str, script: &[Key]) -> bool {
-    (has_key(script, 'p') || has_key(script, 'P'))
-        && (!text.is_ascii()
-            || script
-                .iter()
-                .any(|key| matches!(key.code, KeyCode::Char(ch) if !ch.is_ascii())))
-}
-
 fn legal_offsets(buffer: &Buffer, bound: Bound) -> Vec<usize> {
     let mut offsets = Vec::new();
     for row in 0..buffer.len_rows() {
@@ -364,8 +347,6 @@ proptest! {
 
     #[test]
     fn undo_returns_original_bytes(text in text_strategy(), script in script_strategy()) {
-        // KNOWN: put leaves the cursor mid-character with multibyte register text (`日本語`, `xp`).
-        prop_assume!(!puts_with_possible_multibyte_register(&text, &script));
         let mut editor = Editor::from_text(&text);
         editor.handle_keys(&script);
         let changed = editor.buffer().to_string();
@@ -378,8 +359,6 @@ proptest! {
 
     #[test]
     fn effect_stream_accounts_for_buffer(text in text_strategy(), script in script_strategy()) {
-        // KNOWN: put leaves the cursor mid-character with multibyte register text (`日本語`, `xp`).
-        prop_assume!(!puts_with_possible_multibyte_register(&text, &script));
         let mut editor = Editor::from_text(&text);
         let mut length = text.len();
         for effect in editor.handle_keys(&script) {
@@ -395,8 +374,6 @@ proptest! {
 
     #[test]
     fn dot_repeats_recorded_change(text in text_strategy(), script in change_script_strategy()) {
-        // KNOWN: put leaves the cursor mid-character with multibyte register text (`日本語`, `xP`).
-        prop_assume!(!puts_with_possible_multibyte_register(&text, &script));
         let mut editor = Editor::from_text(&text);
         editor.handle_keys(&script);
         prop_assume!(!editor.last_change().is_empty());
@@ -414,12 +391,6 @@ proptest! {
 
     #[test]
     fn cursor_stays_on_legal_boundaries(text in text_strategy(), script in script_strategy()) {
-        // KNOWN: put leaves the cursor mid-character with multibyte register text (`日本語`, `xp`).
-        prop_assume!(!puts_with_possible_multibyte_register(&text, &script));
-        // KNOWN: word-end lands between the regional indicators in a flag (`🇦🇺café`, `e`).
-        prop_assume!(
-            !has_multi_codepoint_grapheme(&text) || (!has_key(&script, 'e') && !has_key(&script, 'E'))
-        );
         let mut editor = Editor::from_text(&text);
         for key in script {
             editor.handle_key(key);
@@ -445,10 +416,6 @@ proptest! {
             let offsets = legal_offsets(&buffer, bound);
             let from = offsets[usize::from(start_choice) % offsets.len()];
             for (motion, find) in motions() {
-                // KNOWN: word-end can land inside a multi-codepoint grapheme (`🇦🇺`, `E`).
-                if has_multi_codepoint_grapheme(&text) && matches!(motion, Motion::WordEnd { .. }) {
-                    continue;
-                }
                 for count in 1..=3 {
                     for viewport in [Viewport::default(), Viewport { top_row: 0, height: 1 }, Viewport { top_row: 2, height: 4 }] {
                         let result = resolve_motion(&buffer, from, motion, Some(count), 0, find, viewport, bound);

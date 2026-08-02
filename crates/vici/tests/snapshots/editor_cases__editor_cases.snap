@@ -2093,6 +2093,37 @@ effects:
   edit 9..11 -> 9; (1,2)..(2,0) -> (1,2)
   edit 9..9 -> 11; (1,2)..(1,2) -> (2,0)
 
+== put-after-multibyte-yank ==
+text: "本日語"
+cursor: 3 @ 0:3
+mode: Normal; selection: -
+register: char "日"
+history: undo=2 redo=0
+pending: ""; last-change: "p"; recording: -
+effects:
+  edit 0..3 -> 0; (0,0)..(0,3) -> (0,0)
+  edit 3..3 -> 6; (0,3)..(0,3) -> (0,6)
+
+== put-before-multibyte-yank ==
+text: "日本語"
+cursor: 0 @ 0:0
+mode: Normal; selection: -
+register: char "日"
+history: undo=2 redo=0
+pending: ""; last-change: "P"; recording: -
+effects:
+  edit 0..3 -> 0; (0,0)..(0,3) -> (0,0)
+  edit 0..0 -> 3; (0,0)..(0,0) -> (0,3)
+
+== word-end-over-flag ==
+text: "🇦🇺café"
+cursor: 0 @ 0:0
+mode: Normal; selection: -
+register: char ""
+history: undo=0 redo=0
+pending: ""; last-change: ""; recording: -
+effects:
+
 == move-left-edge ==
 text: "abc"
 cursor: 0 @ 0:0

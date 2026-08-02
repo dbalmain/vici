@@ -737,6 +737,18 @@ case multibyte-motion-and-edit
 text aé́b\ncafé\nx
 keys llj$jkxwbedwu
 ---
+case put-after-multibyte-yank
+text 日本語
+keys xp
+---
+case put-before-multibyte-yank
+text 日本語
+keys xP
+---
+case word-end-over-flag
+text 🇦🇺café
+keys e
+---
 # Remaining motion edges and table rows from the former inline suite.
 case move-left-edge
 text abc

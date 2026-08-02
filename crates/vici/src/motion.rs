@@ -125,14 +125,19 @@ fn byte_at_col(buf: &Buffer, row: usize, col: usize, bound: Bound) -> usize {
     boundaries[col.min(max_col(&boundaries, bound))]
 }
 
-/// Pull `byte` back to a legal cursor position for `bound`.
+/// Pull `byte` back to a legal cursor position for `bound`, snapping it to a
+/// grapheme boundary. This is the single guarantee that callers which compute
+/// offsets in bytes cannot leave the cursor mid-character; a future public
+/// `jump_to(offset)` will rely on it.
 #[must_use]
 pub fn clamp(buf: &Buffer, byte: usize, bound: Bound) -> usize {
     let byte = byte.min(buf.len_bytes());
     let row = buf.byte_to_point(byte).row;
     let boundaries = boundaries(buf, row);
-    let limit = boundaries[max_col(&boundaries, bound)];
-    byte.min(limit)
+    let boundaries = &boundaries[..=max_col(&boundaries, bound)];
+    boundaries[boundaries
+        .partition_point(|&offset| offset <= byte)
+        .saturating_sub(1)]
 }
 
 fn next_grapheme(buf: &Buffer, byte: usize, bound: Bound) -> usize {
