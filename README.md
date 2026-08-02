@@ -4,7 +4,6 @@ A headless vi editing core in Rust. Modes, motions, operators, counts, text
 objects, visual mode, undo, dot-repeat and macros — with no view attached.
 
 [![crates.io](https://img.shields.io/crates/v/vici.svg)](https://crates.io/crates/vici)
-[![docs.rs](https://docs.rs/vici/badge.svg)](https://docs.rs/vici)
 
 ```rust
 use vici::Editor;
@@ -96,7 +95,7 @@ nothing and behave correctly for free — including `.` after an insert session.
   is not yet an API for the host to hand a match back. Next on the list.
 - **Registers and marks.** One unnamed register, deliberately. This is a core
   for self-contained single-buffer editing, not a vi clone.
-- **Visual block** and the `D C s S` shortcuts.
+- **Visual block** and the `s S` shortcuts.
 - **Display width.** The sticky column for `j`/`k` counts graphemes, not
   terminal cells, so it diverges from vi on tabs and CJK. Width is the view's
   knowledge; `motion.rs` documents where a layout trait would plug in.

@@ -459,7 +459,6 @@
  17. NOT BOUND — these should ring the bell
 --------------------------------------------------------------
 
-[ ] D   would be d$        [ ] C   would be c$
 [ ] s   would be xi        [ ] S   would be cc
 [ ] {   [ ] }   paragraph motions
 [ ] <C-v>  visual block
