@@ -1013,10 +1013,8 @@ impl<H: History> Editor<H> {
                 // Linewise change empties the rows but keeps one, so insert begins
                 // on a blank row rather than joining the next one up.
                 let range = if linewise {
-                    let first = self.buffer().byte_to_point(range.start).row;
-                    let last_row = self.buffer().byte_to_point(range.end.saturating_sub(1)).row;
-                    self.buffer().row_range(first).start
-                        ..self.buffer().row_content_range(last_row).end
+                    let (first, last) = motion::span_rows(self.buffer(), &range);
+                    self.buffer().row_range(first).start..self.buffer().row_content_range(last).end
                 } else {
                     range
                 };
@@ -1793,6 +1791,29 @@ mod tests {
             typed(SQL, "ccselect 1<Esc>"),
             "select 1\nfrom users\nwhere id = 1"
         );
+    }
+
+    #[test]
+    fn linewise_change_on_the_final_row_keeps_preceding_rows() {
+        // Regression: `row_span` opens a final-row span on the preceding newline.
+        for (text, script, expected) in [
+            ("aa\nbb\ncc", "GccX<Esc>", "aa\nbb\nX"),
+            ("aa\nbb\ncc", "ccX<Esc>", "X\nbb\ncc"),
+            ("aa\nbb\ncc", "jccX<Esc>", "aa\nX\ncc"),
+            ("aa\nbb\ncc", "GVcX<Esc>", "aa\nbb\nX"),
+            ("aa", "ccX<Esc>", "X"),
+            ("aa\nbb\ncc", "j2ccX<Esc>", "aa\nX"),
+            ("aa\nbb\ncc", "Gdd", "aa\nbb"),
+            ("aa\nbb\ncc\n", "GkccX<Esc>", "aa\nbb\nX\n"),
+            ("aa\nbb\ncc\n", "ccX<Esc>", "X\nbb\ncc\n"),
+            ("aa\nbb\ncc\n", "jccX<Esc>", "aa\nX\ncc\n"),
+            ("aa\nbb\ncc\n", "GkVcX<Esc>", "aa\nbb\nX\n"),
+            ("aa\n", "GkccX<Esc>", "X\n"),
+            ("aa\nbb\ncc\n", "j2ccX<Esc>", "aa\nX\n"),
+            ("aa\nbb\ncc\n", "Gkdd", "aa\nbb"),
+        ] {
+            assert_eq!(typed(text, script), expected, "{script} on {text:?}");
+        }
     }
 
     #[test]
