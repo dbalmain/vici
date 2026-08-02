@@ -211,6 +211,9 @@ impl Keymap {
             ("E", Motion::WordEnd { big: true }),
             ("G", Motion::GotoRow),
             ("gg", Motion::GotoFirstRow),
+            ("H", Motion::ScreenTop),
+            ("M", Motion::ScreenMiddle),
+            ("L", Motion::ScreenBottom),
             (";", Motion::RepeatFind { reverse: false }),
             (",", Motion::RepeatFind { reverse: true }),
         ] {

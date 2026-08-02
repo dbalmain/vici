@@ -69,7 +69,7 @@ deserialised from config without redesigning anything.
 ## What's implemented
 
 Normal, insert, replace and visual (character and line) modes. Motions
-`h j k l 0 ^ $ w W b B e E f F t T ; , G gg`. Operators `d c y > <` over
+`h j k l 0 ^ $ w W b B e E f F t T ; , G gg H M L`. Operators `d c y > <` over
 motions, doubled (`dd`, `>>`, `<<`), and text objects `iw aw i( a( i" a" ip` and
 friends. Counts, including the multiplication in `2d3w`. `x X r ~ J p P`, all
 six insert entries, undo, redo, `U`, dot-repeat and macros.
@@ -81,6 +81,11 @@ ownership of layout. A host that expands tabs on screen must hand over the same
 tab width it renders with, or `<<` removes something other than what you can
 see.
 
+The host also reports a `Viewport`: its first displayed buffer row and height.
+That is a fact about the host's window, not layout the core owns. Supplying it
+whenever the host renders or resizes lets page moves carry the caret and makes
+`H`/`M`/`L` meaningful; stale viewport facts make those motions answer for the
+wrong screen.
 
 Dot-repeat and macros are both implemented as key replay, so they cost almost
 nothing and behave correctly for free — including `.` after an insert session.
@@ -91,7 +96,7 @@ nothing and behave correctly for free — including `.` after an insert session.
   is not yet an API for the host to hand a match back. Next on the list.
 - **Registers and marks.** One unnamed register, deliberately. This is a core
   for self-contained single-buffer editing, not a vi clone.
-- **Visual block**, `%`, `H`/`M`/`L`, and the `D C s S` shortcuts.
+- **Visual block**, `%`, and the `D C s S` shortcuts.
 - **Display width.** The sticky column for `j`/`k` counts graphemes, not
   terminal cells, so it diverges from vi on tabs and CJK. Width is the view's
   knowledge; `motion.rs` documents where a layout trait would plug in.

@@ -81,6 +81,12 @@ pub enum Motion {
     GotoRow,
     /// `gg` — count as an absolute row, else the first row.
     GotoFirstRow,
+    /// `H` — a counted row from the top of the reported screen.
+    ScreenTop,
+    /// `M` — the middle row of the reported screen.
+    ScreenMiddle,
+    /// `L` — a counted row from the bottom of the reported screen.
+    ScreenBottom,
 }
 
 impl Motion {
@@ -89,7 +95,13 @@ impl Motion {
     pub const fn is_linewise(self) -> bool {
         matches!(
             self,
-            Self::Down | Self::Up | Self::GotoRow | Self::GotoFirstRow
+            Self::Down
+                | Self::Up
+                | Self::GotoRow
+                | Self::GotoFirstRow
+                | Self::ScreenTop
+                | Self::ScreenMiddle
+                | Self::ScreenBottom
         )
     }
 

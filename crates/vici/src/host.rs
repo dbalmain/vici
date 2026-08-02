@@ -1,11 +1,12 @@
 //! Facts and policy the host supplies.
 //!
-//! What the core cannot work out for itself, because it is a property of a
-//! display the core deliberately does not own. It arrives as a plain parameter —
+//! Two things the core cannot work out for itself, because both are properties
+//! of a display it deliberately does not own. They arrive as plain parameters —
 //! passing one in is not the same as handing the editor a viewport.
 //!
-//! This module sits below [`crate::motion`] and [`crate::Editor`], so that what
-//! the host supplies can be read from either without inverting the layers.
+//! This module sits below [`crate::motion`] and [`crate::Editor`] so that a
+//! screen-relative motion can read a [`Viewport`] without the motion layer
+//! depending on the editor above it.
 
 /// Indentation policy supplied by the host.
 ///
@@ -38,4 +39,19 @@ impl Default for Indent {
             use_tabs: false,
         }
     }
+}
+
+/// Viewport facts supplied by the host.
+///
+/// The host still decides where its window sits; the core only needs `height` to
+/// decide where a page move lands, and `top_row` to answer what is at the top of
+/// the screen. A host must call [`crate::Editor::set_viewport`] whenever it
+/// renders or resizes. Otherwise page moves use stale dimensions and `H`/`M`/`L`
+/// answer for the wrong screen — or bell, while `height` remains zero.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct Viewport {
+    /// First buffer row currently displayed.
+    pub top_row: usize,
+    /// Rows the window can show. Zero means no host has reported a viewport.
+    pub height: usize,
 }

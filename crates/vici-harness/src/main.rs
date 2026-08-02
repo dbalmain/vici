@@ -28,7 +28,9 @@ use ratatui::widgets::{Block, Paragraph};
 use ratatui::{DefaultTerminal, Frame};
 use unicode_width::UnicodeWidthChar;
 
-use vici::{Editor, Effect, Indent, Key, KeyCode, Mode, Mods, Scroll, VisualKind, render};
+use vici::{
+    Editor, Effect, Indent, Key, KeyCode, Mode, Mods, Scroll, Viewport, VisualKind, render,
+};
 
 /// Tab width. Purely a view decision — the buffer stores a single `\t` byte.
 ///
@@ -98,11 +100,16 @@ struct App {
 impl App {
     fn new(path: PathBuf, text: &str, message: String) -> Self {
         Self {
-            editor: Editor::from_text(text).with_indent(Indent {
-                shift_width: SHIFTWIDTH,
-                tab_width: TABSTOP,
-                use_tabs: INDENT_WITH_TABS,
-            }),
+            editor: Editor::from_text(text)
+                .with_indent(Indent {
+                    shift_width: SHIFTWIDTH,
+                    tab_width: TABSTOP,
+                    use_tabs: INDENT_WITH_TABS,
+                })
+                .with_viewport(Viewport {
+                    top_row: 0,
+                    height: 1,
+                }),
             path,
             top: 0,
             height: 1,
@@ -192,8 +199,8 @@ impl App {
             }
         }
 
-        // A `Scroll` deliberately does not drag the cursor, so don't undo it by
-        // snapping straight back. Any other key follows the cursor as usual.
+        // The core carries the caret for page effects; the host still owns where
+        // the viewport lands, so do not immediately override that decision.
         if !scrolled {
             self.follow_cursor();
         }
@@ -270,12 +277,14 @@ impl App {
         self.top = match scroll {
             Scroll::HalfPageDown => (self.top + height / 2).min(last),
             Scroll::HalfPageUp => self.top.saturating_sub(height / 2),
-            Scroll::PageDown => (self.top + height).min(last),
-            Scroll::PageUp => self.top.saturating_sub(height),
+            // Keep the host's view in step with the core's two-row page overlap.
+            Scroll::PageDown => (self.top + height.saturating_sub(2).max(1)).min(last),
+            Scroll::PageUp => self.top.saturating_sub(height.saturating_sub(2).max(1)),
             Scroll::Center => row.saturating_sub(height / 2),
             Scroll::Top => row,
             Scroll::Bottom => row.saturating_sub(height.saturating_sub(1)),
         };
+        self.report_viewport();
     }
 
     fn follow_cursor(&mut self) {
@@ -286,6 +295,14 @@ impl App {
         } else if row >= self.top + height {
             self.top = row + 1 - height;
         }
+        self.report_viewport();
+    }
+
+    fn report_viewport(&mut self) {
+        self.editor.set_viewport(Viewport {
+            top_row: self.top,
+            height: self.height,
+        });
     }
 
     // -- rendering -----------------------------------------------------------
@@ -307,6 +324,7 @@ impl App {
         let text_block = Block::bordered().title(title);
         let inner = text_block.inner(text_area);
         self.height = inner.height as usize;
+        self.report_viewport();
 
         let gutter = decimals(self.editor.buffer().len_rows());
         frame.render_widget(

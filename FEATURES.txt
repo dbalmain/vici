@@ -372,11 +372,17 @@
 [ ] zz     centre the cursor row
 [ ] zt     cursor row to the top
 [ ] zb     cursor row to the bottom
+[ ] H      top visible row  [ ] M middle  [ ] L bottom
+[ ] 2H     second visible row      [ ] 2L second from bottom
 
-    The core does not own the viewport — it emits a Scroll effect
-    and the harness moves. So <C-d> scrolls the view and leaves
-    the cursor where it was, unlike vi, which drags the cursor
-    along. Decide whether you want that.
+    The core does not own the viewport. The harness reports its
+    current top row and height whenever it draws; that lets page
+    keys carry the cursor while it still emits a Scroll effect for
+    the host to fulfil. Full pages retain two rows of overlap.
+
+    Put the cursor on a long line, press $, then <C-d>: it stays at
+    the end after moving. H, M and L go to the first non-blank of
+    the reported visible rows, so scroll the file before trying H.
 
 --------------------------------------------------------------
  16. PROMPTS — known gap
@@ -398,7 +404,6 @@
 [ ] D   would be d$        [ ] C   would be c$
 [ ] s   would be xi        [ ] S   would be cc
 [ ] %   match a bracket
-[ ] H   [ ] M   [ ] L   screen top/middle/bottom
 [ ] {   [ ] }   paragraph motions
 [ ] <C-v>  visual block
 [ ] "ayy  named registers — deliberately absent

@@ -24,7 +24,7 @@ use crate::command::{Command, InsertAt, Mode, Motion, Operator, Scroll, Target, 
 use crate::document::{Document, Revert};
 use crate::edit::{Edit, Point};
 use crate::history::{History, LinearHistory};
-use crate::host::Indent;
+use crate::host::{Indent, Viewport};
 use crate::key::{Key, ParseError, keys};
 use crate::keymap::Keymap;
 use crate::motion::{self, Bound, Find, STICKY_END, Span};
@@ -77,6 +77,7 @@ pub struct Editor<H: History = LinearHistory> {
     doc: Document<H>,
     keymap: Keymap,
     indent: Indent,
+    viewport: Viewport,
     pending: Pending,
     mode: Mode,
     cursor: usize,
@@ -123,6 +124,7 @@ impl<H: History> Editor<H> {
             doc: Document::with_history(text, history),
             keymap,
             indent: Indent::default(),
+            viewport: Viewport::default(),
             pending: Pending::new(),
             mode: Mode::Normal,
             cursor: 0,
@@ -158,6 +160,24 @@ impl<H: History> Editor<H> {
     /// Replace the host-supplied indentation policy used by shift operators.
     pub fn set_indent(&mut self, indent: Indent) {
         self.indent = indent;
+    }
+
+    /// Configure viewport facts before returning this editor.
+    #[must_use]
+    pub fn with_viewport(mut self, viewport: Viewport) -> Self {
+        self.viewport = viewport;
+        self
+    }
+
+    /// The viewport facts most recently supplied by the host.
+    #[must_use]
+    pub const fn viewport(&self) -> Viewport {
+        self.viewport
+    }
+
+    /// Replace the viewport facts most recently supplied by the host.
+    pub fn set_viewport(&mut self, viewport: Viewport) {
+        self.viewport = viewport;
     }
 
     #[must_use]
@@ -207,8 +227,17 @@ impl<H: History> Editor<H> {
                 let (start, end) = (anchor.min(self.cursor), anchor.max(self.cursor));
                 Some(
                     start
-                        ..motion::resolve(buf, end, Motion::Right, None, 0, None, Bound::PastEnd)
-                            .unwrap_or(end),
+                        ..motion::resolve(
+                            buf,
+                            end,
+                            Motion::Right,
+                            None,
+                            0,
+                            None,
+                            self.viewport,
+                            Bound::PastEnd,
+                        )
+                        .unwrap_or(end),
                 )
             }
             Mode::Visual(VisualKind::Line) => {
@@ -388,6 +417,7 @@ impl<H: History> Editor<H> {
         let mut effects = Vec::new();
         let repeat = count.unwrap_or(1);
 
+        // TODO: Record page and screen motions in the jump list once it exists.
         match command {
             Command::Move(target) => {
                 let bound = self.bound();
@@ -398,6 +428,7 @@ impl<H: History> Editor<H> {
                     count,
                     self.sticky,
                     self.last_find,
+                    self.viewport,
                     bound,
                 ) {
                     Some(landed) => {
@@ -584,7 +615,29 @@ impl<H: History> Editor<H> {
                 None => effects.push(Effect::Bell),
             },
 
-            Command::Scroll(scroll) => effects.push(Effect::Scroll(scroll)),
+            Command::Scroll(scroll) => {
+                if self.viewport.height != 0 {
+                    let (motion, rows) = match scroll {
+                        Scroll::HalfPageDown => (Motion::Down, (self.viewport.height / 2).max(1)),
+                        Scroll::HalfPageUp => (Motion::Up, (self.viewport.height / 2).max(1)),
+                        // vi preserves two rows of overlap between full pages.
+                        Scroll::PageDown => {
+                            (Motion::Down, self.viewport.height.saturating_sub(2).max(1))
+                        }
+                        Scroll::PageUp => {
+                            (Motion::Up, self.viewport.height.saturating_sub(2).max(1))
+                        }
+                        // These only ask the host to position its window; they do
+                        // not move the caret.
+                        Scroll::Center | Scroll::Top | Scroll::Bottom => {
+                            effects.push(Effect::Scroll(scroll));
+                            return effects;
+                        }
+                    };
+                    self.cursor = self.step(self.cursor, motion, rows, self.bound());
+                }
+                effects.push(Effect::Scroll(scroll));
+            }
             Command::SearchPrompt { backward } => effects.push(Effect::SearchPrompt { backward }),
             Command::SearchRepeat { reverse } => effects.push(Effect::SearchRepeat { reverse }),
             Command::CommandPrompt => effects.push(Effect::CommandPrompt),
@@ -626,6 +679,7 @@ impl<H: History> Editor<H> {
                     None,
                     self.sticky,
                     None,
+                    self.viewport,
                     Bound::PastEnd,
                 )
                 .unwrap_or(self.cursor);
@@ -653,6 +707,7 @@ impl<H: History> Editor<H> {
             Some(times),
             self.sticky,
             self.last_find,
+            self.viewport,
             bound,
         )
         .unwrap_or(at)
@@ -796,6 +851,7 @@ impl<H: History> Editor<H> {
                     count,
                     self.sticky,
                     self.last_find,
+                    self.viewport,
                     bound,
                 )?;
                 if semantics.is_linewise() {
@@ -808,9 +864,17 @@ impl<H: History> Editor<H> {
                 } else {
                     let (start, mut end) = (self.cursor.min(landed), self.cursor.max(landed));
                     if semantics.is_inclusive() {
-                        end =
-                            motion::resolve(buf, end, Motion::Right, None, 0, None, Bound::PastEnd)
-                                .unwrap_or(end);
+                        end = motion::resolve(
+                            buf,
+                            end,
+                            Motion::Right,
+                            None,
+                            0,
+                            None,
+                            self.viewport,
+                            Bound::PastEnd,
+                        )
+                        .unwrap_or(end);
                     }
                     Span {
                         range: start..end,
@@ -1258,6 +1322,119 @@ mod tests {
         assert_eq!(ed.cursor_point(), Point::new(2, 1));
         let ed = editor("ab\nlonger row\nxy", "$j");
         assert_eq!(ed.cursor_point(), Point::new(1, 9));
+    }
+
+    #[test]
+    fn viewport_pages_carry_the_cursor_when_the_host_has_reported_one() {
+        let viewport = Viewport {
+            top_row: 0,
+            height: 6,
+        };
+        let mut ed = Editor::from_text("0\n1\n2\n3\n4\n5\n6\n7").with_viewport(viewport);
+        ed.type_keys("j<C-d>").unwrap();
+        assert_eq!(ed.cursor_point().row, 4);
+
+        let mut ed = Editor::from_text("0\n1\n2\n3\n4\n5\n6\n7").with_viewport(viewport);
+        ed.type_keys("j<C-f>").unwrap();
+        // Full pages retain two rows of overlap, as vi does.
+        assert_eq!(ed.cursor_point().row, 5);
+    }
+
+    #[test]
+    fn viewport_is_a_host_supplied_fact() {
+        let mut ed = Editor::from_text("one");
+        assert_eq!(ed.viewport(), Viewport::default());
+        ed.set_viewport(Viewport {
+            top_row: 7,
+            height: 9,
+        });
+        assert_eq!(ed.viewport().top_row, 7);
+        assert_eq!(ed.viewport().height, 9);
+    }
+
+    #[test]
+    fn viewport_pages_preserve_the_zero_height_scroll_only_contract() {
+        for key in ["<C-d>", "<C-u>", "<C-f>", "<C-b>"] {
+            let mut ed = Editor::from_text("0\n1\n2");
+            ed.type_keys("j").unwrap();
+            let effects = ed.type_keys(key).unwrap();
+            assert_eq!(ed.cursor_point(), Point::new(1, 0), "{key}");
+            assert!(
+                effects
+                    .iter()
+                    .any(|effect| matches!(effect, Effect::Scroll(_))),
+                "{key} must still tell the host to scroll"
+            );
+        }
+    }
+
+    #[test]
+    fn viewport_pages_clamp_at_both_buffer_ends() {
+        let viewport = Viewport {
+            top_row: 0,
+            height: 6,
+        };
+        let mut ed = Editor::from_text("0\n1\n2").with_viewport(viewport);
+        ed.type_keys("<C-u><C-b>").unwrap();
+        assert_eq!(ed.cursor_point().row, 0);
+        ed.type_keys("G<C-d><C-f>").unwrap();
+        assert_eq!(ed.cursor_point().row, 2);
+    }
+
+    #[test]
+    fn viewport_page_moves_keep_dollars_sticky_column() {
+        let mut ed = Editor::from_text("xx\nlong second\nlong third\nx").with_viewport(Viewport {
+            top_row: 0,
+            height: 4,
+        });
+        ed.type_keys("$<C-d>").unwrap();
+        assert_eq!(ed.cursor_point(), Point::new(2, 9));
+    }
+
+    #[test]
+    fn screen_motions_follow_the_reported_viewport() {
+        let text = "zero\n one\n two\n three\n four\n five\n six\nseven";
+        let viewport = Viewport {
+            top_row: 2,
+            height: 5,
+        };
+        let mut ed = Editor::from_text(text).with_viewport(viewport);
+        ed.type_keys("H").unwrap();
+        assert_eq!(ed.cursor_point(), Point::new(2, 1));
+        ed.type_keys("2H").unwrap();
+        assert_eq!(ed.cursor_point(), Point::new(3, 1));
+        ed.type_keys("M").unwrap();
+        assert_eq!(ed.cursor_point(), Point::new(4, 1));
+        ed.type_keys("3M").unwrap();
+        assert_eq!(ed.cursor_point(), Point::new(4, 1));
+        ed.type_keys("L").unwrap();
+        assert_eq!(ed.cursor_point(), Point::new(6, 1));
+        ed.type_keys("2L").unwrap();
+        assert_eq!(ed.cursor_point(), Point::new(5, 1));
+    }
+
+    #[test]
+    fn screen_motions_are_linewise_operator_targets() {
+        let viewport = Viewport {
+            top_row: 2,
+            height: 3,
+        };
+        let mut ed = Editor::from_text("0\n1\n2\n3\n4\n5").with_viewport(viewport);
+        ed.type_keys("GdH").unwrap();
+        assert_eq!(ed.buffer().to_string(), "0\n1");
+
+        let mut ed = Editor::from_text("0\n1\n2\n3\n4\n5").with_viewport(viewport);
+        ed.type_keys("dL").unwrap();
+        assert_eq!(ed.buffer().to_string(), "5");
+    }
+
+    #[test]
+    fn screen_motions_bell_without_a_viewport() {
+        for key in ["H", "M", "L"] {
+            let mut ed = Editor::from_text("zero\none");
+            let effects = ed.type_keys(key).unwrap();
+            assert_eq!(effects, vec![Effect::Bell], "{key}");
+        }
     }
 
     #[test]

@@ -26,6 +26,7 @@ use unicode_segmentation::UnicodeSegmentation;
 
 use crate::buffer::Buffer;
 use crate::command::{Motion, ObjectScope, TextObject};
+use crate::host::Viewport;
 
 /// A remembered `f`/`t`/`F`/`T` search, for `;` and `,` to repeat.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -394,13 +395,43 @@ pub fn row_span(buf: &Buffer, first: usize, last: usize) -> Range<usize> {
     start..end
 }
 
+fn screen_motion(buf: &Buffer, motion: Motion, repeat: usize, viewport: Viewport) -> Option<usize> {
+    // A zero height means no host has reported a screen, so screen-relative
+    // motions have no meaningful target rather than pretending row zero is it.
+    if viewport.height == 0 {
+        return None;
+    }
+
+    let last = buf.len_rows() - 1;
+    let top = viewport.top_row.min(last);
+    let bottom = viewport
+        .top_row
+        .saturating_add(viewport.height.saturating_sub(1))
+        .min(last);
+    let row = match motion {
+        Motion::ScreenTop => viewport
+            .top_row
+            .saturating_add(repeat.saturating_sub(1))
+            .min(last),
+        Motion::ScreenMiddle => top + (bottom - top) / 2,
+        Motion::ScreenBottom => bottom.saturating_sub(repeat.saturating_sub(1)),
+        _ => return None,
+    };
+    Some(first_non_blank(buf, row))
+}
+
 /// Where `motion` lands, starting from `from`.
 ///
 /// `sticky` is the remembered column for `j`/`k`; [`STICKY_END`] means "row end".
 /// `last_find` supplies the target for [`Motion::RepeatFind`].
+/// `viewport` is the host's current screen fact for `H`/`M`/`L`.
 ///
 /// Returns `None` when the motion cannot be performed at all.
 #[must_use]
+// Resolution is public and each input describes an independent part of vi state.
+// Folding them into a private context object would make the small public primitive
+// less direct for hosts that resolve motions themselves.
+#[allow(clippy::too_many_arguments)]
 pub fn resolve(
     buf: &Buffer,
     from: usize,
@@ -408,6 +439,7 @@ pub fn resolve(
     count: Option<usize>,
     sticky: usize,
     last_find: Option<Find>,
+    viewport: Viewport,
     bound: Bound,
 ) -> Option<usize> {
     let repeat = count.unwrap_or(1);
@@ -494,6 +526,9 @@ pub fn resolve(
         Motion::GotoFirstRow => {
             let target_row = count.map_or(0, |n| n.saturating_sub(1).min(rows - 1));
             first_non_blank(buf, target_row)
+        }
+        Motion::ScreenTop | Motion::ScreenMiddle | Motion::ScreenBottom => {
+            screen_motion(buf, motion, repeat, viewport)?
         }
     };
     Some(clamp(buf, target, bound))
@@ -752,6 +787,29 @@ mod tests {
 
     fn buf() -> Buffer {
         Buffer::from_text(SQL)
+    }
+
+    // Most motion tests are deliberately viewport-agnostic. Screen motions have
+    // their own tests; this keeps the older scripts focused on their subject.
+    fn resolve(
+        buf: &Buffer,
+        from: usize,
+        motion: Motion,
+        count: Option<usize>,
+        sticky: usize,
+        last_find: Option<Find>,
+        bound: Bound,
+    ) -> Option<usize> {
+        super::resolve(
+            buf,
+            from,
+            motion,
+            count,
+            sticky,
+            last_find,
+            Viewport::default(),
+            bound,
+        )
     }
 
     fn go(text: &str, from: usize, motion: Motion, count: Option<usize>) -> usize {
