@@ -137,9 +137,8 @@ impl Buffer {
     /// Compute the [`Change`] that replacing `range` with `text` would produce,
     /// **without** mutating anything.
     ///
-    /// Separating this from [`Buffer::apply`] is what lets a history see the
-    /// pre-image of a change. `U` needs it: to restore a row later, something has
-    /// to capture that row's content before the first edit lands on it.
+    /// Separating this from [`Buffer::apply`] lets a history observe the pre-image
+    /// of a change.
     ///
     /// # Panics
     /// If `range` is out of bounds or not on `char` boundaries.
@@ -264,7 +263,6 @@ mod tests {
         assert_eq!(c.edit.new_end_point, Point::new(2, 11));
         assert_eq!(c.removed, "1");
         assert!(c.edit.is_deletion());
-        assert!(c.edit.is_single_row());
         assert_eq!(b.row_text(2), "where id = ");
     }
 
@@ -305,7 +303,6 @@ mod tests {
         // of the next row. No byte offset can express that.
         assert_eq!(c.edit.old_end_point, Point::new(2, 0));
         assert_eq!(c.edit.new_end_point, Point::new(1, 0));
-        assert!(!c.edit.is_single_row());
         assert_eq!(b.len_rows(), 2);
         assert_eq!(b.to_string(), "select id, name\nwhere id = 1");
     }

@@ -1,8 +1,8 @@
 //! The minimal composition of a buffer and a history.
 //!
 //! This type exists for one reason: the `stage → record → apply` ordering that
-//! [`History`] depends on is easy to get subtly wrong, and getting it wrong means
-//! `U` silently snapshots post-change text. Encoding it once removes the hazard.
+//! [`History`] depends on is easy to get subtly wrong. Encoding it once removes
+//! the hazard.
 
 use core::fmt;
 use core::ops::Range;
@@ -11,7 +11,7 @@ use crate::buffer::Buffer;
 use crate::edit::{Change, Edit};
 use crate::history::{History, LinearHistory, Step};
 
-/// What an undo, redo or `U` did: the edits applied, and the caret to restore.
+/// What an undo or redo did: the edits applied, and the caret to restore.
 ///
 /// `cursor` is `None` when the history does not track it — see [`Step::cursor`].
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
@@ -122,13 +122,6 @@ impl<H: History> Document<H> {
         self.revert(&step)
     }
 
-    /// vi's `U`. Returns empty if the history does not support it, or if there is
-    /// no row to restore.
-    pub fn undo_row(&mut self) -> Revert {
-        let step = self.history.undo_row(&self.buffer);
-        self.revert(&step)
-    }
-
     fn revert(&mut self, step: &Step) -> Revert {
         Revert {
             edits: self.apply_all(&step.changes),
@@ -158,7 +151,6 @@ impl<H: History> fmt::Display for Document<H> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::edit::Point;
     use crate::history::NoHistory;
 
     #[test]
@@ -193,19 +185,6 @@ mod tests {
         // A `Document` has no caret, so `grouped` records none.
         assert_eq!(undone.cursor, None);
         assert_eq!(doc.to_string(), "abc");
-    }
-
-    #[test]
-    fn row_undo_through_the_document() {
-        let mut doc = Document::from_text("select id\nfrom users");
-        doc.replace(7..9, "name");
-        doc.replace(0..6, "SELECT");
-        let reverted = doc.undo_row();
-        assert_eq!(reverted.edits.len(), 1);
-        assert_eq!(reverted.edits[0].start_point, Point::new(0, 0));
-        // `U` knows the row it restored.
-        assert_eq!(reverted.cursor, Some(0));
-        assert_eq!(doc.to_string(), "select id\nfrom users");
     }
 
     #[test]

@@ -81,16 +81,6 @@ impl Edit {
     pub fn new_rows(&self) -> RangeInclusive<usize> {
         self.start_point.row..=self.new_end_point.row
     }
-
-    /// True when the change begins and ends on one row, both before and after —
-    /// i.e. it neither spans nor alters the row structure.
-    ///
-    /// This is the test a line-scoped history (vi's `U`) keys off.
-    #[must_use]
-    pub const fn is_single_row(&self) -> bool {
-        self.start_point.row == self.old_end_point.row
-            && self.start_point.row == self.new_end_point.row
-    }
 }
 
 /// A change, complete enough to apply *or* reverse without consulting a buffer.
@@ -178,7 +168,6 @@ mod tests {
             old_end_point: Point::new(2, 0),
             new_end_point: Point::new(1, 0),
         };
-        assert!(!dd.is_single_row());
         assert!(dd.is_deletion());
         assert_eq!(dd.old_rows(), 1..=2);
         assert_eq!(dd.new_rows(), 1..=1);

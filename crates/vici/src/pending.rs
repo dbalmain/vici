@@ -713,18 +713,15 @@ mod tests {
         assert_eq!(cmd("@a").0, Command::PlayMacro('a'));
         assert_eq!(cmd("u").0, Command::Undo);
         assert_eq!(cmd("<C-r>").0, Command::Redo);
-        assert_eq!(cmd("U").0, Command::UndoRow);
         assert_eq!(cmd(".").0, Command::Repeat);
         assert_eq!(cmd("3.").1, Some(3));
     }
 
     #[test]
-    fn scrolling_and_prompts() {
+    fn scrolling_and_command_prompt() {
         assert_eq!(cmd("zz").0, Command::Scroll(Scroll::Center));
         assert_eq!(cmd("<C-d>").0, Command::Scroll(Scroll::HalfPageDown));
-        assert_eq!(cmd("/").0, Command::SearchPrompt { backward: false });
         assert_eq!(cmd(":").0, Command::CommandPrompt);
-        assert_eq!(cmd("n").0, Command::SearchRepeat { reverse: false });
     }
 
     #[test]

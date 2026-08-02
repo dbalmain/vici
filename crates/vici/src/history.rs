@@ -1,16 +1,8 @@
-//! Undo, as a swappable policy over the change stream.
+//! A swappable undo policy over a stream of self-inverting changes.
 //!
 //! Nothing here knows what a rope is, and [`crate::Buffer`] knows nothing about
 //! any of it. The only currency is [`Change`], which carries the text it
 //! displaced and is therefore self-inverting.
-//!
-//! That seam is what makes vi's `U` expressible. Editors whose history is a flat
-//! list of opaque transactions cannot offer it, because nothing in the log says
-//! which row a change belonged to. Here, [`Edit::is_single_row`] and
-//! `start_point.row` say exactly that, so a line-scoped snapshot is cheap
-//! bookkeeping — see [`LinearHistory::undo_row`].
-//!
-//! [`Edit::is_single_row`]: crate::Edit::is_single_row
 
 use crate::buffer::Buffer;
 use crate::edit::Change;
@@ -43,12 +35,11 @@ impl Step {
 /// # Contract
 ///
 /// - [`record`](History::record) is called **before** the change is applied, so
-///   `buf` is the pre-image. Implementations that need to snapshot prior state
-///   (line-scoped undo, checkpointing) depend on this.
-/// - [`undo`](History::undo), [`redo`](History::redo) and
-///   [`undo_row`](History::undo_row) return changes for the caller to apply, in
-///   the order given. The caller must apply all of them and must **not** feed
-///   them back through `record`. [`crate::Document`] enforces this.
+///   `buf` is the pre-image.
+/// - [`undo`](History::undo) and [`redo`](History::redo) return changes for the
+///   caller to apply, in the order given. The caller must apply all of them and
+///   must **not** feed them back through `record`. [`crate::Document`] enforces
+///   this.
 /// - An empty return means "nothing to do", not an error.
 pub trait History {
     /// Observe a change about to be applied to `buf`.
@@ -78,14 +69,6 @@ pub trait History {
 
     /// Changes that reapply the most recently undone step.
     fn redo(&mut self) -> Step;
-
-    /// vi's `U`: restore the most recently changed row to its content from
-    /// before the current run of changes on it.
-    ///
-    /// Defaults to unsupported, so simple histories opt out by saying nothing.
-    fn undo_row(&mut self, _buf: &Buffer) -> Step {
-        Step::default()
-    }
 }
 
 /// Discards everything. Undo is a no-op.
@@ -107,12 +90,6 @@ impl History for NoHistory {
     }
 }
 
-#[derive(Debug, Clone)]
-struct RowSnapshot {
-    row: usize,
-    content: String,
-}
-
 /// One undo step: the changes it applied, bracketed by the caret on either side.
 #[derive(Debug, Clone)]
 struct Group {
@@ -123,10 +100,10 @@ struct Group {
     after: Option<usize>,
 }
 
-/// A linear undo stack with grouping and row-scoped undo.
+/// A linear undo stack with grouping.
 ///
-/// This is the ordinary vi model: `u` walks back through groups, `C-r` walks
-/// forward, a new change truncates the redo tail, and `U` toggles one row.
+/// `u` walks back through groups, `C-r` walks forward, and a new change
+/// truncates the redo tail.
 ///
 /// An undo *tree* is a different implementation of the same trait — it keeps
 /// branches instead of truncating them. Nothing else has to change.
@@ -140,7 +117,6 @@ pub struct LinearHistory {
     open: Vec<Change>,
     /// Caret at the moment the outermost open group began.
     open_from: Option<usize>,
-    row: Option<RowSnapshot>,
     limit: Option<usize>,
 }
 
@@ -171,12 +147,6 @@ impl LinearHistory {
         self.groups.len() - self.cursor
     }
 
-    /// The row `undo_row` would act on, if any.
-    #[must_use]
-    pub fn pending_row(&self) -> Option<usize> {
-        self.row.as_ref().map(|snapshot| snapshot.row)
-    }
-
     fn push_group(&mut self, group: Group) {
         self.groups.truncate(self.cursor);
         self.groups.push(group);
@@ -193,35 +163,13 @@ impl LinearHistory {
             self.cursor = self.cursor.saturating_sub(excess);
         }
     }
-
-    /// Maintain the row-scoped snapshot.
-    ///
-    /// The first change to land on a row captures that row's prior content;
-    /// subsequent changes to the same row accumulate against it, so `U` reverses
-    /// the whole run rather than one edit. Any change that spans or alters row
-    /// structure abandons the snapshot — vi's `U` is deliberately not a
-    /// multi-line operation.
-    fn note_row(&mut self, change: &Change, buf: &Buffer) {
-        if !change.edit.is_single_row() {
-            self.row = None;
-            return;
-        }
-        let row = change.edit.start_point.row;
-        if self.row.as_ref().is_none_or(|snapshot| snapshot.row != row) {
-            self.row = Some(RowSnapshot {
-                row,
-                content: buf.row_text(row),
-            });
-        }
-    }
 }
 
 impl History for LinearHistory {
-    fn record(&mut self, change: &Change, buf: &Buffer) {
+    fn record(&mut self, change: &Change, _buf: &Buffer) {
         if change.is_noop() {
             return;
         }
-        self.note_row(change, buf);
         if self.depth > 0 {
             self.groups.truncate(self.cursor);
             self.open.push(change.clone());
@@ -263,7 +211,6 @@ impl History for LinearHistory {
             return Step::default();
         }
         self.cursor -= 1;
-        self.row = None;
         let group = &self.groups[self.cursor];
         Step {
             // Reverse order: a group applied c1, c2, c3 is undone by inv(c3),
@@ -283,42 +230,7 @@ impl History for LinearHistory {
             cursor: group.after,
         };
         self.cursor += 1;
-        self.row = None;
         step
-    }
-
-    fn undo_row(&mut self, buf: &Buffer) -> Step {
-        let Some(snapshot) = self.row.take() else {
-            return Step::default();
-        };
-        if snapshot.row >= buf.len_rows() {
-            return Step::default();
-        }
-        let range = buf.row_content_range(snapshot.row);
-        let current = buf.text_in(range.clone());
-        if current == snapshot.content {
-            self.row = Some(snapshot);
-            return Step::default();
-        }
-        let row_start = range.start;
-        let change = buf.stage_replace(range, &snapshot.content);
-        // `U` is an ordinary change as far as `u` is concerned. Its own caret
-        // bracket is the row it restored, from both directions.
-        self.push_group(Group {
-            changes: vec![change.clone()],
-            before: Some(row_start),
-            after: Some(row_start),
-        });
-        // Swapping the snapshot for what we just displaced is what makes a second
-        // `U` toggle back.
-        self.row = Some(RowSnapshot {
-            row: snapshot.row,
-            content: current,
-        });
-        Step {
-            changes: vec![change],
-            cursor: Some(row_start),
-        }
     }
 }
 
@@ -361,12 +273,6 @@ mod tests {
 
         fn redo(&mut self) -> Option<usize> {
             let step = self.hist.redo();
-            self.apply_all(&step.changes);
-            step.cursor
-        }
-
-        fn undo_row(&mut self) -> Option<usize> {
-            let step = self.hist.undo_row(&self.buf);
             self.apply_all(&step.changes);
             step.cursor
         }
@@ -440,81 +346,6 @@ mod tests {
     }
 
     #[test]
-    fn u_restores_a_whole_run_of_changes_on_one_row() {
-        let mut h = Harness::new("select id\nfrom users");
-        h.replace(7..9, "name"); // select name
-        h.replace(0..6, "SELECT"); // SELECT name
-        assert_eq!(h.buf.row_text(0), "SELECT name");
-        assert_eq!(h.hist.pending_row(), Some(0));
-
-        h.undo_row();
-        assert_eq!(h.buf.row_text(0), "select id");
-        // Row 1 was never touched.
-        assert_eq!(h.buf.row_text(1), "from users");
-    }
-
-    #[test]
-    fn u_toggles() {
-        let mut h = Harness::new("select id");
-        h.replace(7..9, "name");
-        h.undo_row();
-        assert_eq!(h.text(), "select id");
-        h.undo_row();
-        assert_eq!(h.text(), "select name");
-        h.undo_row();
-        assert_eq!(h.text(), "select id");
-    }
-
-    #[test]
-    fn u_is_itself_undoable_with_u_lowercase() {
-        let mut h = Harness::new("select id");
-        h.replace(7..9, "name");
-        h.undo_row();
-        assert_eq!(h.text(), "select id");
-        h.undo();
-        assert_eq!(h.text(), "select name");
-    }
-
-    #[test]
-    fn moving_to_another_row_resnapshots() {
-        let mut h = Harness::new("aaa\nbbb");
-        h.replace(0..1, "X"); // Xaa
-        h.replace(4..5, "Y"); // Ybb
-        assert_eq!(h.hist.pending_row(), Some(1));
-        h.undo_row();
-        assert_eq!(h.text(), "Xaa\nbbb");
-    }
-
-    #[test]
-    fn a_multi_row_change_abandons_the_row_snapshot() {
-        let mut h = Harness::new("aaa\nbbb");
-        h.replace(0..1, "X");
-        assert_eq!(h.hist.pending_row(), Some(0));
-        h.replace(3..4, ""); // joins the rows
-        assert_eq!(h.hist.pending_row(), None);
-        h.undo_row();
-        assert_eq!(h.text(), "Xaabbb");
-    }
-
-    #[test]
-    fn u_does_nothing_before_any_change() {
-        let mut h = Harness::new("select 1");
-        h.undo_row();
-        assert_eq!(h.text(), "select 1");
-        assert_eq!(h.hist.undo_depth(), 0);
-    }
-
-    #[test]
-    fn a_plain_undo_abandons_the_row_snapshot() {
-        let mut h = Harness::new("select id");
-        h.replace(7..9, "name");
-        h.undo();
-        assert_eq!(h.hist.pending_row(), None);
-        h.undo_row();
-        assert_eq!(h.text(), "select id");
-    }
-
-    #[test]
     fn limit_discards_the_oldest_groups() {
         let mut h = Harness::new("");
         h.hist = LinearHistory::with_limit(2);
@@ -538,7 +369,6 @@ mod tests {
         buf.apply(&change);
         assert!(hist.undo().is_empty());
         assert!(hist.redo().is_empty());
-        assert!(hist.undo_row(&buf).is_empty());
         assert_eq!(buf.to_string(), "select 2");
     }
 

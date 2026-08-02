@@ -49,16 +49,15 @@ Each is ignorant of the ones above it, and each is usable on its own.
 | Layer      | Knows about              | Does not know about         |
 | ---------- | ------------------------ | --------------------------- |
 | `Buffer`   | bytes, rows, ropes       | modes, keys, undo           |
-| `History`  | changes and their rows   | ropes, keys, rendering      |
+| `History`  | changes                  | ropes, keys, rendering      |
 | `Document` | both of the above        | modes, keys, rendering      |
 | `Keymap`   | key sequences → bindings | buffers, cursors            |
 | `Pending`  | vi's command grammar     | buffers, cursors            |
 | `Editor`   | all of the above         | rendering, terminals, files |
 
 Undo is a trait, not a policy. `LinearHistory` is the default; `NoHistory`
-discards; an undo tree is yours to write. Because a change is self-inverting and
-records its own row, `U` (undo all changes on the current line) works — which it
-does not in CodeMirror, and therefore not in Obsidian.
+discards; an undo tree is yours to write. Changes are self-inverting, so a
+history policy can hand back the changes needed to undo or redo a step.
 
 Keymaps are four layers mirroring vi's `nmap`/`omap`/`vmap`/`imap`, with
 fallback, which is how `i` can mean _insert_ in normal mode and _inner_ after an
@@ -71,7 +70,7 @@ Normal, insert, replace and visual (character and line) modes. Motions
 `h j k l 0 ^ $ w W b B e E f F t T ; , G gg H M L %`. Operators `d c y > <` over
 motions, doubled (`dd`, `>>`, `<<`), and text objects `iw aw i( a( i" a" ip` and
 friends. Counts, including the multiplication in `2d3w`. `x X r ~ J p P`, all
-six insert entries, undo, redo, `U`, dot-repeat and macros.
+six insert entries, undo, redo, dot-repeat and macros.
 
 Shifting has to know what an indent is worth, so the host supplies an `Indent`:
 shift width, tab width, and whether to render tabs. That is the one place
@@ -91,8 +90,8 @@ nothing and behave correctly for free — including `.` after an insert session.
 
 ## What isn't
 
-- **Search and `:` execution.** `/ ? n N :` resolve and emit effects, but there
-  is not yet an API for the host to hand a match back. Next on the list.
+- **Search.** `/ ? n N` are not implemented. `:` opens a host prompt for ex
+  command execution.
 - **Registers and marks.** One unnamed register, deliberately. This is a core
   for self-contained single-buffer editing, not a vi clone.
 - **Visual block** and the `s S` shortcuts.

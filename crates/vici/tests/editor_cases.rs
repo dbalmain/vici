@@ -218,12 +218,6 @@ fn render_effect(effect: &Effect) -> String {
         ),
         Effect::ModeChanged(mode) => format!("mode {mode:?}"),
         Effect::Scroll(scroll) => format!("scroll {scroll:?}"),
-        Effect::SearchPrompt { backward } => {
-            format!("search prompt {}", if *backward { '?' } else { '/' })
-        }
-        Effect::SearchRepeat { reverse } => {
-            format!("search repeat {}", if *reverse { 'N' } else { 'n' })
-        }
         Effect::CommandPrompt => "command prompt :".to_owned(),
         Effect::Bell => "bell".to_owned(),
         Effect::RecordingStarted(register) => format!("recording @{register}"),

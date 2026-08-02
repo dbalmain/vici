@@ -25,8 +25,8 @@ Since `ceaa3fb`:
 
 `stash@{0}` holds a reverted experiment: per-row `U` snapshots, so `U` could
 reach a row you had wandered off and come back to. It worked and cost about
-twenty lines, but was dropped as not worth it. `U` remembers one row, as vi
-does.
+twenty lines, but was dropped as not worth it. `U` itself has since gone the
+same way, so the stash is now of historical interest only.
 
 ## Decisions already taken — don't relitigate these
 
@@ -34,8 +34,8 @@ does.
   for publishing 0.1.0.
 - **A trailing newline yields a phantom final row.** `"aa\nbb\ncc\n"` is four
   rows, the last empty, so `G` lands below the last line of the file and `G>>`,
-  `Gx`, `GU` and `GgUU` do nothing there. Rows are newline-_separated_ here,
-  where vi treats a newline as a terminator. Known, measured, accepted.
+  `Gx`, and `GgUU` do nothing there. Rows are newline-_separated_ here, where vi
+  treats a newline as a terminator. Known, measured, accepted.
 - **`.` after a characterwise visual selection re-aims the motion** rather than
   repeating a character count, so `vwd` then `.` deletes to the next word
   boundary where vi deletes the same number of characters. Matching vi means
@@ -45,8 +45,8 @@ does.
   "include the quotes". Documented in FEATURES §8; not worth the code.
 - **`3.` replays the whole command three times** rather than substituting the
   count. Differs from vi, documented in FEATURES §11.
-- **`s`/`S` remain unbound** deliberately, as does `"ayy` — one unnamed register
-  is the design.
+- **`s`/`S` remain unbound** deliberately, as do named registers — one unnamed
+  register is the design.
 - **FEATURES.txt ticks are Dave's**, recorded by walking the harness. An agent
   must not tick them: a tick asserts a walk that did not happen. Add entries
   unticked. (`1f4d2f3` isolates a batch that arrived pre-ticked, if the
@@ -61,9 +61,7 @@ so deferring them saves nothing.
 - Store offsets and adjust them against every `Edit` — a `shift(&Edit)` hooked
   into the one mutation path in `Document`. This makes positions **better than
   vim**, where marks go stale after an edit.
-- Normal-mode `<C-o>`/`<C-i>` is then a cursor into the ring. Note `<C-o>` is
-  already bound in the **insert** layer for one-shot-normal: different layer, no
-  conflict, but it deserves a test.
+- Normal-mode `<C-o>`/`<C-i>` is then a cursor into the ring.
 - `crates/vici/src/editor.rs:441` holds a TODO waiting on this: page and screen
   motions should push a jump.
 - Expose `Editor::jump_to(offset)` publicly while building it — that is the
@@ -74,9 +72,8 @@ Roughly half a day for the store and the jump list.
 
 ## Then: search
 
-The only real hole in the public API rather than a missing binding — `/`
-resolves to an effect and no host can hand a match back. FEATURES §16 documents
-it.
+Search is not implemented. Build it as a core-resolved motion rather than a
+host-resolved prompt façade.
 
 Make search **core-resolved, not host-resolved**:
 
@@ -87,7 +84,7 @@ Make search **core-resolved, not host-resolved**:
   the crate still does not depend on `regex`.
 
 Then `d/foo<CR>`, `3n`, `.` and macros all work for free, because the pattern is
-just more keys and all three of those are key replay. The current shape
+just more keys and all three of those are key replay. The previous shape
 dead-ended precisely because it tried to round-trip through the host
 mid-command. `n`/`N` push to the jump list from the previous step.
 
@@ -95,9 +92,6 @@ mid-command. `n`/`N` push to the jump list from the previous step.
 
 - **`{` and `}`** paragraph motions. The blank-row machinery already exists for
   `ip`/`ap`, so this is one match arm in `motion::resolve` and two bindings.
-- **FEATURES §17 is stale**: it still lists `D` and `C` as ringing the bell,
-  though they were bound in `ceaa3fb`. Two lines to delete.
-- **README** has a docs.rs badge that 404s until the first publish.
 
 ## Bigger, later
 

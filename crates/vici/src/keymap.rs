@@ -145,7 +145,7 @@ impl Keymap {
         self
     }
 
-    /// Walk `path` through `layer`, falling back per [`Layer::fallback`].
+    /// Walk `path` through `layer`, applying its fallback rules.
     ///
     /// A layer that produces neither a binding nor a prefix defers to its
     /// fallback, so `Layer::Visual` inherits every normal-mode motion while still
@@ -175,8 +175,8 @@ impl Keymap {
     /// The default scheme.
     ///
     /// Covers the subset this core targets: modes, motions, the three operators,
-    /// text objects, counts, dot-repeat, macros, undo including `U`, and prompts
-    /// for search and ex commands. No marks, no named registers.
+    /// text objects, counts, dot-repeat, macros, undo, and ex commands. No marks,
+    /// no named registers.
     #[must_use]
     #[allow(clippy::too_many_lines)]
     pub fn vim() -> Self {
@@ -299,7 +299,6 @@ impl Keymap {
         // -- history and repetition ------------------------------------------
         map.bind_spec(Layer::Normal, "u", Cmd(C::Undo))
             .bind_spec(Layer::Normal, "<C-r>", Cmd(C::Redo))
-            .bind_spec(Layer::Normal, "U", Cmd(C::UndoRow))
             .bind_spec(Layer::Normal, ".", Cmd(C::Repeat))
             .bind_spec(Layer::Normal, "q", Await(AwaitChar::RecordMacro))
             .bind_spec(Layer::Normal, "@", Await(AwaitChar::PlayMacro));
@@ -316,11 +315,7 @@ impl Keymap {
         ] {
             map.bind_spec(Layer::Normal, spec, Cmd(C::Scroll(scroll)));
         }
-        map.bind_spec(Layer::Normal, "/", Cmd(C::SearchPrompt { backward: false }))
-            .bind_spec(Layer::Normal, "?", Cmd(C::SearchPrompt { backward: true }))
-            .bind_spec(Layer::Normal, "n", Cmd(C::SearchRepeat { reverse: false }))
-            .bind_spec(Layer::Normal, "N", Cmd(C::SearchRepeat { reverse: true }))
-            .bind_spec(Layer::Normal, ":", Cmd(C::CommandPrompt));
+        map.bind_spec(Layer::Normal, ":", Cmd(C::CommandPrompt));
 
         // -- operator-pending: `i`/`a` become object scopes -------------------
         map.bind_spec(Layer::Operator, "i", Scope(ObjectScope::Inner))
@@ -346,7 +341,6 @@ impl Keymap {
             .bind_spec(Layer::Insert, "<CR>", Cmd(C::InsertNewline))
             .bind_spec(Layer::Insert, "<BS>", Cmd(C::DeleteBack))
             .bind_spec(Layer::Insert, "<C-w>", Cmd(C::DeleteWordBack))
-            .bind_spec(Layer::Insert, "<C-o>", Cmd(C::OneShotNormal))
             .bind_spec(Layer::Insert, "<Tab>", Cmd(C::InsertText('\t')))
             .bind_spec(Layer::Insert, "<Left>", Cmd(C::Move(Motion::Left)))
             .bind_spec(Layer::Insert, "<Right>", Cmd(C::Move(Motion::Right)))
@@ -529,6 +523,29 @@ mod tests {
         assert_eq!(
             walk(&map, Layer::Insert, "<Esc>"),
             Walk::Bound(Binding::Command(Command::EnterNormal))
+        );
+    }
+
+    #[test]
+    fn keys_features_calls_unbound_really_are() {
+        // Keep in step with FEATURES.txt §17. `D`/`C` were bound while both the
+        // checklist and the README still called them unbound.
+        for spec in [
+            "s", "S", "{", "}", "<C-v>", "\"", "m", "U", "/", "?", "n", "N",
+        ] {
+            let path = keys(spec).expect("valid notation");
+            assert_eq!(
+                Keymap::vim().walk(Layer::Normal, &path),
+                Walk::Unbound,
+                "{spec} is bound but FEATURES §17 says it rings"
+            );
+        }
+
+        let path = keys("<C-o>").expect("valid notation");
+        assert_eq!(
+            Keymap::vim().walk(Layer::Insert, &path),
+            Walk::Unbound,
+            "<C-o> is bound but FEATURES §17 says it rings in insert mode"
         );
     }
 

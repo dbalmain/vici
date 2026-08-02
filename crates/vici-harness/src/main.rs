@@ -6,7 +6,7 @@
 //! * translating a terminal event into a [`Key`],
 //! * owning the viewport, and fulfilling [`Effect::Scroll`],
 //! * expanding tabs and measuring display width,
-//! * answering `:` and `/` prompts,
+//! * answering `:` prompts,
 //! * touching the filesystem.
 //!
 //! Run it with `cargo run -p vici-harness -- [file]`, defaulting to `FEATURES.txt`.
@@ -61,23 +61,13 @@ fn main() -> io::Result<()> {
     result
 }
 
-enum PromptKind {
-    Search { backward: bool },
-    Command,
-}
-
 struct Prompt {
-    kind: PromptKind,
     input: String,
 }
 
 impl Prompt {
-    fn sigil(&self) -> char {
-        match self.kind {
-            PromptKind::Search { backward: false } => '/',
-            PromptKind::Search { backward: true } => '?',
-            PromptKind::Command => ':',
-        }
+    const fn sigil() -> char {
+        ':'
     }
 }
 
@@ -179,19 +169,11 @@ impl App {
                     self.apply_scroll(scroll);
                     scrolled = true;
                 }
-                Effect::SearchPrompt { backward } => {
-                    self.prompt = Some(Prompt {
-                        kind: PromptKind::Search { backward },
-                        input: String::new(),
-                    });
-                }
                 Effect::CommandPrompt => {
                     self.prompt = Some(Prompt {
-                        kind: PromptKind::Command,
                         input: String::new(),
                     });
                 }
-                Effect::SearchRepeat { .. } => self.say(SEARCH_GAP),
                 Effect::Bell => self.say("bell"),
                 Effect::ModeChanged(_)
                 | Effect::RecordingStarted(_)
@@ -232,23 +214,19 @@ impl App {
     }
 
     fn run_prompt(&mut self, prompt: &Prompt) {
-        match prompt.kind {
-            PromptKind::Search { .. } => self.say(SEARCH_GAP),
-            PromptKind::Command => match prompt.input.trim() {
-                "" => {}
-                "w" => self.save(),
-                "q" if self.modified => self.say("unsaved changes — `:q!` to discard"),
-                "q" | "q!" => self.quit = true,
-                "wq" | "x" => {
-                    self.save();
-                    self.quit = true;
-                }
-                other => {
-                    self.message = format!(
-                        "`:{other}` is a host concern, and this host only knows w, q, q!, wq"
-                    );
-                }
-            },
+        match prompt.input.trim() {
+            "" => {}
+            "w" => self.save(),
+            "q" if self.modified => self.say("unsaved changes — `:q!` to discard"),
+            "q" | "q!" => self.quit = true,
+            "wq" | "x" => {
+                self.save();
+                self.quit = true;
+            }
+            other => {
+                self.message =
+                    format!("`:{other}` is a host concern, and this host only knows w, q, q!, wq");
+            }
         }
     }
 
@@ -423,20 +401,15 @@ impl App {
 
     fn status_line(&self) -> Line<'static> {
         if let Some(prompt) = self.prompt.as_ref() {
-            return Line::from(format!("{}{}", prompt.sigil(), prompt.input));
+            return Line::from(format!("{}{}", Prompt::sigil(), prompt.input));
         }
 
-        // A `<C-o>` runs one normal-mode command with an insert session still open,
-        // so the mode in force and the mode you are about to get back are different.
-        // vi shows the latter in parentheses; without it the bracket is invisible.
-        let (label, colour) = match (self.editor.mode(), self.editor.resuming()) {
-            (_, Some(Mode::Replace)) => (" (REPLACE) ", Color::Red),
-            (_, Some(_)) => (" (INSERT) ", Color::Green),
-            (Mode::Normal, None) => (" NORMAL ", Color::Blue),
-            (Mode::Insert, None) => (" INSERT ", Color::Green),
-            (Mode::Replace, None) => (" REPLACE ", Color::Red),
-            (Mode::Visual(VisualKind::Char), None) => (" VISUAL ", Color::Magenta),
-            (Mode::Visual(VisualKind::Line), None) => (" V-LINE ", Color::Magenta),
+        let (label, colour) = match self.editor.mode() {
+            Mode::Normal => (" NORMAL ", Color::Blue),
+            Mode::Insert => (" INSERT ", Color::Green),
+            Mode::Replace => (" REPLACE ", Color::Red),
+            Mode::Visual(VisualKind::Char) => (" VISUAL ", Color::Magenta),
+            Mode::Visual(VisualKind::Line) => (" V-LINE ", Color::Magenta),
         };
 
         let point = self.editor.cursor_point();
@@ -521,14 +494,6 @@ impl App {
             ),
             Effect::ModeChanged(mode) => (format!("mode  {mode:?}"), Color::Blue),
             Effect::Scroll(scroll) => (format!("scroll {scroll:?}"), Color::Cyan),
-            Effect::SearchPrompt { backward } => (
-                format!("search prompt {}", if *backward { '?' } else { '/' }),
-                Color::Yellow,
-            ),
-            Effect::SearchRepeat { reverse } => (
-                format!("search repeat {}", if *reverse { 'N' } else { 'n' }),
-                Color::Yellow,
-            ),
             Effect::CommandPrompt => ("command prompt :".to_owned(), Color::Yellow),
             Effect::Bell => ("bell".to_owned(), Color::Red),
             Effect::RecordingStarted(reg) => (format!("recording @{reg}"), Color::Red),
@@ -540,9 +505,6 @@ impl App {
         }
     }
 }
-
-const SEARCH_GAP: &str =
-    "resolved — but the core has no API to accept a match yet, so nothing moves";
 
 /// Translate a crossterm event into a [`Key`].
 ///

@@ -6,7 +6,7 @@
 //! | Layer | Knows about | Does not know about |
 //! |---|---|---|
 //! | [`Buffer`] | bytes, rows, ropes | modes, keys, undo |
-//! | [`History`] | [`Change`]s and their rows | ropes, keys, rendering |
+//! | [`History`] | [`Change`]s | ropes, keys, rendering |
 //! | [`Document`] | both of the above | modes, keys, rendering |
 //! | [`Keymap`] | key sequences → [`Binding`]s | buffers, cursors |
 //! | [`Pending`] | vi's command grammar | buffers, cursors |

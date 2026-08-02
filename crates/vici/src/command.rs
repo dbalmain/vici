@@ -256,8 +256,6 @@ pub enum Command {
     EnterReplace,
     /// `<Esc>` from any mode.
     EnterNormal,
-    /// `<C-o>` — run one normal-mode command, then resume inserting.
-    OneShotNormal,
 
     /// `x` / `X`
     DeleteChar {
@@ -276,8 +274,6 @@ pub enum Command {
 
     Undo,
     Redo,
-    /// `U`
-    UndoRow,
     /// `.`
     Repeat,
 
@@ -289,15 +285,7 @@ pub enum Command {
 
     Scroll(Scroll),
 
-    /// `/` and `?` — the host opens a prompt and calls back.
-    SearchPrompt {
-        backward: bool,
-    },
-    /// `n` / `N`
-    SearchRepeat {
-        reverse: bool,
-    },
-    /// `:` — likewise a host prompt.
+    /// `:` — the host opens a prompt.
     CommandPrompt,
 
     /// Literal text typed in insert mode.

@@ -304,19 +304,11 @@
 
 [x] u     undo
 [x] <C-r> redo
-[x] U     undo every change on the current row
-      break this row repeatedly then press U
 
     An insert session is ONE undo step: type `ihello<Esc>` then
     `u`, and all five characters go together — while the effect
     log shows five separate edits. Both granularities at once is
     the whole point.
-
-[x] U then u — the U itself is undoable
-[x] U twice — toggles back
-
-    U after a multi-row change is a no-op, not a fallback to `u`.
-    Try `ddU`. This diverges from vi deliberately.
 
 --------------------------------------------------------------
  11. DOT REPEAT
@@ -399,28 +391,6 @@
 [x] arrows move without leaving insert mode
       edit inside me
 
- <C-o> — one normal-mode command, then straight back to inserting:
-[x] <C-o>zz  centre the view without losing your place
-[x] <C-o>D   wipe the rest of the row and keep typing
-[x] <C-o>0   jump to the start and carry on there
-[x] <C-o>2dd  counts belong to the command, not the <C-o>
-[x] <C-o>w   one command only — the next w is text again
-      come and edit somewhere in the middle of this row
-[x] <C-o>cw  a command that opens its own mode keeps it
-[x] <C-o><Esc>  leaves insert for good
-[x] <C-o> then a key that means nothing — bell, and you are
-    handed back to insert rather than stranded in normal
-
-    The status bar shows (INSERT) in parentheses while a <C-o> is
-    in flight, and the cursor turns into a block: the grammar in
-    force is normal mode's, but the session is still open.
-
-    At the end of a row the caret stays past the last character,
-    so A then <C-o>zz then typing continues where you were.
-
-    <C-o> breaks the undo sequence, as vi does: type, <C-o>D, type
-    more, then <Esc> — that is three `u` presses, not one.
-
 --------------------------------------------------------------
  15. VIEWPORT
 --------------------------------------------------------------
@@ -443,17 +413,13 @@
     the reported visible rows, so scroll the file before trying H.
 
 --------------------------------------------------------------
- 16. PROMPTS — known gap
+ 16. EX COMMAND PROMPT
 --------------------------------------------------------------
 
-[ ] /   opens a prompt, and then cannot move the cursor
-[ ] ?   likewise
-[ ] n   [ ] N   report the same gap
 [ ] :   opens a prompt the harness answers itself
 
-    The core resolves these and emits an effect, but there is no
-    API for a host to hand a match back. Confirm the prompt opens
-    and the effect fires; the movement is genuinely not built yet.
+    `:` emits an effect for the host to answer. Confirm the prompt
+    opens and the effect fires.
 
 --------------------------------------------------------------
  17. NOT BOUND — these should ring the bell
@@ -462,8 +428,11 @@
 [ ] s   would be xi        [ ] S   would be cc
 [ ] {   [ ] }   paragraph motions
 [ ] <C-v>  visual block
-[ ] "ayy  named registers — deliberately absent
-[ ] ma    marks — deliberately absent
+[ ] "   named registers — deliberately absent
+[ ] m   marks — deliberately absent
+[ ] U   row-scoped undo
+[ ] /   [ ] ?   [ ] n   [ ] N   search
+[ ] <C-o> (insert mode)   one-shot normal
 
     Watch for `bell` in the log. Anything here that silently does
     something instead is a bug worth reporting.
