@@ -27,6 +27,7 @@ unicode-segmentation = "1.13.3"
 
 [dev-dependencies]
 insta = "1"
+proptest = "1"
 
 [lints]
 workspace = true
