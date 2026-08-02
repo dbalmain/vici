@@ -46,18 +46,18 @@ into effects. Effects are only the things the core genuinely cannot do itself.
 
 Each is ignorant of the ones above it, and each is usable on its own.
 
-| Layer      | Knows about              | Does not know about         |
-| ---------- | ------------------------ | --------------------------- |
-| `Buffer`   | bytes, rows, ropes       | modes, keys, undo           |
-| `History`  | changes                  | ropes, keys, rendering      |
-| `Document` | both of the above        | modes, keys, rendering      |
-| `Keymap`   | key sequences → bindings | buffers, cursors            |
-| `Pending`  | vi's command grammar     | buffers, cursors            |
-| `Editor`   | all of the above         | rendering, terminals, files |
+| Layer           | Knows about              | Does not know about         |
+| --------------- | ------------------------ | --------------------------- |
+| `Buffer`        | bytes, rows, ropes       | modes, keys, undo           |
+| `LinearHistory` | changes                  | ropes, keys, rendering      |
+| `Document`      | both of the above        | modes, keys, rendering      |
+| `Keymap`        | key sequences → bindings | buffers, cursors            |
+| `Pending`       | vi's command grammar     | buffers, cursors            |
+| `Editor`        | all of the above         | rendering, terminals, files |
 
-Undo is a trait, not a policy. `LinearHistory` is the default; `NoHistory`
-discards; an undo tree is yours to write. Changes are self-inverting, so a
-history policy can hand back the changes needed to undo or redo a step.
+A change carries the text it displaced, so it is self-inverting: undoing one is
+applying its inverse. Undo therefore stores no document snapshots and needs to
+know nothing about ropes — the history layer never sees one.
 
 Keymaps are four layers mirroring vi's `nmap`/`omap`/`vmap`/`imap`, with
 fallback, which is how `i` can mean _insert_ in normal mode and _inner_ after an

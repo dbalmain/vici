@@ -21,9 +21,9 @@ use std::ops::Range;
 
 use crate::buffer::Buffer;
 use crate::command::{Command, InsertAt, Mode, Motion, Operator, Scroll, Target, VisualKind};
-use crate::document::{Document, Revert};
+use crate::document::Document;
 use crate::edit::{Edit, Point};
-use crate::history::{History, LinearHistory};
+use crate::history::Step;
 use crate::host::{Indent, Viewport};
 use crate::key::{Key, ParseError, keys};
 use crate::keymap::Keymap;
@@ -65,8 +65,8 @@ pub struct Register {
 
 /// A vi-like editor over a [`Document`].
 #[derive(Debug, Clone)]
-pub struct Editor<H: History = LinearHistory> {
-    doc: Document<H>,
+pub struct Editor {
+    doc: Document,
     keymap: Keymap,
     indent: Indent,
     viewport: Viewport,
@@ -92,13 +92,13 @@ pub struct Editor<H: History = LinearHistory> {
     insert_group: bool,
 }
 
-impl Default for Editor<LinearHistory> {
+impl Default for Editor {
     fn default() -> Self {
         Self::from_text("")
     }
 }
 
-impl Editor<LinearHistory> {
+impl Editor {
     #[must_use]
     pub fn new() -> Self {
         Self::default()
@@ -106,14 +106,13 @@ impl Editor<LinearHistory> {
 
     #[must_use]
     pub fn from_text(text: &str) -> Self {
-        Self::with(text, Keymap::vim(), LinearHistory::new())
+        Self::with(text, Keymap::vim())
     }
-}
 
-impl<H: History> Editor<H> {
-    pub fn with(text: &str, keymap: Keymap, history: H) -> Self {
+    #[must_use]
+    pub fn with(text: &str, keymap: Keymap) -> Self {
         Self {
-            doc: Document::with_history(text, history),
+            doc: Document::from_text(text),
             keymap,
             indent: Indent::default(),
             viewport: Viewport::default(),
@@ -178,7 +177,7 @@ impl<H: History> Editor<H> {
     }
 
     #[must_use]
-    pub fn document(&self) -> &Document<H> {
+    pub fn document(&self) -> &Document {
         &self.doc
     }
 
@@ -558,13 +557,13 @@ impl<H: History> Editor<H> {
             Command::Put { before } => self.put(before, repeat, &mut effects),
 
             Command::Undo => {
-                let revert = self.doc.undo();
-                self.revert(&revert, &mut effects);
+                let step = self.doc.undo();
+                self.revert(&step, &mut effects);
             }
 
             Command::Redo => {
-                let revert = self.doc.redo();
-                self.revert(&revert, &mut effects);
+                let step = self.doc.redo();
+                self.revert(&step, &mut effects);
             }
 
             Command::Repeat => {
@@ -769,19 +768,19 @@ impl<H: History> Editor<H> {
     /// Apply the outcome of an undo or redo.
     ///
     /// The caret goes back to where the history says it was. Failing that — a
-    /// history that does not track it, or a change recorded outside a group — fall
-    /// back to the last edit's site, which is at least where the text moved.
-    fn revert(&mut self, revert: &Revert, effects: &mut Vec<Effect>) {
-        if revert.is_empty() {
+    /// change recorded outside a group — fall back to the last edit's site,
+    /// which is at least where the text moved.
+    fn revert(&mut self, step: &Step, effects: &mut Vec<Effect>) {
+        if step.is_empty() {
             effects.push(Effect::Bell);
             return;
         }
-        for edit in &revert.edits {
-            effects.push(Effect::Edit(*edit));
+        for change in &step.changes {
+            effects.push(Effect::Edit(change.edit));
         }
-        let at = revert
+        let at = step
             .cursor
-            .unwrap_or_else(|| revert.edits[revert.edits.len() - 1].start_byte);
+            .unwrap_or_else(|| step.changes[step.changes.len() - 1].edit.start_byte);
         self.place_cursor(at);
     }
 
@@ -1291,21 +1290,12 @@ mod tests {
         keymap
             .bind_spec(Layer::Normal, "j", Binding::Motion(Motion::Up))
             .bind_spec(Layer::Normal, "k", Binding::Motion(Motion::Down));
-        let mut ed = Editor::with(SQL, keymap, LinearHistory::new());
+        let mut ed = Editor::with(SQL, keymap);
         ed.type_keys("k").unwrap();
         assert_eq!(ed.cursor_point(), Point::new(1, 0));
         ed.type_keys("gg").unwrap();
         ed.type_keys("dk").unwrap();
         assert_eq!(ed.buffer().to_string(), "where id = 1");
-    }
-
-    #[test]
-    fn an_editor_without_history_still_edits() {
-        use crate::history::NoHistory;
-        let mut ed = Editor::with(SQL, Keymap::vim(), NoHistory);
-        ed.type_keys("dd").unwrap();
-        assert_eq!(ed.buffer().to_string(), "from users\nwhere id = 1");
-        assert_eq!(ed.type_keys("u").unwrap(), vec![Effect::Bell]);
     }
 
     #[test]

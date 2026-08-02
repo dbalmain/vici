@@ -6,7 +6,7 @@
 //! | Layer | Knows about | Does not know about |
 //! |---|---|---|
 //! | [`Buffer`] | bytes, rows, ropes | modes, keys, undo |
-//! | [`History`] | [`Change`]s | ropes, keys, rendering |
+//! | [`LinearHistory`] | [`Change`]s | ropes, keys, rendering |
 //! | [`Document`] | both of the above | modes, keys, rendering |
 //! | [`Keymap`] | key sequences → [`Binding`]s | buffers, cursors |
 //! | [`Pending`] | vi's command grammar | buffers, cursors |
@@ -54,10 +54,10 @@ pub use command::{
     AwaitChar, Command, InsertAt, Mode, Motion, ObjectScope, Operator, Scroll, Target, TextObject,
     VisualKind,
 };
-pub use document::{Document, Revert};
+pub use document::Document;
 pub use edit::{Change, Edit, Point};
 pub use editor::{Editor, Effect, Register};
-pub use history::{History, LinearHistory, NoHistory, Step};
+pub use history::{LinearHistory, Step};
 pub use host::{Indent, Viewport};
 pub use key::{Key, KeyCode, Mods, ParseError, key, keys, render};
 pub use keymap::{Binding, Keymap, Layer, Walk, is_count_digit};

@@ -1,34 +1,17 @@
 //! The minimal composition of a buffer and a history.
 //!
 //! This type exists for one reason: the `stage → record → apply` ordering that
-//! [`History`] depends on is easy to get subtly wrong. Encoding it once removes
-//! the hazard.
+//! [`LinearHistory`] depends on is easy to get subtly wrong. Encoding it once
+//! removes the hazard.
 
 use core::fmt;
 use core::ops::Range;
 
 use crate::buffer::Buffer;
 use crate::edit::{Change, Edit};
-use crate::history::{History, LinearHistory, Step};
+use crate::history::{LinearHistory, Step};
 
-/// What an undo or redo did: the edits applied, and the caret to restore.
-///
-/// `cursor` is `None` when the history does not track it — see [`Step::cursor`].
-#[derive(Debug, Clone, Default, PartialEq, Eq)]
-pub struct Revert {
-    pub edits: Vec<Edit>,
-    pub cursor: Option<usize>,
-}
-
-impl Revert {
-    /// True when there was nothing to undo or redo.
-    #[must_use]
-    pub fn is_empty(&self) -> bool {
-        self.edits.is_empty()
-    }
-}
-
-/// A buffer paired with an undo policy.
+/// A buffer paired with a linear undo history.
 ///
 /// Every mutating method returns the [`Edit`]s that were applied, in order, ready
 /// to hand to an incremental consumer:
@@ -40,12 +23,12 @@ impl Revert {
 /// let tree = parser.parse(doc.buffer().rope(), Some(&tree));
 /// ```
 #[derive(Debug, Clone, Default)]
-pub struct Document<H: History = LinearHistory> {
+pub struct Document {
     buffer: Buffer,
-    history: H,
+    history: LinearHistory,
 }
 
-impl Document<LinearHistory> {
+impl Document {
     #[must_use]
     pub fn new() -> Self {
         Self::default()
@@ -53,15 +36,9 @@ impl Document<LinearHistory> {
 
     #[must_use]
     pub fn from_text(text: &str) -> Self {
-        Self::with_history(text, LinearHistory::new())
-    }
-}
-
-impl<H: History> Document<H> {
-    pub fn with_history(text: &str, history: H) -> Self {
         Self {
             buffer: Buffer::from_text(text),
-            history,
+            history: LinearHistory::new(),
         }
     }
 
@@ -71,11 +48,12 @@ impl<H: History> Document<H> {
     }
 
     #[must_use]
-    pub fn history(&self) -> &H {
+    pub fn history(&self) -> &LinearHistory {
         &self.history
     }
 
-    pub fn history_mut(&mut self) -> &mut H {
+    /// Mutable access, for configuration such as [`LinearHistory::set_limit`].
+    pub fn history_mut(&mut self) -> &mut LinearHistory {
         &mut self.history
     }
 
@@ -100,7 +78,7 @@ impl<H: History> Document<H> {
     ///
     /// A [`Document`] has no caret, so nothing is recorded for `undo` to restore.
     /// Callers that do have one bracket the group themselves — see
-    /// [`History::begin_group`].
+    /// [`LinearHistory::begin_group`].
     ///
     /// Not a drop guard: an unwinding panic inside `edits` leaves the group open.
     /// That is deliberate — a panic here means buffer and history have already
@@ -112,37 +90,30 @@ impl<H: History> Document<H> {
         out
     }
 
-    pub fn undo(&mut self) -> Revert {
+    /// Undo the most recent step and return the changes that were applied.
+    pub fn undo(&mut self) -> Step {
         let step = self.history.undo();
-        self.revert(&step)
+        self.apply_all(&step.changes);
+        step
     }
 
-    pub fn redo(&mut self) -> Revert {
+    /// Redo the most recently undone step and return the changes that were applied.
+    pub fn redo(&mut self) -> Step {
         let step = self.history.redo();
-        self.revert(&step)
-    }
-
-    fn revert(&mut self, step: &Step) -> Revert {
-        Revert {
-            edits: self.apply_all(&step.changes),
-            cursor: step.cursor,
-        }
+        self.apply_all(&step.changes);
+        step
     }
 
     /// Apply changes handed back by the history. Deliberately does not `record`
     /// them — the history has already accounted for them.
-    fn apply_all(&mut self, changes: &[Change]) -> Vec<Edit> {
-        changes
-            .iter()
-            .map(|change| {
-                self.buffer.apply(change);
-                change.edit
-            })
-            .collect()
+    fn apply_all(&mut self, changes: &[Change]) {
+        for change in changes {
+            self.buffer.apply(change);
+        }
     }
 }
 
-impl<H: History> fmt::Display for Document<H> {
+impl fmt::Display for Document {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         self.buffer.fmt(f)
     }
@@ -151,7 +122,6 @@ impl<H: History> fmt::Display for Document<H> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::history::NoHistory;
 
     #[test]
     fn insert_mode_session_is_one_undo_step() {
@@ -178,21 +148,12 @@ mod tests {
             doc.replace(2..3, "Y");
         });
         let undone = doc.undo();
-        assert_eq!(undone.edits.len(), 2);
+        assert_eq!(undone.changes.len(), 2);
         // Reversed relative to how they were applied.
-        assert_eq!(undone.edits[0].start_byte, 2);
-        assert_eq!(undone.edits[1].start_byte, 0);
+        assert_eq!(undone.changes[0].edit.start_byte, 2);
+        assert_eq!(undone.changes[1].edit.start_byte, 0);
         // A `Document` has no caret, so `grouped` records none.
         assert_eq!(undone.cursor, None);
         assert_eq!(doc.to_string(), "abc");
-    }
-
-    #[test]
-    fn a_document_without_history_still_edits() {
-        let mut doc = Document::with_history("select 1", NoHistory);
-        doc.replace(7..8, "2");
-        assert_eq!(doc.to_string(), "select 2");
-        assert!(doc.undo().is_empty());
-        assert_eq!(doc.to_string(), "select 2");
     }
 }
