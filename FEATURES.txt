@@ -140,13 +140,13 @@
     end with G$ and check — this used to leave one character.
 
  Case, over the same motions and objects:
-[x] gUw  upper-case a word     [ ] guw  lower-case it
+[x] gUw  upper-case a word     [x] guw  lower-case it
 [x] g~w  swap case over a word
-[x] 2gUw  two words            [ ] gU2w  the count either side
-[x] gUiw  over a text object   [ ] gUi(  over a parens block
-[ ] gUt,  over a find
+[x] 2gUw  two words            [x] gU2w  the count either side
+[x] gUiw  over a text object   [x] gUi(  over a parens block
+[x] gUt,  over a find
       make this shout, then quieten it down again
-[x] gUU  this whole row        [ ] gUgU  the long form
+[x] gUU  this whole row        [x] gUgU  the long form
 [x] guu  [x] g~~  the same for lower and swap
 [x] 2guu  this row and the next
 
@@ -225,9 +225,9 @@
 
  Seeking, when the cursor is in no pair at all:
       the cursor here, the parens (over there) after it
-[ ] di(  from the start of the row — it looks forward
-[ ] di(  from *after* the parens — nothing, vi never seeks back
-[ ] di{  from the row above a block, which is the useful one:
+[x] di(  from the start of the row — it looks forward
+[x] di(  from *after* the parens — nothing, vi never seeks back
+[x] di{  from the row above a block, which is the useful one:
       fn example() {
           the whole body goes, from up on the signature
       }
@@ -251,10 +251,19 @@
 
     A count is the nesting level you want, counted from where you
     stand — so from *outside* a block it runs the other way:
-[ ] di{   from `outer`, the outermost braces ahead
-[ ] 2di{  one level *in* — the braces around `deep`
-[ ] 3di{  nothing nested that deep, so it rings
-[ ] 2di{  on `outer {a} {b} end` — siblings are not a level
+  {
+    one: {
+      two: {
+        three: {
+        }
+      }
+    }
+  }
+
+[x] di{   from `outer`, the outermost braces ahead
+[x] 2di{  one level *in* — the braces around `deep`
+[x] 3di{  nothing nested that deep, so it rings
+[x] 2di{  on `outer {a} {b} end` — siblings are not a level
 
       one two three four
 [x] 2diw  a word and the space after it — whitespace is a run
@@ -354,8 +363,8 @@
 
       select some of this line and act on it
 [x] v then motions — the highlight follows
-[x] vd   delete the selection      [ ] vx  same
-[x] vc   change it                 [ ] vs  same
+[x] vd   delete the selection      [x] vx  same
+[x] vc   change it                 [x] vs  same
 [x] vy   yank it
 [x] viw  extend to inner word
 [x] va(  extend to a parens block
@@ -370,7 +379,7 @@
 [x] vwU  upper-case it     [ ] vwu  lower-case it
 [x] v$~  swap case across the selection
 [x] VjU  two whole rows
-[ ] vwgU  the operator form works here too
+[x] vwgU  the operator form works here too
 
     `u` in visual mode is a case change, not undo — that is vi, and
     it surprises people. `~` covers the whole selection instead of
@@ -380,26 +389,26 @@
  14. INSERT-MODE KEYS
 --------------------------------------------------------------
 
-[ ] typing inserts text
-[ ] <CR>    split the row
-[ ] <BS>    delete back
-[ ] <BS> at column 0 — joins onto the previous row
-[ ] <C-w>   delete the word before the cursor
-[ ] <Tab>   inserts a real tab byte, shown as 8 columns
-[ ] <Esc>   leave        [ ] <C-c>  also leaves
-[ ] arrows move without leaving insert mode
+[x] typing inserts text
+[x] <CR>    split the row
+[x] <BS>    delete back
+[x] <BS> at column 0 — joins onto the previous row
+[x] <C-w>   delete the word before the cursor
+[x] <Tab>   inserts a real tab byte, shown as 8 columns
+[x] <Esc>   leave        [ ] <C-c>  also leaves
+[x] arrows move without leaving insert mode
       edit inside me
 
  <C-o> — one normal-mode command, then straight back to inserting:
-[ ] <C-o>zz  centre the view without losing your place
-[ ] <C-o>D   wipe the rest of the row and keep typing
-[ ] <C-o>0   jump to the start and carry on there
-[ ] <C-o>2dd  counts belong to the command, not the <C-o>
-[ ] <C-o>w   one command only — the next w is text again
+[x] <C-o>zz  centre the view without losing your place
+[x] <C-o>D   wipe the rest of the row and keep typing
+[x] <C-o>0   jump to the start and carry on there
+[x] <C-o>2dd  counts belong to the command, not the <C-o>
+[x] <C-o>w   one command only — the next w is text again
       come and edit somewhere in the middle of this row
-[ ] <C-o>cw  a command that opens its own mode keeps it
-[ ] <C-o><Esc>  leaves insert for good
-[ ] <C-o> then a key that means nothing — bell, and you are
+[x] <C-o>cw  a command that opens its own mode keeps it
+[x] <C-o><Esc>  leaves insert for good
+[x] <C-o> then a key that means nothing — bell, and you are
     handed back to insert rather than stranded in normal
 
     The status bar shows (INSERT) in parentheses while a <C-o> is
