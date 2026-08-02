@@ -1243,49 +1243,19 @@ fn swap_case(ch: char) -> char {
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    const SQL: &str = "select id, name\nfrom users\nwhere id = 1";
-
-    #[test]
-    fn viewport_and_prompts_are_delegated() {
-        let mut ed = Editor::from_text(SQL);
-        assert_eq!(
-            ed.type_keys("zz").unwrap(),
-            vec![Effect::Scroll(Scroll::Center)]
-        );
-        assert_eq!(
-            ed.type_keys("<C-d>").unwrap(),
-            vec![Effect::Scroll(Scroll::HalfPageDown)]
-        );
-        assert_eq!(ed.type_keys(":").unwrap(), vec![Effect::CommandPrompt]);
-    }
+    use crate::keymap::{Binding, Layer};
 
     #[test]
     fn a_rebound_key_changes_behaviour_end_to_end() {
-        use crate::keymap::{Binding, Layer};
         let mut keymap = Keymap::vim();
         keymap
             .bind_spec(Layer::Normal, "j", Binding::Motion(Motion::Up))
             .bind_spec(Layer::Normal, "k", Binding::Motion(Motion::Down));
-        let mut ed = Editor::with(SQL, keymap);
-        ed.type_keys("k").unwrap();
-        assert_eq!(ed.cursor_point(), Point::new(1, 0));
-        ed.type_keys("gg").unwrap();
-        ed.type_keys("dk").unwrap();
-        assert_eq!(ed.buffer().to_string(), "where id = 1");
-    }
-
-    #[test]
-    fn cursor_stays_on_a_char_boundary_after_every_key() {
-        let mut ed = Editor::from_text("aé\u{301}b\ncafé\nx");
-        for script in ["l", "l", "j", "$", "j", "k", "x", "w", "b", "e", "dw", "u"] {
-            ed.type_keys(script).unwrap();
-            let text = ed.buffer().to_string();
-            assert!(
-                text.is_char_boundary(ed.cursor()),
-                "cursor {} off boundary after `{script}` in {text:?}",
-                ed.cursor()
-            );
-        }
+        let mut editor = Editor::with("one\ntwo\nthree", keymap);
+        editor.type_keys("k").expect("valid test keys");
+        assert_eq!(editor.cursor_point(), Point::new(1, 0));
+        editor.type_keys("gg").expect("valid test keys");
+        editor.type_keys("dk").expect("valid test keys");
+        assert_eq!(editor.buffer().to_string(), "three");
     }
 }

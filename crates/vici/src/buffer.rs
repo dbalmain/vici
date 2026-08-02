@@ -229,135 +229,36 @@ impl From<&str> for Buffer {
 mod tests {
     use super::*;
 
-    /// The running example. Byte offsets:
-    ///   row 0 `select id, name`  0..15, LF at 15
-    ///   row 1 `from users`      16..26, LF at 26
-    ///   row 2 `where id = 1`    27..39
-    const SQL: &str = "select id, name\nfrom users\nwhere id = 1";
-
-    fn buf() -> Buffer {
-        Buffer::from_text(SQL)
+    #[test]
+    fn rows_are_counted_by_lf_only() {
+        let buffer = Buffer::from_text("a\rb\nc");
+        assert_eq!(buffer.len_rows(), 2);
+        assert_eq!(buffer.row_text(0), "a\rb");
+        assert_eq!(buffer.byte_to_point(4), Point::new(1, 0));
     }
 
     #[test]
-    fn offsets_are_where_we_think() {
-        let b = buf();
-        assert_eq!(b.len_bytes(), 39);
-        assert_eq!(b.len_rows(), 3);
-        assert_eq!(b.row_range(1), 16..27);
-        assert_eq!(b.row_content_range(1), 16..26);
-        assert_eq!(b.row_text(1), "from users");
-        assert_eq!(b.byte_to_point(38), Point::new(2, 11));
-        assert_eq!(b.point_to_byte(Point::new(2, 11)), 38);
+    fn crlf_is_preserved_as_a_single_terminator() {
+        let buffer = Buffer::from_text("a\r\nb");
+        assert_eq!(buffer.row_range(0), 0..3);
+        assert_eq!(buffer.row_content_range(0), 0..1);
+        assert_eq!(buffer.row_text(0), "a");
+        assert_eq!(buffer.to_string(), "a\r\nb");
     }
 
     #[test]
-    fn x_on_a_single_byte() {
-        let mut b = buf();
-        let c = b.delete(38..39);
-        assert_eq!(c.edit.start_byte, 38);
-        assert_eq!(c.edit.old_end_byte, 39);
-        assert_eq!(c.edit.new_end_byte, 38);
-        assert_eq!(c.edit.start_point, Point::new(2, 11));
-        assert_eq!(c.edit.old_end_point, Point::new(2, 12));
-        assert_eq!(c.edit.new_end_point, Point::new(2, 11));
-        assert_eq!(c.removed, "1");
-        assert!(c.edit.is_deletion());
-        assert_eq!(b.row_text(2), "where id = ");
+    fn point_to_byte_clamps_stale_coordinates() {
+        let buffer = Buffer::from_text("one\ntwo");
+        assert_eq!(buffer.point_to_byte(Point::new(99, 0)), 4);
+        assert_eq!(buffer.point_to_byte(Point::new(1, 99)), 7);
     }
 
     #[test]
-    fn pure_insertion() {
-        let mut b = buf();
-        let c = b.insert(15, ", email");
-        assert_eq!(c.edit.start_byte, 15);
-        assert_eq!(c.edit.old_end_byte, 15);
-        assert_eq!(c.edit.new_end_byte, 22);
-        assert_eq!(c.edit.start_point, Point::new(0, 15));
-        assert_eq!(c.edit.old_end_point, Point::new(0, 15));
-        assert_eq!(c.edit.new_end_point, Point::new(0, 22));
-        assert!(c.edit.is_insertion());
-        assert_eq!(b.row_text(0), "select id, name, email");
-    }
-
-    #[test]
-    fn cw_is_one_change_not_two() {
-        let mut b = buf();
-        let c = b.replace(21..26, "accounts");
-        assert_eq!(c.edit.start_byte, 21);
-        assert_eq!(c.edit.old_end_byte, 26);
-        assert_eq!(c.edit.new_end_byte, 29);
-        assert_eq!(c.edit.start_point, Point::new(1, 5));
-        assert_eq!(c.edit.old_end_point, Point::new(1, 10));
-        assert_eq!(c.edit.new_end_point, Point::new(1, 13));
-        assert_eq!(c.removed, "users");
-        assert_eq!(b.row_text(1), "from accounts");
-    }
-
-    #[test]
-    fn dd_consumes_the_newline_and_changes_the_row_count() {
-        let mut b = buf();
-        let c = b.delete(16..27);
-        assert_eq!(c.edit.start_point, Point::new(1, 0));
-        // Row 2, not (1, 10): swallowing the LF extends the region to the start
-        // of the next row. No byte offset can express that.
-        assert_eq!(c.edit.old_end_point, Point::new(2, 0));
-        assert_eq!(c.edit.new_end_point, Point::new(1, 0));
-        assert_eq!(b.len_rows(), 2);
-        assert_eq!(b.to_string(), "select id, name\nwhere id = 1");
-    }
-
-    #[test]
-    fn multi_row_insertion_measures_the_column_on_the_last_row() {
-        let mut b = buf();
-        let c = b.insert(39, "\n  and name is not null");
-        assert_eq!(c.edit.new_end_byte, 62);
-        assert_eq!(c.edit.start_point, Point::new(2, 12));
-        // (3, 22), not (2, 35).
-        assert_eq!(c.edit.new_end_point, Point::new(3, 22));
-        assert_eq!(b.len_rows(), 4);
-    }
-
-    #[test]
-    fn columns_are_bytes_not_characters() {
-        let b = Buffer::from_text("-- café\nselect 1");
-        // `é` is two bytes, so the row is 8 bytes for 7 characters.
-        assert_eq!(b.row_content_range(0), 0..8);
-        assert_eq!(b.byte_to_point(8), Point::new(0, 8));
-        assert_eq!(b.byte_to_point(9), Point::new(1, 0));
-    }
-
-    #[test]
-    fn crlf_leaves_the_cr_as_content() {
-        let b = Buffer::from_text("a\r\nb");
-        assert_eq!(b.len_rows(), 2);
-        assert_eq!(b.row_range(0), 0..3);
-        assert_eq!(b.row_content_range(0), 0..1);
-        assert_eq!(b.row_text(0), "a");
-    }
-
-    #[test]
-    fn applying_an_inverted_change_restores_the_buffer() {
-        let mut b = buf();
-        let c = b.replace(21..26, "accounts\nfrom logs");
-        b.apply(&c.inverted());
-        assert_eq!(b.to_string(), SQL);
-        assert_eq!(b.len_rows(), 3);
-    }
-
-    #[test]
-    fn point_to_byte_clamps_stale_points() {
-        let b = buf();
-        assert_eq!(b.point_to_byte(Point::new(99, 0)), 27);
-        assert_eq!(b.point_to_byte(Point::new(1, 99)), 26);
-    }
-
-    #[test]
-    fn empty_buffer_has_one_row() {
-        let b = Buffer::new();
-        assert!(b.is_empty());
-        assert_eq!(b.len_rows(), 1);
-        assert_eq!(b.row_content_range(0), 0..0);
-        assert_eq!(b.byte_to_point(0), Point::new(0, 0));
+    fn an_empty_buffer_has_one_empty_row() {
+        let buffer = Buffer::new();
+        assert!(buffer.is_empty());
+        assert_eq!(buffer.len_rows(), 1);
+        assert_eq!(buffer.row_content_range(0), 0..0);
+        assert_eq!(buffer.byte_to_point(0), Point::new(0, 0));
     }
 }

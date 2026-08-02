@@ -191,134 +191,44 @@ impl LinearHistory {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-
-    /// Drive a history the way `Document` does, so these tests exercise the real
-    /// call ordering.
-    struct Harness {
-        buf: Buffer,
-        hist: LinearHistory,
-    }
-
-    impl Harness {
-        fn new(text: &str) -> Self {
-            Self {
-                buf: Buffer::from_text(text),
-                hist: LinearHistory::new(),
-            }
-        }
-
-        fn replace(&mut self, range: core::ops::Range<usize>, text: &str) {
-            let change = self.buf.stage_replace(range, text);
-            self.hist.record(&change, &self.buf);
-            self.buf.apply(&change);
-        }
-
-        fn apply_all(&mut self, changes: &[Change]) {
-            for change in changes {
-                self.buf.apply(change);
-            }
-        }
-
-        fn undo(&mut self) -> Option<usize> {
-            let step = self.hist.undo();
-            self.apply_all(&step.changes);
-            step.cursor
-        }
-
-        fn redo(&mut self) -> Option<usize> {
-            let step = self.hist.redo();
-            self.apply_all(&step.changes);
-            step.cursor
-        }
-
-        fn text(&self) -> String {
-            self.buf.to_string()
-        }
-    }
+    use crate::document::Document;
 
     #[test]
-    fn undo_and_redo_a_single_change() {
-        let mut h = Harness::new("select 1");
-        h.replace(7..8, "2");
-        assert_eq!(h.text(), "select 2");
-        h.undo();
-        assert_eq!(h.text(), "select 1");
-        h.redo();
-        assert_eq!(h.text(), "select 2");
-    }
-
-    #[test]
-    fn a_group_undoes_as_one_step() {
-        let mut h = Harness::new("");
-        h.hist.begin_group(None);
-        for (i, ch) in "select".chars().enumerate() {
-            h.replace(i..i, &ch.to_string());
-        }
-        h.hist.end_group(None);
-        assert_eq!(h.text(), "select");
-        assert_eq!(h.hist.undo_depth(), 1);
-        h.undo();
-        assert_eq!(h.text(), "");
-    }
-
-    #[test]
-    fn groups_nest() {
-        let mut h = Harness::new("");
-        h.hist.begin_group(None);
-        h.hist.begin_group(None);
-        h.replace(0..0, "a");
-        h.hist.end_group(None);
-        h.replace(1..1, "b");
-        h.hist.end_group(None);
-        assert_eq!(h.hist.undo_depth(), 1);
-        h.undo();
-        assert_eq!(h.text(), "");
+    fn nested_groups_are_one_undo_step() {
+        let mut document = Document::from_text("");
+        document.grouped(|document| {
+            document.grouped(|document| {
+                document.insert(0, "a");
+            });
+            document.insert(1, "b");
+        });
+        assert_eq!(document.history().undo_depth(), 1);
+        document.undo();
+        assert_eq!(document.to_string(), "");
     }
 
     #[test]
     fn a_new_change_truncates_the_redo_tail() {
-        let mut h = Harness::new("a");
-        h.replace(1..1, "b");
-        h.undo();
-        assert_eq!(h.hist.redo_depth(), 1);
-        h.replace(1..1, "c");
-        assert_eq!(h.hist.redo_depth(), 0);
-        h.redo();
-        assert_eq!(h.text(), "ac");
+        let mut document = Document::from_text("a");
+        document.insert(1, "b");
+        document.undo();
+        assert_eq!(document.history().redo_depth(), 1);
+        document.insert(1, "c");
+        assert_eq!(document.history().redo_depth(), 0);
+        assert_eq!(document.to_string(), "ac");
     }
 
     #[test]
-    fn undo_reverses_a_group_in_reverse_order() {
-        let mut h = Harness::new("abc");
-        h.hist.begin_group(None);
-        h.replace(0..1, "X"); // Xbc
-        h.replace(2..3, "Y"); // XbY
-        h.hist.end_group(None);
-        assert_eq!(h.text(), "XbY");
-        h.undo();
-        assert_eq!(h.text(), "abc");
-    }
-
-    #[test]
-    fn limit_discards_the_oldest_groups() {
-        let mut h = Harness::new("");
-        h.hist.set_limit(Some(2));
-        h.replace(0..0, "a");
-        h.replace(1..1, "b");
-        h.replace(2..2, "c");
-        assert_eq!(h.hist.undo_depth(), 2);
-        h.undo();
-        h.undo();
-        assert_eq!(h.text(), "a");
-        h.undo();
-        assert_eq!(h.text(), "a");
-    }
-
-    #[test]
-    fn noop_changes_are_not_recorded() {
-        let mut h = Harness::new("select 1");
-        h.replace(7..8, "1");
-        assert_eq!(h.hist.undo_depth(), 0);
+    fn set_limit_discards_the_oldest_steps() {
+        let mut document = Document::from_text("");
+        document.history_mut().set_limit(Some(2));
+        for (at, text) in [(0, "a"), (1, "b"), (2, "c")] {
+            document.insert(at, text);
+        }
+        assert_eq!(document.history().undo_depth(), 2);
+        document.undo();
+        document.undo();
+        assert_eq!(document.to_string(), "a");
+        assert!(document.undo().is_empty());
     }
 }

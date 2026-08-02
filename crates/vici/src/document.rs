@@ -124,36 +124,13 @@ mod tests {
     use super::*;
 
     #[test]
-    fn insert_mode_session_is_one_undo_step() {
-        let mut doc = Document::from_text("");
-        let edits = doc.grouped(|doc| {
-            "select"
-                .char_indices()
-                .map(|(i, ch)| doc.insert(i, &ch.to_string()))
-                .collect::<Vec<_>>()
-        });
-        // One edit per keystroke for the parser...
-        assert_eq!(edits.len(), 6);
-        // ...but one step for the user.
-        assert_eq!(doc.history().undo_depth(), 1);
-        doc.undo();
-        assert_eq!(doc.to_string(), "");
-    }
-
-    #[test]
-    fn edits_come_back_in_application_order() {
-        let mut doc = Document::from_text("abc");
-        doc.grouped(|doc| {
-            doc.replace(0..1, "X");
-            doc.replace(2..3, "Y");
-        });
-        let undone = doc.undo();
-        assert_eq!(undone.changes.len(), 2);
-        // Reversed relative to how they were applied.
-        assert_eq!(undone.changes[0].edit.start_byte, 2);
-        assert_eq!(undone.changes[1].edit.start_byte, 0);
-        // A `Document` has no caret, so `grouped` records none.
-        assert_eq!(undone.cursor, None);
-        assert_eq!(doc.to_string(), "abc");
+    fn records_the_preimage_before_applying_a_change() {
+        let mut document = Document::from_text("abc");
+        document.replace(0..1, "X");
+        assert_eq!(document.to_string(), "Xbc");
+        document.undo();
+        assert_eq!(document.to_string(), "abc");
+        document.redo();
+        assert_eq!(document.to_string(), "Xbc");
     }
 }

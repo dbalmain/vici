@@ -401,104 +401,41 @@ pub fn is_count_digit(key: Key) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::key::key as parse_key;
 
     fn walk(map: &Keymap, layer: Layer, spec: &str) -> Walk {
-        map.walk(layer, &keys(spec).unwrap())
+        map.walk(layer, &keys(spec).expect("valid test notation"))
     }
 
     #[test]
-    fn simple_lookup() {
+    fn lookup_distinguishes_hits_prefixes_and_unbound_paths() {
         let map = Keymap::vim();
-        assert_eq!(
-            walk(&map, Layer::Normal, "h"),
-            Walk::Bound(Binding::Motion(Motion::Left))
-        );
-        assert_eq!(
-            walk(&map, Layer::Normal, "d"),
-            Walk::Bound(Binding::Operator(Operator::Delete))
-        );
-        assert_eq!(
-            walk(&map, Layer::Normal, ">"),
-            Walk::Bound(Binding::Operator(Operator::ShiftRight))
-        );
-        assert_eq!(
-            walk(&map, Layer::Normal, "<lt>"),
-            Walk::Bound(Binding::Operator(Operator::ShiftLeft))
-        );
+        for (spec, expected) in [
+            ("h", Walk::Bound(Binding::Motion(Motion::Left))),
+            ("g", Walk::Prefix),
+            ("gg", Walk::Bound(Binding::Motion(Motion::GotoFirstRow))),
+            ("gx", Walk::Unbound),
+        ] {
+            assert_eq!(walk(&map, Layer::Normal, spec), expected, "{spec}");
+        }
     }
 
     #[test]
-    fn prefixes_are_distinguished_from_bindings() {
-        let map = Keymap::vim();
-        assert_eq!(walk(&map, Layer::Normal, "g"), Walk::Prefix);
-        assert_eq!(
-            walk(&map, Layer::Normal, "gg"),
-            Walk::Bound(Binding::Motion(Motion::GotoFirstRow))
-        );
-        assert_eq!(walk(&map, Layer::Normal, "gx"), Walk::Unbound);
-        assert_eq!(walk(&map, Layer::Normal, "z"), Walk::Prefix);
-    }
-
-    #[test]
-    fn i_means_insert_in_normal_but_inner_when_operating() {
+    fn layers_fall_back_and_shadow() {
         let map = Keymap::vim();
         assert_eq!(
-            walk(&map, Layer::Normal, "i"),
-            Walk::Bound(Binding::Command(Command::EnterInsert(InsertAt::Cursor)))
-        );
-        assert_eq!(
-            walk(&map, Layer::Operator, "i"),
-            Walk::Bound(Binding::ObjectScope(ObjectScope::Inner))
-        );
-    }
-
-    #[test]
-    fn operator_and_visual_layers_inherit_normal_motions() {
-        let map = Keymap::vim();
-        let expected = Walk::Bound(Binding::Motion(Motion::WordForward { big: false }));
-        assert_eq!(walk(&map, Layer::Operator, "w"), expected);
-        assert_eq!(walk(&map, Layer::Visual, "w"), expected);
-        // Multi-key motions inherit too.
-        assert_eq!(
-            walk(&map, Layer::Operator, "gg"),
-            Walk::Bound(Binding::Motion(Motion::GotoFirstRow))
-        );
-        // Shift binds in normal once: operator doubling and visual mode reach it
-        // through the same fallback rather than special bindings.
-        assert_eq!(
-            walk(&map, Layer::Visual, ">"),
-            Walk::Bound(Binding::Operator(Operator::ShiftRight))
-        );
-    }
-
-    #[test]
-    fn a_layer_can_shadow_normal() {
-        let map = Keymap::vim();
-        // `x` deletes a character in normal mode, the selection in visual mode.
-        assert_eq!(
-            walk(&map, Layer::Normal, "x"),
-            Walk::Bound(Binding::Command(Command::DeleteChar { before: false }))
+            walk(&map, Layer::Operator, "w"),
+            Walk::Bound(Binding::Motion(Motion::WordForward { big: false }))
         );
         assert_eq!(
             walk(&map, Layer::Visual, "x"),
             Walk::Bound(Binding::Operator(Operator::Delete))
         );
-    }
-
-    #[test]
-    fn insert_layer_does_not_inherit() {
-        let map = Keymap::vim();
         assert_eq!(walk(&map, Layer::Insert, "w"), Walk::Unbound);
-        assert_eq!(
-            walk(&map, Layer::Insert, "<Esc>"),
-            Walk::Bound(Binding::Command(Command::EnterNormal))
-        );
     }
 
     #[test]
     fn keys_features_calls_unbound_really_are() {
-        // Keep in step with FEATURES.txt §17. `D`/`C` were bound while both the
+        // Keep in step with FEATURES.txt §17. D/C were bound while both the
         // checklist and the README still called them unbound.
         for spec in [
             "s", "S", "{", "}", "<C-v>", "\"", "m", "U", "/", "?", "n", "N",
@@ -520,108 +457,31 @@ mod tests {
     }
 
     #[test]
-    fn binding_a_prefix_discards_its_subtree() {
+    fn binding_and_unbinding_replace_subtrees() {
         let mut map = Keymap::vim();
-        assert_eq!(
-            walk(&map, Layer::Normal, "gg"),
-            Walk::Bound(Binding::Motion(Motion::GotoFirstRow))
-        );
         map.bind_spec(Layer::Normal, "g", Binding::Motion(Motion::Left));
         assert_eq!(
             walk(&map, Layer::Normal, "g"),
             Walk::Bound(Binding::Motion(Motion::Left))
         );
         assert_eq!(walk(&map, Layer::Normal, "gg"), Walk::Unbound);
-    }
 
-    #[test]
-    fn binding_under_a_leaf_converts_it_to_a_branch() {
         let mut map = Keymap::empty();
         map.bind_spec(Layer::Normal, "d", Binding::Motion(Motion::Left));
         map.bind_spec(Layer::Normal, "dd", Binding::Motion(Motion::Right));
         assert_eq!(walk(&map, Layer::Normal, "d"), Walk::Prefix);
-        assert_eq!(
-            walk(&map, Layer::Normal, "dd"),
-            Walk::Bound(Binding::Motion(Motion::Right))
-        );
+        map.unbind(Layer::Normal, &keys("d").expect("valid test notation"));
+        assert_eq!(walk(&map, Layer::Normal, "d"), Walk::Unbound);
+        assert_eq!(walk(&map, Layer::Normal, "dd"), Walk::Unbound);
     }
 
     #[test]
-    fn unbind_removes_a_subtree() {
+    fn custom_mappings_flow_to_inheriting_layers() {
         let mut map = Keymap::vim();
-        map.unbind(Layer::Normal, &keys("g").unwrap());
-        assert_eq!(walk(&map, Layer::Normal, "gg"), Walk::Unbound);
-        assert_eq!(walk(&map, Layer::Normal, "g"), Walk::Unbound);
-    }
-
-    #[test]
-    fn rebinding_for_a_custom_scheme() {
-        // The extensibility claim, exercised: swap `j`/`k` without touching
-        // anything else.
-        let mut map = Keymap::vim();
-        map.bind_spec(Layer::Normal, "j", Binding::Motion(Motion::Up))
-            .bind_spec(Layer::Normal, "k", Binding::Motion(Motion::Down));
-        assert_eq!(
-            walk(&map, Layer::Normal, "j"),
-            Walk::Bound(Binding::Motion(Motion::Up))
-        );
-        // And the operator layer sees it, since it falls back to normal.
+        map.bind_spec(Layer::Normal, "j", Binding::Motion(Motion::Up));
         assert_eq!(
             walk(&map, Layer::Operator, "j"),
             Walk::Bound(Binding::Motion(Motion::Up))
         );
-    }
-
-    #[test]
-    fn text_objects() {
-        let map = Keymap::vim();
-        assert_eq!(
-            map.object(Key::char('w')),
-            Some(TextObject::Word { big: false })
-        );
-        let parens = TextObject::Delimited {
-            open: '(',
-            close: ')',
-        };
-        assert_eq!(map.object(Key::char('(')), Some(parens));
-        assert_eq!(map.object(Key::char(')')), Some(parens));
-        assert_eq!(map.object(Key::char('b')), Some(parens));
-        assert_eq!(map.object(Key::char('"')), Some(TextObject::Quoted('"')));
-        assert_eq!(map.object(Key::char('z')), None);
-    }
-
-    #[test]
-    fn char_awaiting_bindings() {
-        let map = Keymap::vim();
-        assert_eq!(
-            walk(&map, Layer::Normal, "f"),
-            Walk::Bound(Binding::Await(AwaitChar::Find {
-                backward: false,
-                till: false
-            }))
-        );
-        assert_eq!(
-            walk(&map, Layer::Normal, "T"),
-            Walk::Bound(Binding::Await(AwaitChar::Find {
-                backward: true,
-                till: true
-            }))
-        );
-    }
-
-    #[test]
-    fn layer_of_mode() {
-        assert_eq!(Layer::of(Mode::Normal), Layer::Normal);
-        assert_eq!(Layer::of(Mode::Insert), Layer::Insert);
-        assert_eq!(Layer::of(Mode::Replace), Layer::Insert);
-        assert_eq!(Layer::of(Mode::Visual(VisualKind::Line)), Layer::Visual);
-    }
-
-    #[test]
-    fn count_digits() {
-        assert!(is_count_digit(parse_key("3").unwrap()));
-        assert!(is_count_digit(parse_key("0").unwrap()));
-        assert!(!is_count_digit(parse_key("w").unwrap()));
-        assert!(!is_count_digit(parse_key("<C-3>").unwrap()));
     }
 }

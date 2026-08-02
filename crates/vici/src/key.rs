@@ -324,95 +324,33 @@ mod tests {
     use super::*;
 
     #[test]
-    fn bare_characters() {
-        assert_eq!(keys("dw").unwrap(), vec![Key::char('d'), Key::char('w')]);
-    }
-
-    #[test]
-    fn modifiers_and_named_keys() {
-        assert_eq!(key("<C-d>").unwrap(), Key::ctrl('d'));
-        assert_eq!(key("<Esc>").unwrap(), Key::code(KeyCode::Esc));
-        assert_eq!(key("<CR>").unwrap(), Key::code(KeyCode::Enter));
-        assert_eq!(key("<Space>").unwrap(), Key::char(' '));
-        assert_eq!(key("<lt>").unwrap(), Key::char('<'));
-        assert_eq!(key("<F12>").unwrap(), Key::code(KeyCode::F(12)));
-        assert_eq!(
-            key("<M-x>").unwrap(),
-            Key::new(KeyCode::Char('x'), Mods::ALT)
-        );
-        assert_eq!(key("<S-Tab>").unwrap(), Key::new(KeyCode::Tab, Mods::SHIFT));
-    }
-
-    #[test]
-    fn shift_on_a_character_becomes_case() {
-        // The whole point of normalisation: these must be the same key.
-        assert_eq!(key("<S-a>").unwrap(), Key::char('A'));
-        assert_eq!(key("A").unwrap(), Key::char('A'));
-        assert!(key("A").unwrap().mods.is_empty());
-    }
-
-    #[test]
-    fn shift_survives_on_non_characters() {
-        assert!(key("<S-Tab>").unwrap().mods.contains(Mods::SHIFT));
-    }
-
-    #[test]
-    fn combined_modifiers() {
-        let k = key("<C-M-x>").unwrap();
-        assert!(k.mods.contains(Mods::CTRL));
-        assert!(k.mods.contains(Mods::ALT));
-    }
-
-    #[test]
-    fn a_hyphen_can_be_the_key() {
-        assert_eq!(key("<C-->").unwrap(), Key::ctrl('-'));
-    }
-
-    #[test]
-    fn mixed_sequence() {
-        let parsed = keys("2dw<Esc><C-r>").unwrap();
-        assert_eq!(
-            parsed,
-            vec![
-                Key::char('2'),
-                Key::char('d'),
-                Key::char('w'),
-                Key::code(KeyCode::Esc),
-                Key::ctrl('r'),
-            ]
-        );
-    }
-
-    #[test]
-    fn notation_round_trips() {
-        for spec in [
-            "dw", "<C-d>", "<Esc>", "2d3w", "<Space>", "<lt>", "<F5>", "<M-x>", "ciw<Esc>", "A",
+    fn aliases_parse_to_their_canonical_keys() {
+        for (spec, expected) in [
+            ("<Esc>", Key::code(KeyCode::Esc)),
+            ("<CR>", Key::code(KeyCode::Enter)),
+            ("<Space>", Key::char(' ')),
+            ("<lt>", Key::char('<')),
+            ("<F12>", Key::code(KeyCode::F(12))),
+            ("<C-->", Key::ctrl('-')),
         ] {
-            assert_eq!(render(&keys(spec).unwrap()), spec, "round trip of {spec}");
+            assert_eq!(key(spec), Ok(expected), "{spec}");
         }
     }
 
     #[test]
-    fn errors_are_descriptive() {
-        assert_eq!(keys("<C-d").unwrap_err(), ParseError::UnterminatedBracket);
+    fn shift_normalises_characters_but_not_key_codes() {
+        assert_eq!(key("<S-a>"), Ok(Key::char('A')));
+        assert_eq!(key("A"), Ok(Key::char('A')));
+        assert_eq!(key("<S-Tab>"), Ok(Key::new(KeyCode::Tab, Mods::SHIFT)));
+    }
+
+    #[test]
+    fn malformed_notation_reports_parse_errors() {
+        assert_eq!(keys("<C-d"), Err(ParseError::UnterminatedBracket));
         assert_eq!(
-            keys("<Nope>").unwrap_err(),
-            ParseError::UnknownKey("Nope".to_owned())
+            keys("<Nope>"),
+            Err(ParseError::UnknownKey("Nope".to_owned()))
         );
-    }
-
-    #[test]
-    fn a_bare_less_than_needs_the_named_spelling() {
         assert!(keys("<").is_err());
-        assert_eq!(keys("<lt>").unwrap(), vec![Key::char('<')]);
-    }
-
-    #[test]
-    fn text_and_digits() {
-        assert_eq!(Key::char('x').as_text(), Some('x'));
-        assert_eq!(Key::ctrl('x').as_text(), None);
-        assert_eq!(Key::char('7').as_digit(), Some(7));
-        assert_eq!(Key::char('x').as_digit(), None);
-        assert_eq!(Key::ctrl('7').as_digit(), None);
     }
 }

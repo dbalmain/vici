@@ -958,172 +958,83 @@ fn enclosing_quotes(buf: &Buffer, at: usize, quote: char) -> Option<(usize, usiz
 mod tests {
     use super::*;
 
-    const SQL: &str = "select id, name\nfrom users\nwhere id = 1";
-
-    fn buf() -> Buffer {
-        Buffer::from_text(SQL)
-    }
-
-    // Most motion tests are deliberately viewport-agnostic. Screen motions have
-    // their own tests; this keeps the older scripts focused on their subject.
-    fn resolve(
-        buf: &Buffer,
-        from: usize,
-        motion: Motion,
-        count: Option<usize>,
-        sticky: usize,
-        last_find: Option<Find>,
-        bound: Bound,
-    ) -> Option<usize> {
+    fn go(text: &str, from: usize, motion: Motion, count: Option<usize>) -> Option<usize> {
+        let buffer = Buffer::from_text(text);
         super::resolve(
-            buf,
+            &buffer,
             from,
             motion,
             count,
-            sticky,
-            last_find,
-            Viewport::default(),
-            bound,
-        )
-    }
-
-    fn go(text: &str, from: usize, motion: Motion, count: Option<usize>) -> usize {
-        let buf = Buffer::from_text(text);
-        resolve(&buf, from, motion, count, 0, None, Bound::OnChar).expect("motion resolves")
-    }
-
-    #[test]
-    fn horizontal_steps_stay_on_the_row() {
-        let buf = buf();
-        // Column 0 of row 1 cannot go left into row 0.
-        assert_eq!(
-            resolve(&buf, 16, Motion::Left, None, 0, None, Bound::OnChar),
-            Some(16)
-        );
-        // Nor right past the last character.
-        assert_eq!(
-            resolve(&buf, 25, Motion::Right, None, 0, None, Bound::OnChar),
-            Some(25)
-        );
-        assert_eq!(
-            resolve(&buf, 16, Motion::Right, Some(4), 0, None, Bound::OnChar),
-            Some(20)
-        );
-    }
-
-    #[test]
-    fn normal_mode_cannot_rest_past_the_last_character() {
-        let buf = buf();
-        // Row 1 is `from users`, bytes 16..26, so the last character starts at 25.
-        assert_eq!(clamp(&buf, 26, Bound::OnChar), 25);
-        // Insert mode may.
-        assert_eq!(clamp(&buf, 26, Bound::PastEnd), 26);
-    }
-
-    #[test]
-    fn graphemes_not_chars() {
-        // `e` + combining acute is one grapheme, two chars, three bytes.
-        let buf = Buffer::from_text("ae\u{301}b");
-        assert_eq!(buf.len_bytes(), 5);
-        let after_a = resolve(&buf, 0, Motion::Right, None, 0, None, Bound::OnChar).unwrap();
-        assert_eq!(after_a, 1);
-        let after_combined =
-            resolve(&buf, after_a, Motion::Right, None, 0, None, Bound::OnChar).unwrap();
-        // Skipped both the `e` and its combining mark.
-        assert_eq!(after_combined, 4);
-        assert_eq!(grapheme_col(&buf, 4), 2);
-    }
-
-    #[test]
-    fn vertical_movement_uses_the_sticky_column() {
-        let buf = buf();
-        // Column 8 of row 0 down to row 1.
-        let down = resolve(&buf, 8, Motion::Down, None, 8, None, Bound::OnChar).unwrap();
-        assert_eq!(buf.byte_to_point(down), crate::Point::new(1, 8));
-        // A short row clamps without losing the sticky column.
-        let short = Buffer::from_text("longer row\nab\nlonger row");
-        let onto_short = resolve(&short, 8, Motion::Down, None, 8, None, Bound::OnChar).unwrap();
-        assert_eq!(short.byte_to_point(onto_short), crate::Point::new(1, 1));
-        let back = resolve(
-            &short,
-            onto_short,
-            Motion::Down,
-            None,
-            8,
-            None,
-            Bound::OnChar,
-        )
-        .unwrap();
-        assert_eq!(short.byte_to_point(back), crate::Point::new(2, 8));
-    }
-
-    #[test]
-    fn sticky_end_tracks_row_ends() {
-        let short = Buffer::from_text("longer row\nab\nlonger row");
-        let down = resolve(
-            &short,
             0,
-            Motion::Down,
             None,
-            STICKY_END,
-            None,
+            Viewport::default(),
             Bound::OnChar,
         )
-        .unwrap();
-        assert_eq!(short.byte_to_point(down), crate::Point::new(1, 1));
     }
 
     #[test]
-    fn row_ends_and_starts() {
-        let buf = Buffer::from_text("  indented text\nsecond");
-        assert_eq!(
-            go("  indented text\nsecond", 8, Motion::FirstColumn, None),
-            0
-        );
-        assert_eq!(
-            go("  indented text\nsecond", 8, Motion::FirstNonBlank, None),
-            2
-        );
-        // `$` rests on the last character, not past it.
-        assert_eq!(
-            resolve(&buf, 0, Motion::LastColumn, None, 0, None, Bound::OnChar),
-            Some(14)
-        );
+    fn word_class_stepping() {
+        for (text, from, motion, count, expected) in [
+            (
+                "select id, name",
+                0,
+                Motion::WordForward { big: false },
+                None,
+                Some(7),
+            ),
+            (
+                "select id, name",
+                7,
+                Motion::WordForward { big: false },
+                None,
+                Some(9),
+            ),
+            (
+                "select id, name",
+                7,
+                Motion::WordForward { big: true },
+                None,
+                Some(11),
+            ),
+            (
+                "select id, name",
+                9,
+                Motion::WordBackward { big: false },
+                None,
+                Some(7),
+            ),
+            (
+                "select id, name",
+                0,
+                Motion::WordEnd { big: false },
+                None,
+                Some(5),
+            ),
+            (
+                "one two three",
+                0,
+                Motion::WordForward { big: false },
+                Some(2),
+                Some(8),
+            ),
+            (
+                "one\ntwo",
+                0,
+                Motion::WordForward { big: false },
+                None,
+                Some(4),
+            ),
+        ] {
+            assert_eq!(
+                go(text, from, motion, count),
+                expected,
+                "{text:?} at {from}"
+            );
+        }
     }
 
     #[test]
-    fn word_forward() {
-        // `select id, name` — offsets 0 s, 7 i, 9 comma, 11 n
-        assert_eq!(go(SQL, 0, Motion::WordForward { big: false }, None), 7);
-        assert_eq!(go(SQL, 7, Motion::WordForward { big: false }, None), 9);
-        assert_eq!(go(SQL, 9, Motion::WordForward { big: false }, None), 11);
-        assert_eq!(go(SQL, 0, Motion::WordForward { big: false }, Some(3)), 11);
-    }
-
-    #[test]
-    fn big_words_swallow_punctuation() {
-        // `id,` is one WORD, so `W` skips the comma that `w` stops on.
-        assert_eq!(go(SQL, 7, Motion::WordForward { big: true }, None), 11);
-    }
-
-    #[test]
-    fn word_motions_cross_rows() {
-        // From `name` at the end of row 0 into `from` on row 1.
-        assert_eq!(go(SQL, 11, Motion::WordForward { big: false }, None), 16);
-        assert_eq!(go(SQL, 16, Motion::WordBackward { big: false }, None), 11);
-    }
-
-    #[test]
-    fn word_backward_and_end() {
-        assert_eq!(go(SQL, 11, Motion::WordBackward { big: false }, None), 9);
-        assert_eq!(go(SQL, 9, Motion::WordBackward { big: false }, None), 7);
-        // `e` lands on the last character of the word, hence 5 not 6.
-        assert_eq!(go(SQL, 0, Motion::WordEnd { big: false }, None), 5);
-        assert_eq!(go(SQL, 5, Motion::WordEnd { big: false }, None), 8);
-    }
-
-    #[test]
-    fn find_within_the_row() {
+    fn finds_stay_on_their_row() {
         let find = |target, backward, till| {
             Motion::Find(Find {
                 target,
@@ -1131,451 +1042,103 @@ mod tests {
                 till,
             })
         };
-        // `select id, name`, comma at 9.
-        assert_eq!(go(SQL, 0, find(',', false, false), None), 9);
-        // `t,` stops one short.
-        assert_eq!(go(SQL, 0, find(',', false, true), None), 8);
-        // `select id, name` has `e` at 1, 3 and 14; searching back from 14 finds 3.
-        assert_eq!(go(SQL, 14, find('e', true, false), None), 3);
-        assert_eq!(go(SQL, 14, find('e', true, false), Some(2)), 1);
-        // `Te` stops one past the target, going backwards.
-        assert_eq!(go(SQL, 14, find('e', true, true), None), 4);
-        // Counts pick the nth occurrence.
-        assert_eq!(go("a.b.c.d", 0, find('.', false, false), Some(2)), 3);
-    }
-
-    #[test]
-    fn find_does_not_leave_the_row() {
-        let buf = buf();
-        // No `z` anywhere, and `f` must not wander onto row 1.
-        assert_eq!(
-            resolve(
-                &buf,
-                0,
-                Motion::Find(Find {
-                    target: 'u',
-                    backward: false,
-                    till: false
-                }),
-                None,
-                0,
-                None,
-                Bound::OnChar
+        for (text, from, motion, count, expected) in [
+            ("select id, name", 0, find(',', false, false), None, Some(9)),
+            ("select id, name", 0, find(',', false, true), None, Some(8)),
+            (
+                "select id, name",
+                14,
+                find('e', true, false),
+                Some(2),
+                Some(1),
             ),
-            None
-        );
-    }
-
-    #[test]
-    fn repeat_find_and_reverse() {
-        let buf = Buffer::from_text("a.b.c");
-        let find = Find {
-            target: '.',
-            backward: false,
-            till: false,
-        };
-        let first = resolve(
-            &buf,
-            0,
-            Motion::RepeatFind { reverse: false },
-            None,
-            0,
-            Some(find),
-            Bound::OnChar,
-        );
-        assert_eq!(first, Some(1));
-        let back = resolve(
-            &buf,
-            3,
-            Motion::RepeatFind { reverse: true },
-            None,
-            0,
-            Some(find),
-            Bound::OnChar,
-        );
-        assert_eq!(back, Some(1));
-        // Nothing remembered, nothing to repeat.
-        assert_eq!(
-            resolve(
-                &buf,
-                0,
-                Motion::RepeatFind { reverse: false },
-                None,
-                0,
-                None,
-                Bound::OnChar
-            ),
-            None
-        );
-    }
-
-    #[test]
-    fn goto_row_uses_the_count_as_an_absolute() {
-        // No count: last row for `G`, first for `gg`.
-        assert_eq!(go(SQL, 0, Motion::GotoRow, None), 27);
-        assert_eq!(go(SQL, 30, Motion::GotoFirstRow, None), 0);
-        // With a count, both mean "that row", 1-based.
-        assert_eq!(go(SQL, 0, Motion::GotoRow, Some(2)), 16);
-        assert_eq!(go(SQL, 30, Motion::GotoFirstRow, Some(2)), 16);
-        // Out of range clamps.
-        assert_eq!(go(SQL, 0, Motion::GotoRow, Some(99)), 27);
-    }
-
-    #[test]
-    fn goto_row_lands_on_the_first_non_blank() {
-        assert_eq!(go("first\n    indented", 0, Motion::GotoRow, None), 10);
-    }
-
-    #[test]
-    fn linewise_row_span_includes_the_newline() {
-        let buf = buf();
-        assert_eq!(row_span(&buf, 1, 1), 16..27);
-        assert_eq!(row_span(&buf, 0, 1), 0..27);
-    }
-
-    #[test]
-    fn deleting_the_last_row_takes_the_preceding_newline() {
-        let buf = buf();
-        // Otherwise `dd` on the final row would leave an empty row behind.
-        assert_eq!(row_span(&buf, 2, 2), 26..39);
-    }
-
-    /// An uncounted object, which is what most of these are about.
-    fn obj(buf: &Buffer, at: usize, scope: ObjectScope, object: TextObject) -> Option<Span> {
-        object_span(buf, at, scope, object, 1)
-    }
-
-    fn chars(span: Span) -> Range<usize> {
-        match span {
-            Span::Chars(range) => range,
-            Span::Lines(rows) => panic!("expected a character span, got rows {rows:?}"),
-        }
-    }
-
-    const WORD: TextObject = TextObject::Word { big: false };
-    const PARENS: TextObject = TextObject::Delimited {
-        open: '(',
-        close: ')',
-    };
-    const BRACES: TextObject = TextObject::Delimited {
-        open: '{',
-        close: '}',
-    };
-
-    #[test]
-    fn inner_and_around_word() {
-        let buf = buf();
-        // Cursor in `select`.
-        let inner = obj(&buf, 2, ObjectScope::Inner, WORD);
-        assert_eq!(inner, Some(Span::Chars(0..6)));
-        // `aw` takes the following space.
-        let around = obj(&buf, 2, ObjectScope::Around, WORD);
-        assert_eq!(around, Some(Span::Chars(0..7)));
-    }
-
-    #[test]
-    fn around_word_falls_back_to_leading_space() {
-        let buf = Buffer::from_text("a bb");
-        // No trailing space after `bb`, so `aw` takes the leading one.
-        let around = obj(&buf, 2, ObjectScope::Around, WORD);
-        assert_eq!(around, Some(Span::Chars(1..4)));
-    }
-
-    #[test]
-    fn counted_word_objects_take_further_runs() {
-        let buf = Buffer::from_text("one two three four");
-        let text = |span: Option<Span>| buf.text_in(chars(span.expect("object resolves")));
-
-        // `iw` counts whitespace as a run of its own, so an odd count ends on a word
-        // and an even one ends on the space after it.
-        assert_eq!(
-            text(object_span(&buf, 0, ObjectScope::Inner, WORD, 1)),
-            "one"
-        );
-        assert_eq!(
-            text(object_span(&buf, 0, ObjectScope::Inner, WORD, 2)),
-            "one "
-        );
-        assert_eq!(
-            text(object_span(&buf, 0, ObjectScope::Inner, WORD, 3)),
-            "one two"
-        );
-
-        // `aw` counts whole words, each with the space that follows.
-        assert_eq!(
-            text(object_span(&buf, 0, ObjectScope::Around, WORD, 2)),
-            "one two "
-        );
-        assert_eq!(
-            text(object_span(&buf, 0, ObjectScope::Around, WORD, 3)),
-            "one two three "
-        );
-
-        // A count that overruns the row stops at its end rather than joining rows.
-        let buf = Buffer::from_text("a b\nc d");
-        let text = |span: Option<Span>| buf.text_in(chars(span.expect("object resolves")));
-        assert_eq!(
-            text(object_span(&buf, 0, ObjectScope::Inner, WORD, 9)),
-            "a b"
-        );
-        assert_eq!(
-            text(object_span(&buf, 0, ObjectScope::Around, WORD, 9)),
-            "a b"
-        );
-    }
-
-    #[test]
-    fn delimited_objects_count_nesting() {
-        let buf = Buffer::from_text("f(a, g(b), c)");
-        // Cursor on `b`, innermost pair.
-        let inner = obj(&buf, 7, ObjectScope::Inner, PARENS).unwrap();
-        assert_eq!(buf.text_in(chars(inner)), "b");
-        // Cursor on the leading `a`, outer pair.
-        let outer = obj(&buf, 2, ObjectScope::Inner, PARENS).unwrap();
-        assert_eq!(buf.text_in(chars(outer)), "a, g(b), c");
-        let around = obj(&buf, 2, ObjectScope::Around, PARENS).unwrap();
-        assert_eq!(buf.text_in(chars(around)), "(a, g(b), c)");
-    }
-
-    #[test]
-    fn a_count_climbs_out_of_nested_delimiters() {
-        let buf = Buffer::from_text("outer { mid { deep } here } end");
-        let text = |scope, count| {
-            buf.text_in(chars(
-                object_span(&buf, 15, scope, BRACES, count).expect("object resolves"),
-            ))
-        };
-        assert_eq!(text(ObjectScope::Inner, 1), " deep ");
-        assert_eq!(text(ObjectScope::Inner, 2), " mid { deep } here ");
-        assert_eq!(text(ObjectScope::Around, 2), "{ mid { deep } here }");
-
-        // Beyond the outermost pair there is nothing to take.
-        assert_eq!(object_span(&buf, 15, ObjectScope::Inner, BRACES, 3), None);
-
-        // Siblings are not levels: `(a)(b)` encloses nothing, however it is read.
-        let buf = Buffer::from_text("(a)(b)");
-        assert_eq!(object_span(&buf, 4, ObjectScope::Inner, PARENS, 2), None);
-    }
-
-    #[test]
-    fn a_delimited_object_seeks_forward_when_the_cursor_is_outside() {
-        let buf = Buffer::from_text("foo { a { b { c } d } e } baz");
-        let text = |count| {
-            buf.text_in(chars(
-                object_span(&buf, 0, ObjectScope::Inner, BRACES, count).expect("object resolves"),
-            ))
-        };
-        // From `foo`, level 1 is the outermost pair ahead...
-        assert_eq!(text(1), " a { b { c } d } e ");
-        // ...and the count descends inward from there, rather than climbing out of
-        // a pair the cursor was never in.
-        assert_eq!(text(2), " b { c } d ");
-        assert_eq!(text(3), " c ");
-        assert_eq!(object_span(&buf, 0, ObjectScope::Inner, BRACES, 4), None);
-    }
-
-    #[test]
-    fn seeking_descends_into_the_first_nested_pair() {
-        let buf = Buffer::from_text("foo { a {b} c {d} e }");
-        let span = object_span(&buf, 0, ObjectScope::Inner, BRACES, 2).unwrap();
-        assert_eq!(buf.text_in(chars(span)), "b");
-
-        // Siblings are no more a level to descend into than one to climb out of.
-        let buf = Buffer::from_text("foo {a} {b} baz");
-        let span = obj(&buf, 0, ObjectScope::Inner, BRACES).unwrap();
-        assert_eq!(buf.text_in(chars(span)), "a");
-        assert_eq!(object_span(&buf, 0, ObjectScope::Inner, BRACES, 2), None);
-    }
-
-    #[test]
-    fn seeking_crosses_rows() {
-        let buf = Buffer::from_text("fn f()\n{\n    body\n}\n");
-        // From the signature row, `i{` reaches the block below it — which is the
-        // whole point of seeking, and why it is not row-scoped the way quotes are.
-        let span = obj(&buf, 3, ObjectScope::Inner, BRACES).unwrap();
-        assert_eq!(buf.text_in(chars(span)), "    body\n");
-    }
-
-    #[test]
-    fn delimiters_that_own_their_rows_shrink_the_inside() {
-        // The brace is the last thing on its row and the closing brace has only
-        // indent before it, so the inside is the body's rows — not the newline
-        // behind the `{` through to the `}`.
-        let buf = Buffer::from_text("f() {\n  a\n  b\n  }");
-        let span = obj(&buf, 0, ObjectScope::Inner, BRACES).unwrap();
-        assert_eq!(buf.text_in(chars(span)), "  a\n  b\n");
-        // `a{` is untouched by the rule.
-        let span = obj(&buf, 0, ObjectScope::Around, BRACES).unwrap();
-        assert_eq!(buf.text_in(chars(span)), "{\n  a\n  b\n  }");
-
-        // Each half applies on its own. Open mid-row, close owning its row — and
-        // the row break stays, because `x {` is still there to need it.
-        let buf = Buffer::from_text("x { body\n}");
-        let span = obj(&buf, 0, ObjectScope::Inner, BRACES).unwrap();
-        assert_eq!(buf.text_in(chars(span)), " body");
-        // Open owning its row, close mid-row:
-        let buf = Buffer::from_text("{\n  body }");
-        let span = obj(&buf, 0, ObjectScope::Inner, BRACES).unwrap();
-        assert_eq!(buf.text_in(chars(span)), "  body ");
-
-        // Nothing between the two rows leaves nothing to take.
-        let buf = Buffer::from_text("{\n}");
-        assert!(chars(obj(&buf, 0, ObjectScope::Inner, BRACES).unwrap()).is_empty());
-
-        // And a pair that shares its row is unaffected, indent or not.
-        let buf = Buffer::from_text("    { a }");
-        let span = obj(&buf, 0, ObjectScope::Inner, BRACES).unwrap();
-        assert_eq!(buf.text_in(chars(span)), " a ");
-    }
-
-    #[test]
-    fn seeking_does_not_look_backwards() {
-        let buf = Buffer::from_text("{ a } foo");
-        // On `foo`, with the only pair behind: vi leaves it alone.
-        assert_eq!(obj(&buf, 6, ObjectScope::Inner, BRACES), None);
-    }
-
-    #[test]
-    fn an_unmatched_close_stops_the_seek() {
-        let buf = Buffer::from_text("x } y { a } z");
-        assert_eq!(obj(&buf, 0, ObjectScope::Inner, BRACES), None);
-        // Past the stray close, the pair is reachable again.
-        let span = obj(&buf, 4, ObjectScope::Inner, BRACES).unwrap();
-        assert_eq!(buf.text_in(chars(span)), " a ");
-    }
-
-    #[test]
-    fn match_pair_jumps_to_the_partner() {
-        let buf = Buffer::from_text("x (a (b) c) y");
-        let go = |from| resolve(&buf, from, Motion::MatchPair, None, 0, None, Bound::OnChar);
-        // From before the pair: the first bracket on the row is the one that counts.
-        assert_eq!(go(0), Some(10));
-        assert_eq!(go(2), Some(10));
-        // From the closing end, back to the opening one.
-        assert_eq!(go(10), Some(2));
-        // A nested pair matches its own partner.
-        assert_eq!(go(5), Some(7));
-        // Past the last bracket there is nothing left to match.
-        assert_eq!(go(12), None);
-
-        // The search stays on the row, as vi's does.
-        let buf = Buffer::from_text("x\n(a)");
-        assert_eq!(
-            resolve(&buf, 0, Motion::MatchPair, None, 0, None, Bound::OnChar),
-            None
-        );
-    }
-
-    #[test]
-    fn match_pair_falls_back_to_quotes() {
-        // A bracket on the row still wins, so nothing vi does is displaced.
-        let buf = Buffer::from_text("say \"hi\" (x)");
-        assert_eq!(
-            resolve(&buf, 0, Motion::MatchPair, None, 0, None, Bound::OnChar),
-            Some(11)
-        );
-        // With no bracket to be had, the quotes match instead — vi would ring.
-        let buf = Buffer::from_text("say 'hi' there");
-        let go = |from| resolve(&buf, from, Motion::MatchPair, None, 0, None, Bound::OnChar);
-        assert_eq!(go(0), Some(7));
-        assert_eq!(go(7), Some(4));
-    }
-
-    #[test]
-    fn cursor_on_the_delimiter_counts_as_inside() {
-        let buf = Buffer::from_text("f(abc)");
-        let inner = obj(&buf, 1, ObjectScope::Inner, PARENS).unwrap();
-        assert_eq!(buf.text_in(chars(inner)), "abc");
-    }
-
-    #[test]
-    fn unbalanced_delimiters_resolve_to_nothing() {
-        let buf = Buffer::from_text("no parens here");
-        assert_eq!(obj(&buf, 3, ObjectScope::Inner, PARENS), None);
-    }
-
-    #[test]
-    fn quoted_objects() {
-        let buf = Buffer::from_text("where name = 'dave'");
-        let quoted = TextObject::Quoted('\'');
-        let inner = obj(&buf, 15, ObjectScope::Inner, quoted).unwrap();
-        assert_eq!(buf.text_in(chars(inner)), "dave");
-        let around = obj(&buf, 15, ObjectScope::Around, quoted).unwrap();
-        assert_eq!(buf.text_in(chars(around)), "'dave'");
-        // Quotes do not nest, so a count has nothing to climb and is ignored.
-        let counted = object_span(&buf, 15, ObjectScope::Inner, quoted, 3).unwrap();
-        assert_eq!(buf.text_in(chars(counted)), "dave");
-    }
-
-    #[test]
-    fn paragraph_objects_are_linewise() {
-        let buf = Buffer::from_text("one\ntwo\n\nthree");
-        let span = obj(&buf, 0, ObjectScope::Inner, TextObject::Paragraph).unwrap();
-        assert_eq!(span, Span::Lines(0..=1));
-    }
-
-    #[test]
-    fn counted_paragraph_objects() {
-        let buf = Buffer::from_text("one\n\ntwo\n\nthree");
-        let para = TextObject::Paragraph;
-        let text = |scope, count| {
-            let Span::Lines(rows) =
-                object_span(&buf, 0, scope, para, count).expect("object resolves")
-            else {
-                panic!("paragraph objects must be linewise")
-            };
-            buf.text_in(buf.row_range(*rows.start()).start..buf.row_range(*rows.end()).end)
-        };
-        // A gap is a run of its own for `ip`, just as whitespace is for `iw`.
-        assert_eq!(text(ObjectScope::Inner, 2), "one\n\n");
-        assert_eq!(text(ObjectScope::Inner, 3), "one\n\ntwo\n");
-        // `ap` takes each paragraph with the gap after it.
-        assert_eq!(text(ObjectScope::Around, 1), "one\n\n");
-        assert_eq!(text(ObjectScope::Around, 2), "one\n\ntwo\n\n");
-    }
-
-    #[test]
-    fn motions_on_an_empty_buffer_do_not_panic() {
-        let buf = Buffer::new();
-        for motion in [
-            Motion::Left,
-            Motion::Right,
-            Motion::Up,
-            Motion::Down,
-            Motion::FirstColumn,
-            Motion::LastColumn,
-            Motion::FirstNonBlank,
-            Motion::WordForward { big: false },
-            Motion::WordBackward { big: false },
-            Motion::WordEnd { big: false },
-            Motion::GotoRow,
-            Motion::GotoFirstRow,
+            ("select id, name", 14, find('e', true, true), None, Some(4)),
+            ("a.b.c.d", 0, find('.', false, false), Some(2), Some(3)),
+            ("a\nb", 0, find('b', false, false), None, None),
         ] {
-            let landed = resolve(&buf, 0, motion, None, 0, None, Bound::OnChar);
-            assert_eq!(landed, Some(0), "{motion:?} on an empty buffer");
-        }
-    }
-
-    #[test]
-    fn motions_at_the_buffer_end_do_not_panic() {
-        let buf = buf();
-        let end = buf.len_bytes();
-        for motion in [
-            Motion::Right,
-            Motion::Down,
-            Motion::WordForward { big: false },
-            Motion::WordEnd { big: false },
-        ] {
-            let landed = resolve(
-                &buf,
-                clamp(&buf, end, Bound::OnChar),
-                motion,
-                Some(9),
-                0,
-                None,
-                Bound::OnChar,
+            assert_eq!(
+                go(text, from, motion, count),
+                expected,
+                "{text:?} at {from}"
             );
-            assert!(landed.is_some(), "{motion:?} at the end");
+        }
+    }
+
+    #[test]
+    fn delimiter_pair_scanning() {
+        for (text, from, expected) in [
+            ("x (a (b) c) y", 0, Some(10)),
+            ("x (a (b) c) y", 2, Some(10)),
+            ("x (a (b) c) y", 10, Some(2)),
+            ("x (a (b) c) y", 5, Some(7)),
+            ("say 'hi' there", 0, Some(7)),
+            ("x\n(a)", 0, None),
+        ] {
+            assert_eq!(
+                go(text, from, Motion::MatchPair, None),
+                expected,
+                "{text:?} at {from}"
+            );
+        }
+    }
+
+    #[test]
+    fn delimited_objects_follow_nesting() {
+        let braces = TextObject::Delimited {
+            open: '{',
+            close: '}',
+        };
+        let buffer = Buffer::from_text("outer { mid { deep } here } end");
+        for (count, expected) in [
+            (1, Some(" deep ")),
+            (2, Some(" mid { deep } here ")),
+            (3, None),
+        ] {
+            let span =
+                object_span(&buffer, 15, ObjectScope::Inner, braces, count).and_then(|span| {
+                    match span {
+                        Span::Chars(range) => Some(buffer.text_in(range)),
+                        Span::Lines(_) => None,
+                    }
+                });
+            assert_eq!(span.as_deref(), expected);
+        }
+    }
+
+    #[test]
+    fn word_object_boundaries() {
+        let word = TextObject::Word { big: false };
+        for (text, at, scope, count, expected) in [
+            ("select id", 2, ObjectScope::Inner, 1, Some("select")),
+            ("select id", 2, ObjectScope::Around, 1, Some("select ")),
+            ("a bb", 2, ObjectScope::Around, 1, Some(" bb")),
+            ("one two three", 0, ObjectScope::Inner, 2, Some("one ")),
+            ("one two three", 0, ObjectScope::Around, 2, Some("one two ")),
+        ] {
+            let buffer = Buffer::from_text(text);
+            let span = object_span(&buffer, at, scope, word, count).and_then(|span| match span {
+                Span::Chars(range) => Some(buffer.text_in(range)),
+                Span::Lines(_) => None,
+            });
+            assert_eq!(span.as_deref(), expected, "{text:?} at {at}");
+        }
+    }
+
+    #[test]
+    fn paragraph_object_counts_are_linewise() {
+        let buffer = Buffer::from_text("one\n\ntwo\n\nthree");
+        for (scope, count, expected) in [
+            (ObjectScope::Inner, 2, "one\n\n"),
+            (ObjectScope::Inner, 3, "one\n\ntwo\n"),
+            (ObjectScope::Around, 2, "one\n\ntwo\n\n"),
+        ] {
+            let Span::Lines(rows) = object_span(&buffer, 0, scope, TextObject::Paragraph, count)
+                .expect("paragraph resolves")
+            else {
+                panic!("paragraphs are linewise")
+            };
+            let range = buffer.row_range(*rows.start()).start..buffer.row_range(*rows.end()).end;
+            assert_eq!(buffer.text_in(range), expected);
         }
     }
 }

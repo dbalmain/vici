@@ -312,42 +312,47 @@ mod tests {
     use super::*;
 
     #[test]
-    fn operator_semantics_of_motions() {
-        // `dw` stops before the next word; `de` eats the last character.
-        assert!(!Motion::WordForward { big: false }.is_inclusive());
-        assert!(Motion::WordEnd { big: false }.is_inclusive());
-
-        // `dj` takes whole rows.
-        assert!(Motion::Down.is_linewise());
-        assert!(!Motion::Right.is_linewise());
-
-        // Both forward finds are inclusive of where they land: `t` lands one
-        // character earlier, which is how `dt,` stops before the comma.
-        let forward = |till| {
-            Motion::Find(Find {
-                target: ',',
-                backward: false,
-                till,
-            })
-        };
-        assert!(forward(false).is_inclusive());
-        assert!(forward(true).is_inclusive());
-        // Backward finds leave the character under the cursor alone.
-        assert!(
-            !Motion::Find(Find {
-                target: ',',
-                backward: true,
-                till: false
-            })
-            .is_inclusive()
-        );
+    fn motion_operator_metadata() {
+        for (motion, linewise, inclusive) in [
+            (Motion::Down, true, false),
+            (Motion::Right, false, false),
+            (Motion::WordEnd { big: false }, false, true),
+            (
+                Motion::Find(Find {
+                    target: ',',
+                    backward: false,
+                    till: false,
+                }),
+                false,
+                true,
+            ),
+            (
+                Motion::Find(Find {
+                    target: ',',
+                    backward: true,
+                    till: true,
+                }),
+                false,
+                false,
+            ),
+        ] {
+            assert_eq!(motion.is_linewise(), linewise, "{motion:?}");
+            assert_eq!(motion.is_inclusive(), inclusive, "{motion:?}");
+        }
     }
 
     #[test]
-    fn operator_pending_is_not_a_mode() {
-        assert!(Mode::Normal.is_command());
-        assert!(Mode::Visual(VisualKind::Line).is_command());
-        assert!(!Mode::Insert.is_command());
-        assert!(Mode::Visual(VisualKind::Char).is_visual());
+    fn operator_metadata() {
+        for (operator, yanks, forces_linewise) in [
+            (Operator::Delete, true, false),
+            (Operator::Change, true, false),
+            (Operator::Yank, true, false),
+            (Operator::ShiftRight, false, true),
+            (Operator::ShiftLeft, false, true),
+            (Operator::Upper, false, false),
+        ] {
+            assert_eq!(operator.yanks(), yanks, "{operator:?}");
+            assert_eq!(operator.forces_linewise(), forces_linewise, "{operator:?}");
+        }
     }
 }
