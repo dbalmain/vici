@@ -81,8 +81,8 @@
 [x] t,  forward, stopping before it
 [x] F,  backward to a comma
 [x] T,  backward, stopping after it
-[ ] ;   repeat the last find
-[ ] ,   repeat it in reverse
+[x] ;   repeat the last find
+[x] ,   repeat it in reverse
 
 --------------------------------------------------------------
  5. COUNTS
@@ -124,15 +124,15 @@
     end with G$ and check — this used to leave one character.
 
  Case, over the same motions and objects:
-[ ] gUw  upper-case a word     [ ] guw  lower-case it
-[ ] g~w  swap case over a word
-[ ] 2gUw  two words            [ ] gU2w  the count either side
-[ ] gUiw  over a text object   [ ] gUi(  over a parens block
+[x] gUw  upper-case a word     [ ] guw  lower-case it
+[x] g~w  swap case over a word
+[x] 2gUw  two words            [ ] gU2w  the count either side
+[x] gUiw  over a text object   [ ] gUi(  over a parens block
 [ ] gUt,  over a find
       make this shout, then quieten it down again
-[ ] gUU  this whole row        [ ] gUgU  the long form
-[ ] guu  [ ] g~~  the same for lower and swap
-[ ] 2guu  this row and the next
+[x] gUU  this whole row        [ ] gUgU  the long form
+[x] guu  [x] g~~  the same for lower and swap
+[x] 2guu  this row and the next
 
     Case changes do not touch the register: yank something, then
     gUW, then p — you should get what you yanked. Watch reg[] in
@@ -161,12 +161,12 @@
  7A. SHIFT — host-configured indentation
 --------------------------------------------------------------
 
-[ ] >>  shift this row right       [ ] <<  shift it left
-[ ] 3>> shift this row and two more
-[ ] >j  shift this row and the next
-[ ] >ip shift a paragraph          [ ] >i{ shift a braces block
-[ ] Vj> shift a visual line selection
-[ ] >> then .  repeat the shift
+[x] >>  shift this row right       [x] <<  shift it left
+[x] 3>> shift this row and two more
+[x] >j  shift this row and the next
+[x] >ip shift a paragraph          [x] >i{ shift a braces block
+[x] Vj> shift a visual line selection
+[x] >> then .  repeat the shift
       one row to indent
       second row to indent
 
@@ -227,11 +227,11 @@
 
  Counts, which mean something different for each kind of object:
       outer { mid { deep } here } end
-[ ] di{   the innermost braces, from the cursor on `deep`
-[ ] 2di{  one level further out — a count climbs the nesting
-[ ] 2da{  the same, taking the braces with it
-[ ] 3di{  nothing to climb, so it rings the bell
-[ ] d2i{  the count works either side of the operator
+[x] di{   the innermost braces, from the cursor on `deep`
+[x] 2di{  one level further out — a count climbs the nesting
+[x] 2da{  the same, taking the braces with it
+[x] 3di{  nothing to climb, so it rings the bell
+[x] d2i{  the count works either side of the operator
 
     A count is the nesting level you want, counted from where you
     stand — so from *outside* a block it runs the other way:
@@ -241,15 +241,15 @@
 [ ] 2di{  on `outer {a} {b} end` — siblings are not a level
 
       one two three four
-[ ] 2diw  a word and the space after it — whitespace is a run
-[ ] 3diw  word, space, word
-[ ] 2daw  two whole words
-[ ] 9diw  stops at the row's end rather than joining rows
+[x] 2diw  a word and the space after it — whitespace is a run
+[x] 3diw  word, space, word
+[x] 2daw  two whole words
+[x] 9diw  stops at the row's end rather than joining rows
 
-[ ] 2dip  a paragraph and the gap after it
-[ ] 2dap  two paragraphs, each with its gap
-[ ] 2di"  quotes do not nest, so the count is ignored
-[ ] v2i{  a count extends a visual selection the same way
+[x] 2dip  a paragraph and the gap after it
+[x] 2dap  two paragraphs, each with its gap
+[x] 2di"  quotes do not nest, so the count is ignored
+[x] v2i{  a count extends a visual selection the same way
 
 --------------------------------------------------------------
  9. SINGLE-KEY EDITS
@@ -260,13 +260,13 @@
 [x] <Del> same
 [x] X    delete the character before it
 [x] rZ   replace one character with Z
-[ ] ~    swap case, and advance
-[ ] 3~   swap three
-[ ] J    join the next row onto this one
+[x] ~    swap case, and advance
+[x] 3~   swap three
+[x] J    join the next row onto this one
       join me
       to the row above
-[ ] p    put after      [ ] P    put before
-[ ] 2p   put twice
+[x] p    put after      [x] P    put before
+[x] 2p   put twice
 
     Yank a row with `yy` then `p`: it should land on a new row.
     Yank a word with `yw` then `p`: it should land inline.
@@ -277,9 +277,9 @@
  10. UNDO
 --------------------------------------------------------------
 
-[ ] u     undo
-[ ] <C-r> redo
-[ ] U     undo every change on the current row
+[x] u     undo
+[x] <C-r> redo
+[x] U     undo every change on the current row
       break this row repeatedly then press U
 
     An insert session is ONE undo step: type `ihello<Esc>` then
@@ -287,8 +287,8 @@
     log shows five separate edits. Both granularities at once is
     the whole point.
 
-[ ] U then u — the U itself is undoable
-[ ] U twice — toggles back
+[x] U then u — the U itself is undoable
+[x] U twice — toggles back
 
     U after a multi-row change is a no-op, not a fallback to `u`.
     Try `ddU`. This diverges from vi deliberately.
@@ -297,10 +297,10 @@
  11. DOT REPEAT
 --------------------------------------------------------------
 
-[ ] .    repeat the last change
+[x] .    repeat the last change
       repeat me and me and me and me
       ciwX<Esc> then w then . then w then .
-[ ] 3.   repeat three times
+[x] 3.   repeat three times
 
     `.` after an insert session replays the typed text.
     Note: `3.` replays the whole command three times rather than
@@ -310,10 +310,10 @@
  12. MACROS
 --------------------------------------------------------------
 
-[ ] qa   start recording into register a  (watch rec:@a)
-[ ] q    stop recording
-[ ] @a   play it back
-[ ] 3@a  play it three times
+[x] qa   start recording into register a  (watch rec:@a)
+[x] q    stop recording
+[x] @a   play it back
+[x] 3@a  play it three times
       aaa one
       bbb two
       ccc three
@@ -326,23 +326,23 @@
 --------------------------------------------------------------
 
       select some of this line and act on it
-[ ] v then motions — the highlight follows
-[ ] vd   delete the selection      [ ] vx  same
-[ ] vc   change it                 [ ] vs  same
-[ ] vy   yank it
-[ ] viw  extend to inner word
-[ ] va(  extend to a parens block
-[ ] v then V — switch granularity mid-selection
-[ ] V then j then d — delete whole rows
-[ ] <Esc> cancels without acting
+[x] v then motions — the highlight follows
+[x] vd   delete the selection      [ ] vx  same
+[x] vc   change it                 [ ] vs  same
+[x] vy   yank it
+[x] viw  extend to inner word
+[x] va(  extend to a parens block
+[x] v then V — switch granularity mid-selection
+[x] V then j then d — delete whole rows
+[x] <Esc> cancels without acting
 
     The selection includes the character under the cursor, so
     what you see is what gets deleted.
 
  Case, on the selection rather than one character:
-[ ] vwU  upper-case it     [ ] vwu  lower-case it
-[ ] v$~  swap case across the selection
-[ ] VjU  two whole rows
+[x] vwU  upper-case it     [ ] vwu  lower-case it
+[x] v$~  swap case across the selection
+[x] VjU  two whole rows
 [ ] vwgU  the operator form works here too
 
     `u` in visual mode is a case change, not undo — that is vi, and
@@ -389,13 +389,13 @@
  15. VIEWPORT
 --------------------------------------------------------------
 
-[ ] <C-d>  half page down   [ ] <C-u>  half page up
-[ ] <C-f>  page down        [ ] <C-b>  page up
-[ ] zz     centre the cursor row
-[ ] zt     cursor row to the top
-[ ] zb     cursor row to the bottom
-[ ] H      top visible row  [ ] M middle  [ ] L bottom
-[ ] 2H     second visible row      [ ] 2L second from bottom
+[x] <C-d>  half page down   [x] <C-u>  half page up
+[x] <C-f>  page down        [x] <C-b>  page up
+[x] zz     centre the cursor row
+[x] zt     cursor row to the top
+[x] zb     cursor row to the bottom
+[x] H      top visible row  [x] M middle  [x] L bottom
+[x] 2H     second visible row      [x] 2L second from bottom
 
     The core does not own the viewport. The harness reports its
     current top row and height whenever it draws; that lets page
