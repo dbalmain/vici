@@ -91,6 +91,8 @@ pub struct Editor<H: History = LinearHistory> {
     last_change: Vec<Key>,
     /// Keys accumulated while an insert session is open.
     change_keys: Option<Vec<Key>>,
+    /// Keys that have shaped the current visual selection, for `.` to replay.
+    visual_keys: Vec<Key>,
     recording: Option<(char, Vec<Key>)>,
     macros: BTreeMap<char, Vec<Key>>,
     replay_depth: usize,
@@ -134,6 +136,7 @@ impl<H: History> Editor<H> {
             last_find: None,
             last_change: Vec::new(),
             change_keys: None,
+            visual_keys: Vec::new(),
             recording: None,
             macros: BTreeMap::new(),
             replay_depth: 0,
@@ -325,7 +328,17 @@ impl<H: History> Editor<H> {
                 count,
                 keys: consumed,
             } => {
+                let was_visual = self.mode.is_visual();
                 let effects = self.run(command, count);
+                // Everything typed since the selection opened, so that `.` can
+                // replay the shape and not just the operator. The operator's own
+                // key is not among them: by the time it runs, visual mode is over.
+                if self.mode.is_visual() {
+                    if !was_visual {
+                        self.visual_keys.clear();
+                    }
+                    self.visual_keys.extend_from_slice(&consumed);
+                }
                 self.note_change(command, &consumed);
                 self.spend_one_shot(one_shot, effects)
             }
@@ -1254,6 +1267,19 @@ impl<H: History> Editor<H> {
     /// mode ends, so `.` after `ciwfoo<Esc>` replays the typed text too. One-shot
     /// changes record immediately.
     fn note_change(&mut self, command: Command, consumed: &[Key]) {
+        // A visual operator is only half of what happened: replaying a bare `>`
+        // would leave an operator pending for whatever gets typed next. The keys
+        // that opened and shaped the selection go in front of it, so `Vj>` repeats
+        // as `Vj>` — the same two rows, from wherever the caret now is.
+        let mut script = match command {
+            Command::Operate {
+                target: Target::Selection,
+                ..
+            } => core::mem::take(&mut self.visual_keys),
+            _ => Vec::new(),
+        };
+        script.extend_from_slice(consumed);
+
         match command {
             Command::EnterInsert(_)
             | Command::EnterReplace
@@ -1261,7 +1287,7 @@ impl<H: History> Editor<H> {
                 operator: Operator::Change,
                 ..
             } => {
-                self.change_keys = Some(consumed.to_vec());
+                self.change_keys = Some(script);
             }
             Command::EnterNormal => {
                 if let Some(script) = self.change_keys.take() {
@@ -1287,7 +1313,7 @@ impl<H: History> Editor<H> {
             | Command::SwapCase
                 if self.change_keys.is_none() =>
             {
-                self.last_change = consumed.to_vec();
+                self.last_change = script;
             }
             _ => {}
         }
@@ -1606,6 +1632,34 @@ mod tests {
         assert_eq!(ed.buffer().to_string(), "aa\nbb\nCC");
         assert_eq!(ed.cursor_point().row, 2);
         assert_eq!(editor("aa\nbb\ncc", "j2gUU").cursor_point().row, 1);
+    }
+
+    #[test]
+    fn percent_matches_the_pair_on_the_row() {
+        // Inclusive in both directions: `d%` takes both delimiters with it.
+        assert_eq!(typed("x (a (b) c) y", "f(d%"), "x  y");
+        assert_eq!(typed("x (a (b) c) y", "$F)d%"), "x  y");
+        // Quotes match where vi would ring, and a bracket still wins over them.
+        assert_eq!(typed("say 'hi' there", "d%"), " there");
+        assert_eq!(typed("say \"hi\" (x) end", "d%"), " end");
+        // With nothing to match, it rings rather than moving.
+        let mut ed = Editor::from_text("no brackets here");
+        assert_eq!(ed.type_keys("%").unwrap(), vec![Effect::Bell]);
+        assert_eq!(ed.cursor(), 0);
+    }
+
+    #[test]
+    fn dot_repeats_a_visual_operator() {
+        // The selection is replayed along with the operator, so the shape repeats
+        // instead of leaving a bare operator pending for the next keystroke.
+        assert_eq!(typed("a\nb\nc\nd", "Vj>jj."), "    a\n    b\n    c\n    d");
+        assert_eq!(typed("a\nb\nc\nd", "Vj>."), "        a\n        b\nc\nd");
+        assert_eq!(typed("a\nb\nc\nd\ne", "Vjd."), "e");
+        assert_eq!(typed("a\nb\nc\nd", "VjgUjj."), "A\nB\nC\nD");
+        // A change begun in visual mode still records the text typed into it.
+        assert_eq!(typed("one two three", "vwcX<Esc>w."), "Xwo X");
+        // Leaving visual mode without operating disturbs nothing.
+        assert_eq!(typed("one two", "dwv<Esc>."), "");
     }
 
     #[test]

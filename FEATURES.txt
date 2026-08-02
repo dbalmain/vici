@@ -84,6 +84,22 @@
 [x] ;   repeat the last find
 [x] ,   repeat it in reverse
 
+      call(one, [two, three], "four") and more
+[ ] %   from the start of the row — the first bracket's partner
+[ ] %   again — and back, from the closing bracket
+[ ] %   with the cursor inside the nested [ ]
+[ ] d%  takes both brackets and everything between
+
+    `%` stays on the row, as vi does, and looks for a bracket
+    first — so `("four")` matches the parens, not the quotes.
+    With no bracket on the row at all it matches a quote pair
+    instead, where vi would only ring; on a row with neither it
+    rings too. A count does nothing, where vi would jump to a
+    percentage of the file.
+
+    Try `%` on one of these checklist rows: the checkbox is a
+    bracket pair like any other.
+
 --------------------------------------------------------------
  5. COUNTS
 --------------------------------------------------------------
@@ -302,9 +318,20 @@
       ciwX<Esc> then w then . then w then .
 [x] 3.   repeat three times
 
+[ ] Vj> then jj then .   the shift repeats over two more rows
+[ ] Vjd then .           two rows, then two more
+[ ] vwcX<Esc> then w then .
+
     `.` after an insert session replays the typed text.
     Note: `3.` replays the whole command three times rather than
     substituting the count, which differs from vi.
+
+    After a visual operator, `.` replays the keys that made the
+    selection, so `Vj>` repeats as `Vj>` — the same two rows from
+    wherever the caret now is. That matches vi for whole rows. For
+    a characterwise selection it re-aims the motion rather than
+    repeating a character count, so `vwd` then `.` deletes to the
+    next word boundary rather than the same number of characters.
 
 --------------------------------------------------------------
  12. MACROS
@@ -425,7 +452,6 @@
 
 [ ] D   would be d$        [ ] C   would be c$
 [ ] s   would be xi        [ ] S   would be cc
-[ ] %   match a bracket
 [ ] {   [ ] }   paragraph motions
 [ ] <C-v>  visual block
 [ ] "ayy  named registers — deliberately absent
