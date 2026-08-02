@@ -742,13 +742,59 @@ fn next_open(buf: &Buffer, from: usize, limit: usize, open: char, close: char) -
 /// The span between a pair of delimiters, with or without the delimiters.
 fn pair_span(buf: &Buffer, start: usize, end: usize, scope: ObjectScope) -> Span {
     let range = match scope {
-        ObjectScope::Inner => advance_char(buf, start)..end,
+        ObjectScope::Inner => inner_span(buf, start, end),
         ObjectScope::Around => start..advance_char(buf, end),
     };
     Span {
         range,
         linewise: false,
     }
+}
+
+/// The inside of a pair, following vi's rule for delimiters that own their rows.
+///
+/// When the opening delimiter is the last thing on its row, the inside starts at
+/// the row below rather than at the newline behind it; when the closing delimiter
+/// has nothing but indent before it, the inside ends where the row above ends. So
+/// `di{` on a function body takes the body's rows and leaves the braces where they
+/// were, instead of dragging them together onto one row.
+///
+/// Note that vi *shrinks the span* here rather than promoting the object to
+/// linewise — `vi{` on such a block is still a characterwise selection. The two
+/// adjustments can meet in the middle on `{\n}`, which leaves an empty span: vi
+/// fails the object outright, and an empty span rings, which is the same answer.
+fn inner_span(buf: &Buffer, open: usize, close: usize) -> Range<usize> {
+    let after_open = advance_char(buf, open);
+    let open_row = buf.byte_to_point(open).row;
+    // The open ends its row, so the inside begins on the row below it.
+    let starts_below =
+        after_open == buf.row_content_range(open_row).end && open_row + 1 < buf.len_rows();
+    let start = if starts_below {
+        buf.row_range(open_row + 1).start
+    } else {
+        after_open
+    };
+
+    let close_row = buf.byte_to_point(close).row;
+    // Only indent between the row's start and the delimiter. On a single-row pair
+    // this cannot hold, since the opening delimiter is itself in the way.
+    let ends_above = buf
+        .text_in(buf.row_range(close_row).start..close)
+        .trim()
+        .is_empty();
+    let end = if ends_above {
+        let above = buf.row_content_range(close_row - 1).end;
+        // The row break above the delimiter is the object's to take only when the
+        // span already begins at a row boundary. Otherwise the front of that row
+        // survives and needs its newline: `di{` on a whole block takes the body's
+        // rows outright, while on `x { body` + `}` it takes ` body` and leaves the
+        // two rows to close up by themselves.
+        if starts_below { above + 1 } else { above }
+    } else {
+        close
+    };
+
+    start..end.max(start)
 }
 
 /// `ip` / `ap`, blank-row delimited and always linewise.
@@ -1319,7 +1365,44 @@ mod tests {
         // From the signature row, `i{` reaches the block below it — which is the
         // whole point of seeking, and why it is not row-scoped the way quotes are.
         let span = obj(&buf, 3, ObjectScope::Inner, BRACES).unwrap();
-        assert_eq!(buf.text_in(span.range), "\n    body\n");
+        assert_eq!(buf.text_in(span.range), "    body\n");
+    }
+
+    #[test]
+    fn delimiters_that_own_their_rows_shrink_the_inside() {
+        // The brace is the last thing on its row and the closing brace has only
+        // indent before it, so the inside is the body's rows — not the newline
+        // behind the `{` through to the `}`.
+        let buf = Buffer::from_text("f() {\n  a\n  b\n  }");
+        let span = obj(&buf, 0, ObjectScope::Inner, BRACES).unwrap();
+        assert_eq!(buf.text_in(span.range), "  a\n  b\n");
+        // `a{` is untouched by the rule.
+        let span = obj(&buf, 0, ObjectScope::Around, BRACES).unwrap();
+        assert_eq!(buf.text_in(span.range), "{\n  a\n  b\n  }");
+
+        // Each half applies on its own. Open mid-row, close owning its row — and
+        // the row break stays, because `x {` is still there to need it.
+        let buf = Buffer::from_text("x { body\n}");
+        let span = obj(&buf, 0, ObjectScope::Inner, BRACES).unwrap();
+        assert_eq!(buf.text_in(span.range), " body");
+        // Open owning its row, close mid-row:
+        let buf = Buffer::from_text("{\n  body }");
+        let span = obj(&buf, 0, ObjectScope::Inner, BRACES).unwrap();
+        assert_eq!(buf.text_in(span.range), "  body ");
+
+        // Nothing between the two rows leaves nothing to take.
+        let buf = Buffer::from_text("{\n}");
+        assert!(
+            obj(&buf, 0, ObjectScope::Inner, BRACES)
+                .unwrap()
+                .range
+                .is_empty()
+        );
+
+        // And a pair that shares its row is unaffected, indent or not.
+        let buf = Buffer::from_text("    { a }");
+        let span = obj(&buf, 0, ObjectScope::Inner, BRACES).unwrap();
+        assert_eq!(buf.text_in(span.range), " a ");
     }
 
     #[test]

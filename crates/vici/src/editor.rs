@@ -1644,7 +1644,9 @@ mod tests {
         // On the `f`, in no pair at all: vi looks forward for one rather than
         // failing, and it looks past the end of the row.
         assert_eq!(typed("f(a, b)", "ci(x<Esc>"), "f(x)");
-        assert_eq!(typed("fn f()\n{\n    body\n}", "di{"), "fn f()\n{}");
+        // The braces own their rows, so the body's rows go and the braces stay put
+        // rather than being pulled together.
+        assert_eq!(typed("fn f()\n{\n    body\n}", "di{"), "fn f()\n{\n}");
         assert_eq!(
             typed("outer { mid { deep } here } end", "da{"),
             "outer  end"

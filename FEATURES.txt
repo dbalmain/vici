@@ -220,6 +220,11 @@
     start of a row reaches a string later on it. Brackets seek
     across rows, quotes do not. That asymmetry is vi's.
 
+    The braces stay put. When `{` ends its row and `}` owns its
+    own, `di{` takes the body's rows and leaves the two braces
+    where they were rather than pulling them onto one row. `ci{`
+    then opens the row between them, which is what you want.
+
  Counts, which mean something different for each kind of object:
       outer { mid { deep } here } end
 [ ] di{   the innermost braces, from the cursor on `deep`
