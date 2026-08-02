@@ -429,7 +429,6 @@
 [ ] {   [ ] }   paragraph motions
 [ ] <C-v>  visual block
 [ ] "   named registers — deliberately absent
-[ ] m   marks — deliberately absent
 [ ] U   row-scoped undo
 [ ] /   [ ] ?   [ ] n   [ ] N   search
 [ ] <C-o> (insert mode)   one-shot normal
@@ -438,7 +437,19 @@
     something instead is a bug worth reporting.
 
 --------------------------------------------------------------
- 18. JUMP LIST
+ 18. MARKS
+--------------------------------------------------------------
+
+[ ] m{a-z}   set a named mark
+[ ] `{a-z}   jump to its exact offset
+[ ] '{a-z}   jump to its row's first non-blank
+[ ] ``   [ ] ''   return to the position before the latest jump
+
+    Marks survive edits. ` and ' are motions, so try d`a and d'a
+    to confirm their characterwise and linewise operator behaviour.
+
+--------------------------------------------------------------
+ 19. JUMP LIST
 --------------------------------------------------------------
 
 [ ] <C-o>  jump back       [ ] <C-i>  jump forward

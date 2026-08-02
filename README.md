@@ -92,8 +92,8 @@ nothing and behave correctly for free — including `.` after an insert session.
 
 - **Search.** `/ ? n N` are not implemented. `:` opens a host prompt for ex
   command execution.
-- **Named registers and marks.** One unnamed register, deliberately. This is a core
-  for self-contained single-buffer editing, not a vi clone.
+- **Named registers.** One unnamed register, deliberately. This is a core for
+  self-contained single-buffer editing, not a vi clone.
 - **Visual block** and the `s S` shortcuts.
 - **Display width.** The sticky column for `j`/`k` counts graphemes, not
   terminal cells, so it diverges from vi on tabs and CJK. Width is the view's

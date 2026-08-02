@@ -234,6 +234,17 @@ impl Pending {
                 self.finish(Command::RecordMacro(ch))
             }
             AwaitChar::PlayMacro if self.operator.is_none() => self.finish(Command::PlayMacro(ch)),
+            AwaitChar::SetMark if self.operator.is_none() && ch.is_ascii_lowercase() => {
+                self.finish(Command::SetMark(ch))
+            }
+            // `'` and `` ` `` name the position before the latest jump. They go
+            // through the motion path like any other mark, so `d''` is linewise
+            // and ``` d`` ``` characterwise, as `d'a` and `` d`a `` are.
+            AwaitChar::GotoMark { exact }
+                if ch.is_ascii_lowercase() || matches!(ch, '\'' | '`') =>
+            {
+                self.finish(self.with_motion(Motion::Mark { name: ch, exact }))
+            }
             _ => self.reject(),
         }
     }
@@ -353,6 +364,17 @@ mod tests {
                 },
                 None,
             ),
+            (
+                "d'a",
+                Command::Operate {
+                    operator: Operator::Delete,
+                    target: Target::Motion(Motion::Mark {
+                        name: 'a',
+                        exact: false,
+                    }),
+                },
+                None,
+            ),
         ] {
             assert_eq!(command(spec), (expected, count), "{spec}");
         }
@@ -382,7 +404,7 @@ mod tests {
 
     #[test]
     fn cancellation_and_rejection_reset_the_parser() {
-        for spec in ["d!", "dy", "dx", "diz", "f<Left>"] {
+        for spec in ["d!", "dy", "dx", "diz", "f<Left>", "mA", "`A"] {
             assert!(matches!(
                 resolve_in(Mode::Normal, spec),
                 Resolution::Rejected { .. }
@@ -394,6 +416,38 @@ mod tests {
                 Resolution::Cancelled { .. }
             ));
         }
+    }
+
+    #[test]
+    fn marks_are_commands_or_motions_as_their_grammar_requires() {
+        assert_eq!(command("ma").0, Command::SetMark('a'));
+        assert_eq!(
+            command("`a").0,
+            Command::Move(Motion::Mark {
+                name: 'a',
+                exact: true,
+            })
+        );
+        // `'` and `` ` `` name the position before the latest jump, and go
+        // through the motion path like any other mark — so they carry the same
+        // linewise/characterwise distinction and take an operator.
+        for (spec, name, exact) in [("''", '\'', false), ("``", '`', true)] {
+            assert_eq!(
+                command(spec).0,
+                Command::Move(Motion::Mark { name, exact }),
+                "{spec}"
+            );
+        }
+        assert_eq!(
+            command("d''").0,
+            Command::Operate {
+                operator: Operator::Delete,
+                target: Target::Motion(Motion::Mark {
+                    name: '\'',
+                    exact: false,
+                }),
+            }
+        );
     }
 
     #[test]

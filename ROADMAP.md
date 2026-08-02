@@ -60,8 +60,10 @@ shift entries through each applied `Edit`; `set_text` clears them because it
 replaces the whole buffer. Normal-mode `<C-o>`/`<C-i>` navigate the jump list,
 and `Editor::jump_to(offset)` is the public host landing move.
 
-Marks are deliberately a separate slice. They share the position arithmetic but
-should not make the document layer own upper-layer navigation state.
+Marks landed in the next slice: `Editor` holds a lowercase table alongside the
+jump list, shifts both through the same edit helper, and clears both in
+`set_text`. `m{a-z}`, `` `a `` and `'a` are the grammar; mark motions become a
+concrete `Motion::ToOffset` before the pure motion resolver runs.
 
 ## Then: search
 
@@ -100,8 +102,9 @@ mid-command. `n`/`N` push to the jump list from the previous step.
   does, with a timeout. `ys` must have `yanks() == false` despite the `y`. About
   a day; `t` for HTML tags wants a real scan and can wait.
 - **leap.vim.** Needs the viewport (done), the jump list, and the matcher from
-  search. Operator-pending works via the trick `Motion::RepeatFind` already
-  uses: let `Pending` consume the label keypress and stash the resolved offset.
+  search. Its resolved destination now has a public seam:
+  `Motion::ToOffset { offset, linewise }`. Operator-pending can consume the
+  label keypress and hand that concrete motion back to the core.
   Its dot-repeat is the first genuine break in "everything is key replay" — vim
   re-searches the two-char pattern rather than replaying the label. **Build it
   as a separate `vici-leap` crate against the public API.** If that turns out to

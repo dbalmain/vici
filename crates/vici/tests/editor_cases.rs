@@ -172,6 +172,14 @@ fn render_case(snapshot: &mut String, name: &str, editor: &Editor, effects: &[Ef
         .map_or_else(|| "-".to_owned(), |name| name.to_string());
     let point = editor.cursor_point();
     let history = editor.document().history();
+    let marks: Vec<_> = ('a'..='z')
+        .filter_map(|name| editor.mark(name).map(|offset| format!("{name}:{offset}")))
+        .collect();
+    let marks = if marks.is_empty() {
+        "[]".to_owned()
+    } else {
+        format!("[{}]", marks.join(", "))
+    };
     write!(
         snapshot,
         "== {name} ==\n\
@@ -181,6 +189,7 @@ fn render_case(snapshot: &mut String, name: &str, editor: &Editor, effects: &[Ef
          register: {register_kind} {register:?}\n\
          history: undo={undo} redo={redo}\n\
          jumps: {jumps:?}\n\
+         marks: {marks}\n\
          pending: {pending:?}; last-change: {last_change:?}; recording: {recording}\n\
          effects:\n",
         text = editor.buffer().to_string(),

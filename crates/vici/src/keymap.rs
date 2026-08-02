@@ -176,8 +176,8 @@ impl Keymap {
     /// The default scheme.
     ///
     /// Covers the subset this core targets: modes, motions, the three operators,
-    /// text objects, counts, dot-repeat, macros, undo, jump navigation, and ex
-    /// commands. No marks, no named registers.
+    /// text objects, counts, dot-repeat, macros, marks, undo, jump navigation,
+    /// and ex commands. No named registers.
     #[must_use]
     #[allow(clippy::too_many_lines)]
     pub fn vim() -> Self {
@@ -235,6 +235,17 @@ impl Keymap {
                 Await(AwaitChar::Find { backward, till }),
             );
         }
+        map.bind_spec(Layer::Normal, "m", Await(AwaitChar::SetMark))
+            .bind_spec(
+                Layer::Normal,
+                "`",
+                Await(AwaitChar::GotoMark { exact: true }),
+            )
+            .bind_spec(
+                Layer::Normal,
+                "'",
+                Await(AwaitChar::GotoMark { exact: false }),
+            );
 
         // -- operators -------------------------------------------------------
         map.bind_spec(Layer::Normal, "d", Op(Operator::Delete))
@@ -441,9 +452,7 @@ mod tests {
     fn keys_features_calls_unbound_really_are() {
         // Keep in step with FEATURES.txt §17. D/C were bound while both the
         // checklist and the README still called them unbound.
-        for spec in [
-            "s", "S", "{", "}", "<C-v>", "\"", "m", "U", "/", "?", "n", "N",
-        ] {
+        for spec in ["s", "S", "{", "}", "<C-v>", "\"", "U", "/", "?", "n", "N"] {
             let path = keys(spec).expect("valid notation");
             assert_eq!(
                 Keymap::vim().walk(Layer::Normal, &path),

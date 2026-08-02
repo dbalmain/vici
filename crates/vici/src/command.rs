@@ -86,22 +86,39 @@ pub enum Motion {
     ScreenMiddle,
     /// `L` — a counted row from the bottom of the reported screen.
     ScreenBottom,
+    /// A named mark, resolved by [`crate::Editor`] before motion resolution.
+    Mark {
+        name: char,
+        /// Exact offset for `` `a ``; false for `'a`'s first non-blank.
+        exact: bool,
+    },
+    /// An absolute destination resolved outside the motion layer.
+    ///
+    /// This is the seam for a leap-style plugin: it can choose an offset itself
+    /// and hand the core a concrete motion. `linewise` selects the destination
+    /// row's first non-blank, as `'a` does, rather than the exact offset.
+    ToOffset {
+        offset: usize,
+        linewise: bool,
+    },
 }
 
 impl Motion {
     /// Whether an operator over this motion acts on whole rows.
     #[must_use]
     pub const fn is_linewise(self) -> bool {
-        matches!(
-            self,
+        match self {
+            Self::ToOffset { linewise, .. } => linewise,
+            Self::Mark { exact, .. } => !exact,
             Self::Down
-                | Self::Up
-                | Self::GotoRow
-                | Self::GotoFirstRow
-                | Self::ScreenTop
-                | Self::ScreenMiddle
-                | Self::ScreenBottom
-        )
+            | Self::Up
+            | Self::GotoRow
+            | Self::GotoFirstRow
+            | Self::ScreenTop
+            | Self::ScreenMiddle
+            | Self::ScreenBottom => true,
+            _ => false,
+        }
     }
 
     /// Whether the character under the motion's destination is included.
@@ -279,6 +296,9 @@ pub enum Command {
     /// `@{register}`
     PlayMacro(char),
 
+    /// `m{mark}`
+    SetMark(char),
+
     /// `<C-o>` — go to the older entry in the jump list.
     JumpBack,
     /// `<C-i>` — go to the newer entry in the jump list.
@@ -310,6 +330,10 @@ pub enum AwaitChar {
     RecordMacro,
     /// `@`
     PlayMacro,
+    /// `m`
+    SetMark,
+    /// `` ` `` / `'`
+    GotoMark { exact: bool },
 }
 
 #[cfg(test)]
@@ -321,6 +345,22 @@ mod tests {
         for (motion, linewise, inclusive) in [
             (Motion::Down, true, false),
             (Motion::Right, false, false),
+            (
+                Motion::Mark {
+                    name: 'a',
+                    exact: false,
+                },
+                true,
+                false,
+            ),
+            (
+                Motion::ToOffset {
+                    offset: 0,
+                    linewise: true,
+                },
+                true,
+                false,
+            ),
             (Motion::WordEnd { big: false }, false, true),
             (
                 Motion::Find(Find {

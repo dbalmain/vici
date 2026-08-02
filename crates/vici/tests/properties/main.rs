@@ -95,6 +95,9 @@ fn script_strategy() -> impl Strategy<Value = Vec<Key>> {
         "<C-b>",
         "<C-o>",
         "<C-i>",
+        "ma",
+        "`a",
+        "'a",
         "dw",
         "ciw<Esc>",
         "yi(",
@@ -453,13 +456,19 @@ proptest! {
     }
 
     #[test]
-    fn jump_entries_stay_legal(text in text_strategy(), script in script_strategy()) {
+    fn remembered_positions_stay_legal(text in text_strategy(), script in script_strategy()) {
         let mut editor = Editor::from_text(&text);
         editor.handle_keys(&script);
         let buffer = editor.buffer();
         for &jump in editor.jumps() {
             prop_assert!(jump <= buffer.len_bytes());
             prop_assert!(grapheme_boundary(buffer, jump));
+        }
+        for name in 'a'..='z' {
+            if let Some(mark) = editor.mark(name) {
+                prop_assert!(mark <= buffer.len_bytes());
+                prop_assert!(grapheme_boundary(buffer, mark));
+            }
         }
     }
 

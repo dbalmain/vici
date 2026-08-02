@@ -604,6 +604,17 @@ pub fn resolve(
         Motion::ScreenTop | Motion::ScreenMiddle | Motion::ScreenBottom => {
             screen_motion(buf, motion, repeat, viewport)?
         }
+        // Marks belong to Editor's navigation state. It turns them into the
+        // concrete `ToOffset` vocabulary before this pure resolver is called.
+        Motion::Mark { .. } => return None,
+        Motion::ToOffset { offset, linewise } => {
+            let offset = clamp(buf, offset, bound);
+            if linewise {
+                first_non_blank(buf, buf.byte_to_point(offset).row)
+            } else {
+                offset
+            }
+        }
     };
     Some(clamp(buf, target, bound))
 }

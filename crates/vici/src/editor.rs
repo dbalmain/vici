@@ -85,6 +85,8 @@ pub struct Editor {
     jumps: Vec<usize>,
     /// An entry being visited, or `jumps.len()` when the caret is at the present.
     jump_at: usize,
+    /// Lowercase named positions, shifted with jumps through every edit.
+    marks: [Option<usize>; 26],
     last_find: Option<Find>,
     /// Keys of the last buffer-changing command, for `.`.
     last_change: Vec<Key>,
@@ -131,6 +133,7 @@ impl Editor {
             register: Register::default(),
             jumps: Vec::new(),
             jump_at: 0,
+            marks: [None; 26],
             last_find: None,
             last_change: Vec::new(),
             change_keys: None,
@@ -205,6 +208,12 @@ impl Editor {
     #[must_use]
     pub fn jumps(&self) -> &[usize] {
         &self.jumps
+    }
+
+    /// The offset remembered under a lowercase mark name.
+    #[must_use]
+    pub fn mark(&self, name: char) -> Option<usize> {
+        self.marks[mark_index(name)?]
     }
 
     /// Move to a host-supplied location, remembering the position left behind.
@@ -365,6 +374,7 @@ impl Editor {
         self.mode = Mode::Normal;
         self.jumps.clear();
         self.jump_at = 0;
+        self.marks = [None; 26];
         edit
     }
 
@@ -390,7 +400,7 @@ impl Editor {
             return;
         }
         let edit = self.doc.replace(range, text);
-        self.shift_jumps(&edit);
+        self.shift_positions(&edit);
         effects.push(Effect::Edit(edit));
     }
 
@@ -435,6 +445,10 @@ impl Editor {
 
         match command {
             Command::Move(target) => {
+                let Some(target) = self.resolve_mark(target) else {
+                    effects.push(Effect::Bell);
+                    return effects;
+                };
                 let bound = self.bound();
                 match motion::resolve(
                     self.buffer(),
@@ -609,6 +623,11 @@ impl Editor {
                 None => effects.push(Effect::Bell),
             },
 
+            Command::SetMark(name) => match mark_index(name) {
+                Some(index) => self.marks[index] = Some(self.cursor),
+                None => effects.push(Effect::Bell),
+            },
+
             Command::JumpBack => self.jump_back(&mut effects),
 
             Command::JumpForward => self.jump_forward(&mut effects),
@@ -741,6 +760,28 @@ impl Editor {
         }
     }
 
+    /// Turn an editor-owned mark into the pure resolver's concrete vocabulary.
+    fn resolve_mark(&self, motion: Motion) -> Option<Motion> {
+        match motion {
+            Motion::Mark { name, exact } => {
+                // `''` and ``` `` ``` return to where the latest jump started,
+                // which is the newest ring entry. Going there pushes the position
+                // being left in turn, so repeating the key toggles between the
+                // two rather than walking further back as `<C-o>` does.
+                let offset = if matches!(name, '\'' | '`') {
+                    *self.jumps.last()?
+                } else {
+                    self.mark(name)?
+                };
+                Some(Motion::ToOffset {
+                    offset,
+                    linewise: !exact,
+                })
+            }
+            motion => Some(motion),
+        }
+    }
+
     fn remember_find(&mut self, motion: Motion) {
         if let Motion::Find(find) = motion {
             self.last_find = Some(find);
@@ -830,9 +871,13 @@ impl Editor {
         };
     }
 
-    fn shift_jumps(&mut self, edit: &Edit) {
+    /// Shift every editor-owned remembered position through an applied edit.
+    fn shift_positions(&mut self, edit: &Edit) {
         for jump in &mut self.jumps {
             *jump = edit.shift(*jump);
+        }
+        for mark in self.marks.iter_mut().flatten() {
+            *mark = edit.shift(*mark);
         }
     }
 
@@ -847,7 +892,7 @@ impl Editor {
             return;
         }
         for change in &step.changes {
-            self.shift_jumps(&change.edit);
+            self.shift_positions(&change.edit);
             effects.push(Effect::Edit(change.edit));
         }
         let at = step
@@ -863,6 +908,7 @@ impl Editor {
         let buf = self.buffer();
         let span = match target {
             Target::Motion(motion) => {
+                let motion = self.resolve_mark(motion)?;
                 // vi's one famous irregularity: `cw` behaves like `ce`, so that
                 // changing a word does not swallow the space after it.
                 let motion = if operator == Operator::Change
@@ -1317,7 +1363,16 @@ const fn pushes_jump(motion: Motion) -> bool {
             | Motion::ScreenTop
             | Motion::ScreenMiddle
             | Motion::ScreenBottom
+            | Motion::ToOffset { .. }
     )
+}
+
+const fn mark_index(name: char) -> Option<usize> {
+    if name.is_ascii_lowercase() {
+        Some((name as u8 - b'a') as usize)
+    } else {
+        None
+    }
 }
 
 /// Apply a case-changing operator to a stretch of text.
@@ -1378,5 +1433,6 @@ mod tests {
         assert!(editor.jumps().iter().all(|&jump| jump == 1));
         editor.set_text("new");
         assert!(editor.jumps().is_empty());
+        assert_eq!(editor.mark('a'), None);
     }
 }

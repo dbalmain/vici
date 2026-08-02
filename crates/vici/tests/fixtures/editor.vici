@@ -1295,3 +1295,69 @@ keys G<C-o>x
 case jumps-collapse-when-deleted
 text one\ntwo
 keys wggdG
+
+---
+# Marks
+case marks-set-and-return
+text one two
+keys wma0`a
+---
+case marks-exact-offset
+text zero\n  two words
+keys jllllma0`a
+---
+case marks-linewise-first-non-blank
+text zero\n  two words
+keys jllllma0'a
+---
+case marks-delete-characterwise-to-mark
+text one\ntwo\nthree
+keys jmaggd`a
+---
+case marks-delete-linewise-to-mark
+text one\ntwo\nthree
+keys jmaggd'a
+---
+case marks-unset-rings
+text one
+keys `a
+---
+case marks-shift-after-insert-before
+text one\ntwo
+keys jmaggiX<Esc>
+---
+case marks-shift-after-delete-before
+text one\ntwo
+keys jmaggx
+---
+case marks-collapse-when-deleted
+text one\ntwo
+keys jlmaggdG
+---
+case marks-double-quote-returns-after-goto
+text one\ntwo\nthree
+keys G''
+---
+case marks-double-quote-toggles
+text one\ntwo\nthree
+keys G''''
+---
+case marks-backtick-backtick-exact
+text one\ntwo\nthree
+keys jllG``
+---
+case marks-delete-linewise-to-previous
+text one\ntwo\nthree
+keys Gd''
+---
+case marks-delete-characterwise-to-previous
+text one two three
+keys wwd``
+---
+case marks-double-quote-unset-rings
+text one\ntwo
+keys ''
+---
+case marks-invalid-name-rings
+text one
+keys mA
