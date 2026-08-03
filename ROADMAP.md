@@ -60,10 +60,12 @@ shift entries through each applied `Edit`; `set_text` clears them because it
 replaces the whole buffer. Normal-mode `<C-o>`/`<C-i>` navigate the jump list,
 and `Editor::jump_to(offset)` is the public host landing move.
 
-Marks landed in the next slice: `Editor` holds a lowercase table alongside the
-jump list, shifts both through the same edit helper, and clears both in
+Marks landed in the next slice: `Editor` holds a named-position table alongside
+the jump list, shifts both through the same edit helper, and clears both in
 `set_text`. `m{a-z}`, `` `a `` and `'a` are the grammar; mark motions become a
-concrete `Motion::ToOffset` before the pure motion resolver runs.
+concrete `Motion::ToOffset` before the pure motion resolver runs. Automatic
+`'<` and `'>` preserve the latest visual selection; a future `gv` should
+reselect from them.
 
 ## Then: search
 

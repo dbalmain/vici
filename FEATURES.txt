@@ -443,6 +443,9 @@
 [ ] m{a-z}   set a named mark
 [ ] `{a-z}   jump to its exact offset
 [ ] '{a-z}   jump to its row's first non-blank
+[ ] `<   [ ] `>   last visual selection's start and end
+[ ] '[   [ ] ']   last change or yank's start and end
+[ ] `^            where insert mode last ended
 [ ] ``   [ ] ''   return to the position before the latest jump
 
     Marks survive edits. ` and ' are motions, so try d`a and d'a

@@ -241,7 +241,8 @@ impl Pending {
             // through the motion path like any other mark, so `d''` is linewise
             // and ``` d`` ``` characterwise, as `d'a` and `` d`a `` are.
             AwaitChar::GotoMark { exact }
-                if ch.is_ascii_lowercase() || matches!(ch, '\'' | '`') =>
+                if ch.is_ascii_lowercase()
+                    || matches!(ch, '<' | '>' | '[' | ']' | '^' | '\'' | '`') =>
             {
                 self.finish(self.with_motion(Motion::Mark { name: ch, exact }))
             }
@@ -448,6 +449,23 @@ mod tests {
                 }),
             }
         );
+        for (spec, name) in [
+            ("`<lt>", '<'),
+            ("`>", '>'),
+            ("`[", '['),
+            ("`]", ']'),
+            ("`^", '^'),
+        ] {
+            assert_eq!(
+                command(spec).0,
+                Command::Move(Motion::Mark { name, exact: true }),
+                "{spec}"
+            );
+        }
+        assert!(matches!(
+            resolve_in(Mode::Normal, "m<lt>"),
+            Resolution::Rejected { .. }
+        ));
     }
 
     #[test]

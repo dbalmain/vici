@@ -1361,3 +1361,57 @@ keys ''
 case marks-invalid-name-rings
 text one
 keys mA
+
+---
+# Automatic marks
+case automatic-visual-start-return
+text abcde
+keys vll<Esc>llll`<lt>
+---
+case automatic-visual-end-is-last-character
+text abcde
+keys vll<Esc>llll`>
+---
+case automatic-visual-toggle-return
+text abcde
+keys vllvllll`>
+---
+case automatic-visual-operator-captures-before-edit
+text one\ntwo\nthree\nfour
+keys VjdG`>
+---
+case automatic-change-brackets-multi-row-shift
+text one\ntwo\nthree
+keys 3>>G`[`]
+---
+case automatic-yank-brackets-return
+text one two
+keys wyww0`[`]
+---
+case automatic-insert-end-return
+text one
+keys iX<Esc>$`^
+---
+case automatic-visual-mark-shifts-through-later-edit
+text one\ntwo
+keys jvll<Esc>ggiX<Esc>G`>
+---
+case automatic-visual-mark-characterwise-operator
+text one two
+keys wvll<Esc>0d`<lt>
+---
+case automatic-visual-mark-linewise-operator
+text one two
+keys wvll<Esc>0d'<lt>
+---
+case automatic-marks-crlf-recase-end
+text \r\n
+keys gUiw`]
+---
+case automatic-marks-crlf-yank-end
+text a\r\nb
+keys Vy`]
+---
+case automatic-marks-unset-ring
+text one
+keys `<lt>`>`[`]`^

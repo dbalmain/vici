@@ -172,7 +172,10 @@ fn render_case(snapshot: &mut String, name: &str, editor: &Editor, effects: &[Ef
         .map_or_else(|| "-".to_owned(), |name| name.to_string());
     let point = editor.cursor_point();
     let history = editor.document().history();
+    // The automatic marks are as much state as the named ones; leaving them out
+    // would mean a regression in `'[`/`']` never showed up in a case block.
     let marks: Vec<_> = ('a'..='z')
+        .chain(['<', '>', '[', ']', '^'])
         .filter_map(|name| editor.mark(name).map(|offset| format!("{name}:{offset}")))
         .collect();
     let marks = if marks.is_empty() {

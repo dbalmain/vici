@@ -464,7 +464,7 @@ proptest! {
             prop_assert!(jump <= buffer.len_bytes());
             prop_assert!(grapheme_boundary(buffer, jump));
         }
-        for name in 'a'..='z' {
+        for name in ('a'..='z').chain(['<', '>', '[', ']', '^']) {
             if let Some(mark) = editor.mark(name) {
                 prop_assert!(mark <= buffer.len_bytes());
                 prop_assert!(grapheme_boundary(buffer, mark));

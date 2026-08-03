@@ -36,6 +36,9 @@ use crate::pending::{Pending, Resolution};
 const MAX_REPLAY_DEPTH: usize = 64;
 /// Oldest jump entries are discarded once the list reaches this size.
 const MAX_JUMPS: usize = 100;
+/// Automatic marks occupy the slots after the lowercase user marks.
+const AUTO_MARKS: [char; 5] = ['<', '>', '[', ']', '^'];
+const MARK_COUNT: usize = 26 + AUTO_MARKS.len();
 
 /// Something the host must act on.
 ///
@@ -85,8 +88,8 @@ pub struct Editor {
     jumps: Vec<usize>,
     /// An entry being visited, or `jumps.len()` when the caret is at the present.
     jump_at: usize,
-    /// Lowercase named positions, shifted with jumps through every edit.
-    marks: [Option<usize>; 26],
+    /// Named and automatic positions, shifted with jumps through every edit.
+    marks: [Option<usize>; MARK_COUNT],
     last_find: Option<Find>,
     /// Keys of the last buffer-changing command, for `.`.
     last_change: Vec<Key>,
@@ -133,7 +136,7 @@ impl Editor {
             register: Register::default(),
             jumps: Vec::new(),
             jump_at: 0,
-            marks: [None; 26],
+            marks: [None; MARK_COUNT],
             last_find: None,
             last_change: Vec::new(),
             change_keys: None,
@@ -210,7 +213,7 @@ impl Editor {
         &self.jumps
     }
 
-    /// The offset remembered under a lowercase mark name.
+    /// The offset remembered under a named or automatic mark name.
     #[must_use]
     pub fn mark(&self, name: char) -> Option<usize> {
         self.marks[mark_index(name)?]
@@ -374,7 +377,7 @@ impl Editor {
         self.mode = Mode::Normal;
         self.jumps.clear();
         self.jump_at = 0;
-        self.marks = [None; 26];
+        self.marks = [None; MARK_COUNT];
         edit
     }
 
@@ -406,19 +409,22 @@ impl Editor {
 
     fn yank(&mut self, span: &Span) {
         let buf = self.buffer();
-        let (text, linewise) = match span {
-            Span::Chars(range) => (buf.text_in(range.clone()), false),
+        let (range, text, linewise) = match span {
+            Span::Chars(range) => (range.clone(), buf.text_in(range.clone()), false),
             Span::Lines(rows) => {
                 let first = *rows.start();
                 let last = *rows.end();
-                let mut text = buf.text_in(buf.row_range(first).start..buf.row_range(last).end);
+                let range = buf.row_range(first).start..buf.row_range(last).end;
+                let mut text = buf.text_in(range.clone());
                 if !text.ends_with('\n') {
                     text.push('\n');
                 }
-                (text, true)
+                (range, text, true)
             }
         };
         self.register = Register { text, linewise };
+        self.set_mark('[', range.start);
+        self.set_mark(']', self.previous_grapheme(range.end));
     }
 
     /// Every command runs inside an undo group, bracketed by the caret on either
@@ -433,6 +439,7 @@ impl Editor {
         let before = self.cursor;
         self.doc.history_mut().begin_group(Some(before));
         let effects = self.dispatch(command, count);
+        self.remember_change(&effects);
         let after = self.cursor;
         self.doc.history_mut().end_group(Some(after));
         effects
@@ -518,7 +525,7 @@ impl Editor {
 
             Command::EnterVisual(kind) => {
                 if self.mode == Mode::Visual(kind) {
-                    self.leave_visual(&mut effects);
+                    self.leave_visual(true, &mut effects);
                 } else {
                     self.anchor = Some(self.cursor);
                     self.set_mode(Mode::Visual(kind), &mut effects);
@@ -528,15 +535,20 @@ impl Editor {
             Command::EnterNormal => {
                 let leaving_insert = matches!(self.mode, Mode::Insert | Mode::Replace);
                 self.close_insert_group();
-                self.anchor = None;
                 if leaving_insert {
                     // vi's insert cursor sits *between* characters, so leaving puts
                     // it on the character to the left. This has to happen before
                     // the mode switch: `set_mode` clamps to `OnChar`, and doing
                     // both would move the cursor twice.
                     self.cursor = self.step(self.cursor, Motion::Left, 1, Bound::PastEnd);
+                    self.set_mark('^', self.cursor);
                 }
-                self.set_mode(Mode::Normal, &mut effects);
+                if self.mode.is_visual() {
+                    self.leave_visual(true, &mut effects);
+                } else {
+                    self.anchor = None;
+                    self.set_mode(Mode::Normal, &mut effects);
+                }
                 if leaving_insert {
                     // The cursor moved, so the column `j`/`k` aim for has to follow
                     // it. Insert advances the sticky column with every character
@@ -743,6 +755,70 @@ impl Editor {
             return self.cursor;
         }
         self.buffer().row_content_range(point.row - 1).end
+    }
+
+    /// The grapheme immediately before an exclusive selection or edit endpoint.
+    ///
+    /// `h` deliberately stops at a row boundary, but a linewise selection's end
+    /// can be the start of the following row after its trailing newline.
+    fn previous_grapheme(&self, byte: usize) -> usize {
+        let byte = byte.min(self.buffer().len_bytes());
+        let point = self.buffer().byte_to_point(byte);
+        if byte > 0 && point.col == 0 {
+            // The row above ends at its content end, not at `byte - 1`: a `\r\n`
+            // terminator is two bytes and one grapheme, so stepping back a single
+            // byte would land between them.
+            self.buffer().row_content_range(point.row - 1).end
+        } else {
+            self.step(byte, Motion::Left, 1, Bound::PastEnd)
+        }
+    }
+
+    fn set_mark(&mut self, name: char, offset: usize) {
+        if let Some(index) = mark_index(name) {
+            self.marks[index] = Some(offset);
+        }
+    }
+
+    /// Remember the outer extent of every edit emitted by one command.
+    fn remember_change(&mut self, effects: &[Effect]) {
+        let edits: Vec<_> = effects
+            .iter()
+            .filter_map(|effect| match effect {
+                Effect::Edit(edit) => Some(edit),
+                _ => None,
+            })
+            .collect();
+        if edits.is_empty() {
+            return;
+        }
+        // `shift_rows` edits from bottom to top. Each edit's coordinates are in
+        // the buffer as it stood when that one happened, so carry its endpoints
+        // through later edits before comparing the command's final extent.
+        let mut start = usize::MAX;
+        let mut end = 0;
+        for (index, edit) in edits.iter().enumerate() {
+            let later = &edits[index + 1..];
+            let edit_start = later
+                .iter()
+                .fold(edit.start_byte, |offset, later| later.shift(offset));
+            let edit_end = later
+                .iter()
+                .fold(edit.new_end_byte, |offset, later| later.shift(offset));
+            start = start.min(edit_start);
+            end = end.max(edit_end);
+        }
+        self.set_mark('[', start);
+        self.set_mark(']', self.previous_grapheme(end));
+    }
+
+    /// Capture visual marks before an operator changes the selection's buffer.
+    fn remember_visual_selection(&mut self) {
+        let Some(selection) = self.selection() else {
+            return;
+        };
+        self.set_mark('<', selection.start);
+        self.set_mark('>', self.previous_grapheme(selection.end));
     }
 
     /// The concrete find `;` or `,` stands for, given what was remembered.
@@ -1013,6 +1089,10 @@ impl Editor {
         amount: usize,
         effects: &mut Vec<Effect>,
     ) {
+        let was_visual = self.mode.is_visual();
+        if was_visual {
+            self.remember_visual_selection();
+        }
         let span_is_empty = match &span {
             Span::Chars(range) => range.is_empty(),
             Span::Lines(_) => self.buffer().len_bytes() == 0,
@@ -1023,15 +1103,13 @@ impl Editor {
             // editor in visual mode, or the next keystroke is interpreted against
             // a selection the user thinks they have dismissed.
             if self.mode.is_visual() {
-                self.leave_visual(effects);
+                self.leave_visual(false, effects);
             }
             return;
         }
         if operator.yanks() {
             self.yank(&span);
         }
-        let was_visual = self.mode.is_visual();
-
         match operator {
             Operator::ShiftRight | Operator::ShiftLeft => {
                 let Span::Lines(rows) = span else {
@@ -1083,7 +1161,7 @@ impl Editor {
         }
 
         if was_visual && self.mode.is_visual() {
-            self.leave_visual(effects);
+            self.leave_visual(false, effects);
         }
         self.sticky = motion::grapheme_col(self.buffer(), self.cursor);
     }
@@ -1143,7 +1221,10 @@ impl Editor {
         }
     }
 
-    fn leave_visual(&mut self, effects: &mut Vec<Effect>) {
+    fn leave_visual(&mut self, remember_selection: bool, effects: &mut Vec<Effect>) {
+        if remember_selection {
+            self.remember_visual_selection();
+        }
         self.anchor = None;
         self.set_mode(Mode::Normal, effects);
     }
@@ -1371,7 +1452,14 @@ const fn mark_index(name: char) -> Option<usize> {
     if name.is_ascii_lowercase() {
         Some((name as u8 - b'a') as usize)
     } else {
-        None
+        match name {
+            '<' => Some(26),
+            '>' => Some(27),
+            '[' => Some(28),
+            ']' => Some(29),
+            '^' => Some(30),
+            _ => None,
+        }
     }
 }
 
