@@ -68,6 +68,10 @@ pub enum Motion {
     WordEnd {
         big: bool,
     },
+    /// `{` / `}` — the previous or next blank row.
+    Paragraph {
+        backward: bool,
+    },
     /// `f` / `F` / `t` / `T`
     Find(Find),
     /// `;` / `,`
@@ -371,6 +375,7 @@ mod tests {
                 false,
             ),
             (Motion::WordEnd { big: false }, false, true),
+            (Motion::Paragraph { backward: false }, false, false),
             (
                 Motion::Find(Find {
                     target: ',',

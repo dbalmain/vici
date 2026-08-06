@@ -911,6 +911,117 @@ marks: []
 pending: ""; last-change: "<lt><lt>"; recording: -
 effects:
 
+== paragraph-forward ==
+text: "one\n\ntwo"
+cursor: 4 @ 1:0
+mode: Normal; selection: -
+register: char ""
+history: undo=0 redo=0
+jumps: [0]
+marks: []
+pending: ""; last-change: ""; recording: -
+effects:
+
+== paragraph-backward ==
+text: "one\n\ntwo"
+cursor: 4 @ 1:0
+mode: Normal; selection: -
+register: char ""
+history: undo=0 redo=0
+jumps: [0, 5]
+marks: []
+pending: ""; last-change: ""; recording: -
+effects:
+
+== paragraph-running-off-forward ==
+text: "one\ntwo"
+cursor: 6 @ 1:2
+mode: Normal; selection: -
+register: char ""
+history: undo=0 redo=0
+jumps: [0]
+marks: []
+pending: ""; last-change: ""; recording: -
+effects:
+
+== paragraph-running-off-backward ==
+text: "one\ntwo"
+cursor: 0 @ 0:0
+mode: Normal; selection: -
+register: char ""
+history: undo=0 redo=0
+jumps: [0, 4]
+marks: []
+pending: ""; last-change: ""; recording: -
+effects:
+
+== paragraph-counted ==
+text: "one\n\ntwo\n\nthree\n\nfour"
+cursor: 9 @ 3:0
+mode: Normal; selection: -
+register: char ""
+history: undo=0 redo=0
+jumps: [0]
+marks: []
+pending: ""; last-change: ""; recording: -
+effects:
+
+== paragraph-delete-exclusive ==
+text: "\ntwo"
+cursor: 0 @ 0:0
+mode: Normal; selection: -
+register: char "one\n"
+history: undo=1 redo=0
+jumps: []
+marks: [[:0, ]:0]
+pending: ""; last-change: "d}"; recording: -
+effects:
+  edit 0..4 -> 0; (0,0)..(1,0) -> (0,0)
+
+== paragraph-consecutive-blanks ==
+text: "one\n\n\n two"
+cursor: 5 @ 2:0
+mode: Normal; selection: -
+register: char ""
+history: undo=0 redo=0
+jumps: [0]
+marks: []
+pending: ""; last-change: ""; recording: -
+effects:
+
+== paragraph-no-blanks ==
+text: "one\ntwo"
+cursor: 6 @ 1:2
+mode: Normal; selection: -
+register: char ""
+history: undo=0 redo=0
+jumps: [0]
+marks: []
+pending: ""; last-change: ""; recording: -
+effects:
+
+== paragraph-empty ==
+text: ""
+cursor: 0 @ 0:0
+mode: Normal; selection: -
+register: char ""
+history: undo=0 redo=0
+jumps: []
+marks: []
+pending: ""; last-change: ""; recording: -
+effects:
+
+== paragraph-jump ==
+text: "one\n\ntwo"
+cursor: 4 @ 1:0
+mode: Normal; selection: -
+register: char ""
+history: undo=0 redo=0
+jumps: [0]
+marks: []
+pending: ""; last-change: ""; recording: -
+effects:
+
 == shift-whitespace-to-empty ==
 text: ""
 cursor: 0 @ 0:0

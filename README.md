@@ -67,7 +67,7 @@ deserialised from config without redesigning anything.
 ## What's implemented
 
 Normal, insert, replace and visual (character and line) modes. Motions
-`h j k l 0 ^ $ w W b B e E f F t T ; , / ? n N G gg H M L %`. Operators `d c y > <` over
+`h j k l 0 ^ $ w W b B e E f F t T ; , / ? n N G gg H M L % { }`. Operators `d c y > <` over
 motions, doubled (`dd`, `>>`, `<<`), and text objects `iw aw i( a( i" a" ip` and
 friends. Counts, including the multiplication in `2d3w`. `x X r ~ J p P`, all
 six insert entries, undo, redo, dot-repeat and macros.

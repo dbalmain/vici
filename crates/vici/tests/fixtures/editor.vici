@@ -298,6 +298,47 @@ case shift-noop
 text one
 keys <lt><lt>
 ---
+# Paragraph motions
+case paragraph-forward
+text one\n\ntwo
+keys }
+---
+case paragraph-backward
+text one\n\ntwo
+keys G{
+---
+case paragraph-running-off-forward
+text one\ntwo
+keys }
+---
+case paragraph-running-off-backward
+text one\ntwo
+keys G{
+---
+case paragraph-counted
+text one\n\ntwo\n\nthree\n\nfour
+keys 2}
+---
+case paragraph-delete-exclusive
+text one\n\ntwo
+keys d}
+---
+case paragraph-consecutive-blanks
+text one\n\n\n two
+keys 2}
+---
+case paragraph-no-blanks
+text one\ntwo
+keys }
+---
+case paragraph-empty
+text
+keys }
+---
+case paragraph-jump
+text one\n\ntwo
+keys }
+---
 case shift-whitespace-to-empty
 text     
 keys <lt><lt>

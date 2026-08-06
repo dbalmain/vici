@@ -71,6 +71,8 @@
 [x] B   previous WORD start
 [x] e   end of word
 [x] E   end of WORD
+[ ] {   previous paragraph
+[ ] }   next paragraph
 
 --------------------------------------------------------------
  4. MOTIONS — find on the row
@@ -426,7 +428,6 @@
 --------------------------------------------------------------
 
 [ ] s   would be xi        [ ] S   would be cc
-[ ] {   [ ] }   paragraph motions
 [ ] <C-v>  visual block
 [ ] "   named registers — deliberately absent
 [ ] U   row-scoped undo

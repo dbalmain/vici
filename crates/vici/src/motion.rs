@@ -206,6 +206,10 @@ fn first_non_blank(buf: &Buffer, row: usize) -> usize {
     range.start + offset
 }
 
+fn blank_row(buf: &Buffer, row: usize) -> bool {
+    buf.row_text(row).trim().is_empty()
+}
+
 // ---------------------------------------------------------------------------
 // word classes
 // ---------------------------------------------------------------------------
@@ -289,6 +293,38 @@ fn word_end(buf: &Buffer, from: usize, big: bool) -> usize {
             return pos;
         }
     }
+}
+
+fn paragraph(buf: &Buffer, from: usize, backward: bool, count: usize, bound: Bound) -> usize {
+    let mut row = buf.byte_to_point(from).row;
+    let last_row = buf.len_rows() - 1;
+    for _ in 0..count {
+        let next = if backward {
+            row.checked_sub(1)
+        } else {
+            row.checked_add(1).filter(|&row| row <= last_row)
+        };
+        let Some(next) = next else {
+            return if backward {
+                0
+            } else {
+                clamp(buf, buf.len_bytes(), bound)
+            };
+        };
+        row = next;
+        while row != 0 && row != last_row && !blank_row(buf, row) {
+            let next = if backward { row - 1 } else { row + 1 };
+            row = next;
+        }
+        if !blank_row(buf, row) {
+            return if backward {
+                0
+            } else {
+                clamp(buf, buf.len_bytes(), bound)
+            };
+        }
+    }
+    buf.row_content_range(row).start
 }
 
 /// The run of same-class characters containing `at`.
@@ -659,6 +695,7 @@ pub fn resolve(
             }
             pos
         }
+        Motion::Paragraph { backward } => paragraph(buf, from, backward, repeat, bound),
         Motion::Find(find) => find_in_row(buf, from, find, repeat, false)?,
         Motion::RepeatFind { reverse } => {
             let mut find = last_find?;
@@ -937,13 +974,12 @@ fn inner_span(buf: &Buffer, open: usize, close: usize) -> Range<usize> {
 fn paragraph_object(buf: &Buffer, at: usize, scope: ObjectScope, count: usize) -> Span {
     let rows = buf.len_rows();
     let row = buf.byte_to_point(at).row;
-    let blank = |r: usize| buf.row_text(r).trim().is_empty();
     let mut first = row;
-    while first > 0 && !blank(first - 1) {
+    while first > 0 && !blank_row(buf, first - 1) {
         first -= 1;
     }
     let mut last = row;
-    while last + 1 < rows && !blank(last + 1) {
+    while last + 1 < rows && !blank_row(buf, last + 1) {
         last += 1;
     }
     // Counts work as they do for words, with a run of blank rows standing in for a
@@ -955,9 +991,9 @@ fn paragraph_object(buf: &Buffer, at: usize, scope: ObjectScope, count: usize) -
                 if last + 1 >= rows {
                     break;
                 }
-                let want = blank(last + 1);
+                let want = blank_row(buf, last + 1);
                 last += 1;
-                while last + 1 < rows && blank(last + 1) == want {
+                while last + 1 < rows && blank_row(buf, last + 1) == want {
                     last += 1;
                 }
             }
@@ -965,15 +1001,15 @@ fn paragraph_object(buf: &Buffer, at: usize, scope: ObjectScope, count: usize) -
         ObjectScope::Around => {
             for step in 0..count {
                 if step > 0 {
-                    if last + 1 >= rows || blank(last + 1) {
+                    if last + 1 >= rows || blank_row(buf, last + 1) {
                         break;
                     }
                     last += 1;
-                    while last + 1 < rows && !blank(last + 1) {
+                    while last + 1 < rows && !blank_row(buf, last + 1) {
                         last += 1;
                     }
                 }
-                while last + 1 < rows && blank(last + 1) {
+                while last + 1 < rows && blank_row(buf, last + 1) {
                     last += 1;
                 }
             }
@@ -1117,6 +1153,61 @@ mod tests {
                 None,
                 Some(4),
             ),
+        ] {
+            assert_eq!(
+                go(text, from, motion, count),
+                expected,
+                "{text:?} at {from}"
+            );
+        }
+    }
+
+    #[test]
+    fn paragraph_motions_find_blank_rows_and_buffer_edges() {
+        for (text, from, motion, count, expected) in [
+            (
+                "one\n\ntwo\n\nthree",
+                0,
+                Motion::Paragraph { backward: false },
+                None,
+                Some(4),
+            ),
+            (
+                "one\n\ntwo\n\nthree",
+                8,
+                Motion::Paragraph { backward: true },
+                None,
+                Some(4),
+            ),
+            (
+                "one\n\ntwo\n\nthree",
+                0,
+                Motion::Paragraph { backward: false },
+                Some(2),
+                Some(9),
+            ),
+            (
+                "one\ntwo",
+                0,
+                Motion::Paragraph { backward: false },
+                None,
+                Some(6),
+            ),
+            (
+                "one\ntwo",
+                4,
+                Motion::Paragraph { backward: true },
+                None,
+                Some(0),
+            ),
+            (
+                "one\n\n\n two",
+                0,
+                Motion::Paragraph { backward: false },
+                Some(2),
+                Some(5),
+            ),
+            ("", 0, Motion::Paragraph { backward: false }, None, Some(0)),
         ] {
             assert_eq!(
                 go(text, from, motion, count),

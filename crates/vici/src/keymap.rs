@@ -212,6 +212,8 @@ impl Keymap {
             ("B", Motion::WordBackward { big: true }),
             ("e", Motion::WordEnd { big: false }),
             ("E", Motion::WordEnd { big: true }),
+            ("{", Motion::Paragraph { backward: true }),
+            ("}", Motion::Paragraph { backward: false }),
             ("G", Motion::GotoRow),
             ("gg", Motion::GotoFirstRow),
             ("%", Motion::MatchPair),
@@ -458,7 +460,7 @@ mod tests {
     fn keys_features_calls_unbound_really_are() {
         // Keep in step with FEATURES.txt §17. D/C were bound while both the
         // checklist and the README still called them unbound.
-        for spec in ["s", "S", "{", "}", "<C-v>", "\"", "U"] {
+        for spec in ["s", "S", "<C-v>", "\"", "U"] {
             let path = keys(spec).expect("valid notation");
             assert_eq!(
                 Keymap::vim().walk(Layer::Normal, &path),

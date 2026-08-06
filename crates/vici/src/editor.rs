@@ -1473,6 +1473,7 @@ const fn pushes_jump(motion: &Motion) -> bool {
         motion,
         Motion::GotoRow
             | Motion::GotoFirstRow
+            | Motion::Paragraph { .. }
             | Motion::MatchPair
             | Motion::ScreenTop
             | Motion::ScreenMiddle

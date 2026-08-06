@@ -69,14 +69,9 @@ and `Editor::jump_to(offset)` is the public host landing move.
 Marks landed in the next slice: `Editor` holds a named-position table alongside
 the jump list, shifts both through the same edit helper, and clears both in
 `set_text`. `m{a-z}`, `` `a `` and `'a` are the grammar; mark motions become a
-concrete `Motion::ToOffset` before the pure motion resolver runs. Automatic
-`'<` and `'>` preserve the latest visual selection; a future `gv` should
-reselect from them.
-
-## Cheap, whenever
-
-- **`{` and `}`** paragraph motions. The blank-row machinery already exists for
-  `ip`/`ap`, so this is one match arm in `motion::resolve` and two bindings.
+concrete `Motion::ToOffset` before the pure motion resolver runs. Automatic `'<`
+and `'>` preserve the latest visual selection; a future `gv` should reselect
+from them.
 
 ## Bigger, later
 
@@ -94,11 +89,11 @@ reselect from them.
 - **leap.vim.** Needs the viewport (done), the jump list, and search's literal
   scanning machinery. Its resolved destination now has a public seam:
   `Motion::ToOffset { offset, linewise }`. Operator-pending can consume the
-  label keypress and hand that concrete motion back to the core.
-  Its dot-repeat is the first genuine break in "everything is key replay" — vim
-  re-searches the two-char pattern rather than replaying the label. **Build it
-  as a separate `vici-leap` crate against the public API.** If that turns out to
-  be impossible, the missing seam is a more interesting finding than another
+  label keypress and hand that concrete motion back to the core. Its dot-repeat
+  is the first genuine break in "everything is key replay" — vim re-searches the
+  two-char pattern rather than replaying the label. **Build it as a separate
+  `vici-leap` crate against the public API.** If that turns out to be
+  impossible, the missing seam is a more interesting finding than another
   built-in, and a better README argument than the one currently made in prose.
 
 ## How to check vi fidelity
