@@ -596,6 +596,18 @@ impl Editor {
                 }
             }
 
+            Command::ChangeSurround { from, to } => {
+                self.change_surround(from, to, &mut effects);
+            }
+
+            Command::DeleteSurround(target) => {
+                self.delete_surround(target, &mut effects);
+            }
+
+            Command::SurroundSelection(delimiter) => {
+                self.surround_selection(delimiter, &mut effects);
+            }
+
             Command::SwapCase => {
                 let end = self.step(self.cursor, Motion::Right, repeat, Bound::PastEnd);
                 if end == self.cursor {
@@ -1317,6 +1329,97 @@ impl Editor {
 
     // -- edits that need more than a span --------------------------------
 
+    fn change_surround(&mut self, from: char, to: char, effects: &mut Vec<Effect>) {
+        let Some((new_open, new_close, new_padding)) = surround_pair(to) else {
+            effects.push(Effect::Bell);
+            return;
+        };
+        let Some((open, close, open_width, close_width)) = self.surround_offsets(from) else {
+            effects.push(Effect::Bell);
+            return;
+        };
+        let old_padding = self.surround_has_padding(open, close, open_width);
+        let close_start = if old_padding { close - 1 } else { close };
+        let close_text = if new_padding {
+            format!(" {new_close}")
+        } else {
+            new_close.to_string()
+        };
+        // Offsets belong to the original buffer. Editing the later delimiter
+        // first keeps the opening edit from shifting the closing one.
+        self.edit(close_start..close + close_width, &close_text, effects);
+
+        let open_end = open + open_width + usize::from(old_padding);
+        let open_text = if new_padding {
+            format!("{new_open} ")
+        } else {
+            new_open.to_string()
+        };
+        self.edit(open..open_end, &open_text, effects);
+        self.place_cursor(open);
+    }
+
+    fn delete_surround(&mut self, target: char, effects: &mut Vec<Effect>) {
+        let Some((open, close, open_width, close_width)) = self.surround_offsets(target) else {
+            effects.push(Effect::Bell);
+            return;
+        };
+        // Open and close target spellings deliberately behave alike. Padding is
+        // a property of the existing pair, not of the key used to name it.
+        let padding = self.surround_has_padding(open, close, open_width);
+        let close_start = if padding { close - 1 } else { close };
+        self.edit(close_start..close + close_width, "", effects);
+        let open_end = open + open_width + usize::from(padding);
+        self.edit(open..open_end, "", effects);
+        self.place_cursor(open);
+    }
+
+    fn surround_selection(&mut self, delimiter: char, effects: &mut Vec<Effect>) {
+        let Some((open, close, padding)) = surround_pair(delimiter) else {
+            effects.push(Effect::Bell);
+            return;
+        };
+        let Some(selection) = self.selection() else {
+            effects.push(Effect::Bell);
+            return;
+        };
+        self.remember_visual_selection();
+        let close_text = if padding {
+            format!(" {close}")
+        } else {
+            close.to_string()
+        };
+        self.edit(selection.end..selection.end, &close_text, effects);
+        let open_text = if padding {
+            format!("{open} ")
+        } else {
+            open.to_string()
+        };
+        self.edit(selection.start..selection.start, &open_text, effects);
+        self.leave_visual(false, effects);
+        self.place_cursor(selection.start);
+    }
+
+    fn surround_offsets(&self, target: char) -> Option<(usize, usize, usize, usize)> {
+        let object = self.keymap.object(Key::char(target))?;
+        let (open_width, close_width) = match object {
+            crate::TextObject::Delimited { open, close } => (open.len_utf8(), close.len_utf8()),
+            crate::TextObject::Quoted(quote) => (quote.len_utf8(), quote.len_utf8()),
+            crate::TextObject::Word { .. } | crate::TextObject::Paragraph => return None,
+        };
+        let (open, close) = motion::delimiters(self.buffer(), self.cursor, object)?;
+        Some((open, close, open_width, close_width))
+    }
+
+    fn surround_has_padding(&self, open: usize, close: usize, open_width: usize) -> bool {
+        let inner_start = open + open_width;
+        // Remove one space from each edge only when both exist. Requiring two
+        // distinct bytes avoids treating the sole payload of `( )` twice.
+        inner_start < close.saturating_sub(1)
+            && self.buffer().byte(inner_start) == b' '
+            && self.buffer().byte(close - 1) == b' '
+    }
+
     fn join_rows(&mut self, rows: usize, effects: &mut Vec<Effect>) {
         for _ in 1..rows.max(2) {
             let row = self.cursor_point().row;
@@ -1422,7 +1525,8 @@ impl Editor {
             Command::Operate {
                 target: Target::Selection,
                 ..
-            } => core::mem::take(&mut self.visual_keys),
+            }
+            | Command::SurroundSelection(_) => core::mem::take(&mut self.visual_keys),
             _ => Vec::new(),
         };
         script.extend_from_slice(consumed);
@@ -1455,6 +1559,9 @@ impl Editor {
             }
             | Command::DeleteChar { .. }
             | Command::ReplaceChar(_)
+            | Command::ChangeSurround { .. }
+            | Command::DeleteSurround(_)
+            | Command::SurroundSelection(_)
             | Command::JoinRows
             | Command::Put { .. }
             | Command::SwapCase
@@ -1464,6 +1571,22 @@ impl Editor {
             }
             _ => {}
         }
+    }
+}
+
+/// The delimiters and padding convention selected by a surround key.
+const fn surround_pair(delimiter: char) -> Option<(char, char, bool)> {
+    match delimiter {
+        '(' => Some(('(', ')', true)),
+        '[' => Some(('[', ']', true)),
+        '{' => Some(('{', '}', true)),
+        '<' => Some(('<', '>', true)),
+        ')' => Some(('(', ')', false)),
+        ']' => Some(('[', ']', false)),
+        '}' => Some(('{', '}', false)),
+        '>' => Some(('<', '>', false)),
+        quote @ ('"' | '\'' | '`') => Some((quote, quote, false)),
+        _ => None,
     }
 }
 

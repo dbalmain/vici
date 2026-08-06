@@ -290,6 +290,15 @@ pub enum Command {
     },
     /// `r{char}`
     ReplaceChar(char),
+    /// `cs{from}{to}`
+    ChangeSurround {
+        from: char,
+        to: char,
+    },
+    /// `ds{delim}`
+    DeleteSurround(char),
+    /// Visual `S{delim}`
+    SurroundSelection(char),
     /// `J`
     JoinRows,
     /// `p` / `P`
@@ -347,6 +356,12 @@ pub enum AwaitChar {
     SetMark,
     /// `` ` `` / `'`
     GotoMark { exact: bool },
+    /// `cs` or `ds` — the delimiter being changed or deleted.
+    SurroundTarget,
+    /// `cs{from}` — the delimiter to change to.
+    SurroundTo(char),
+    /// Visual `S` — the delimiter to wrap the selection in.
+    SurroundSelection,
 }
 
 #[cfg(test)]

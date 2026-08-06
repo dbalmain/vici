@@ -221,6 +221,14 @@ impl Pending {
                 Resolution::Pending
             }
             Binding::Await(awaiting) => {
+                if awaiting == AwaitChar::SurroundTarget
+                    && !matches!(self.operator, Some(Operator::Change | Operator::Delete))
+                {
+                    // `Operator::Yank` is where `ys` can hook in when its target
+                    // grammar is built. It is deliberately not part of surround's
+                    // character-await path.
+                    return self.reject();
+                }
                 self.awaiting = Some(awaiting);
                 Resolution::Pending
             }
@@ -307,6 +315,20 @@ impl Pending {
                     || matches!(ch, '<' | '>' | '[' | ']' | '^' | '\'' | '`') =>
             {
                 self.finish(self.with_motion(Motion::Mark { name: ch, exact }))
+            }
+            AwaitChar::SurroundTarget => match self.operator {
+                Some(Operator::Delete) => self.finish(Command::DeleteSurround(ch)),
+                Some(Operator::Change) => {
+                    self.awaiting = Some(AwaitChar::SurroundTo(ch));
+                    Resolution::Pending
+                }
+                _ => self.reject(),
+            },
+            AwaitChar::SurroundTo(from) if self.operator == Some(Operator::Change) => {
+                self.finish(Command::ChangeSurround { from, to: ch })
+            }
+            AwaitChar::SurroundSelection if self.operator.is_none() => {
+                self.finish(Command::SurroundSelection(ch))
             }
             _ => self.reject(),
         }
@@ -463,6 +485,43 @@ mod tests {
                 )
             );
         }
+    }
+
+    #[test]
+    fn surround_chains_character_awaits_without_dropping_the_operator() {
+        let keymap = Keymap::vim();
+        let mut pending = Pending::new();
+        for spec in ["c", "s", "("] {
+            let key = keys(spec).expect("valid test notation")[0];
+            assert_eq!(
+                pending.feed(key, Mode::Normal, &keymap),
+                Resolution::Pending,
+                "{spec}"
+            );
+            assert_eq!(pending.operator(), Some(Operator::Change), "{spec}");
+        }
+        assert_eq!(
+            pending.feed(Key::char('{'), Mode::Normal, &keymap),
+            Resolution::Command {
+                command: Command::ChangeSurround { from: '(', to: '{' },
+                count: None,
+                keys: keys("cs({").expect("valid test notation"),
+            }
+        );
+
+        assert_eq!(command("ds(").0, Command::DeleteSurround('('),);
+        assert!(matches!(
+            resolve_in(Mode::Normal, "ys"),
+            Resolution::Rejected { .. }
+        ));
+        assert_eq!(
+            resolve_in(Mode::Visual(VisualKind::Char), "S)"),
+            Resolution::Command {
+                command: Command::SurroundSelection(')'),
+                count: None,
+                keys: keys("S)").expect("valid test notation"),
+            }
+        );
     }
 
     #[test]

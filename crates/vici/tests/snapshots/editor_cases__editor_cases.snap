@@ -4949,3 +4949,372 @@ jumps: [0, 2]
 marks: []
 pending: ""; last-change: ""; recording: -
 effects:
+
+== surround-change-opening-adds-padding ==
+text: "{ foo }"
+cursor: 0 @ 0:0
+mode: Normal; selection: -
+register: char ""
+history: undo=1 redo=0
+jumps: []
+marks: [[:0, ]:6]
+pending: ""; last-change: "cs({"; recording: -
+effects:
+  edit 4..5 -> 6; (0,4)..(0,5) -> (0,6)
+  edit 0..1 -> 2; (0,0)..(0,1) -> (0,2)
+
+== surround-change-closing-removes-padding ==
+text: "(foo)"
+cursor: 0 @ 0:0
+mode: Normal; selection: -
+register: char ""
+history: undo=1 redo=0
+jumps: []
+marks: [[:0, ]:4]
+pending: ""; last-change: "cs()"; recording: -
+effects:
+  edit 5..7 -> 6; (0,5)..(0,7) -> (0,6)
+  edit 0..2 -> 1; (0,0)..(0,2) -> (0,1)
+
+== surround-change-closing-target ==
+text: "{ foo }"
+cursor: 0 @ 0:0
+mode: Normal; selection: -
+register: char ""
+history: undo=1 redo=0
+jumps: []
+marks: [[:0, ]:6]
+pending: ""; last-change: "cs){"; recording: -
+effects:
+  edit 4..5 -> 6; (0,4)..(0,5) -> (0,6)
+  edit 0..1 -> 2; (0,0)..(0,1) -> (0,2)
+
+== surround-change-alias-target ==
+text: "[foo]"
+cursor: 0 @ 0:0
+mode: Normal; selection: -
+register: char ""
+history: undo=1 redo=0
+jumps: []
+marks: [[:0, ]:4]
+pending: ""; last-change: "csb]"; recording: -
+effects:
+  edit 4..5 -> 5; (0,4)..(0,5) -> (0,5)
+  edit 0..1 -> 1; (0,0)..(0,1) -> (0,1)
+
+== surround-change-quotes ==
+text: "\"foo\""
+cursor: 0 @ 0:0
+mode: Normal; selection: -
+register: char ""
+history: undo=1 redo=0
+jumps: []
+marks: [[:0, ]:4]
+pending: ""; last-change: "cs'\""; recording: -
+effects:
+  edit 4..5 -> 5; (0,4)..(0,5) -> (0,5)
+  edit 0..1 -> 1; (0,0)..(0,1) -> (0,1)
+
+== surround-change-quotes-to-brackets-and-back ==
+text: "\"foo\""
+cursor: 0 @ 0:0
+mode: Normal; selection: -
+register: char ""
+history: undo=2 redo=0
+jumps: []
+marks: [[:0, ]:4]
+pending: ""; last-change: "cs]\""; recording: -
+effects:
+  edit 4..5 -> 5; (0,4)..(0,5) -> (0,5)
+  edit 0..1 -> 1; (0,0)..(0,1) -> (0,1)
+  edit 4..5 -> 5; (0,4)..(0,5) -> (0,5)
+  edit 0..1 -> 1; (0,0)..(0,1) -> (0,1)
+
+== surround-change-multi-row ==
+text: "[\n  foo\n]"
+cursor: 0 @ 0:0
+mode: Normal; selection: -
+register: char ""
+history: undo=1 redo=0
+jumps: []
+marks: [[:0, ]:8]
+pending: ""; last-change: "cs{]"; recording: -
+effects:
+  edit 8..9 -> 9; (2,0)..(2,1) -> (2,1)
+  edit 0..1 -> 1; (0,0)..(0,1) -> (0,1)
+
+== surround-change-no-pair ==
+text: "foo"
+cursor: 0 @ 0:0
+mode: Normal; selection: -
+register: char ""
+history: undo=0 redo=0
+jumps: []
+marks: []
+pending: ""; last-change: "cs({"; recording: -
+effects:
+  bell
+
+== surround-change-unknown-target ==
+text: "(foo)"
+cursor: 0 @ 0:0
+mode: Normal; selection: -
+register: char ""
+history: undo=0 redo=0
+jumps: []
+marks: []
+pending: ""; last-change: "csx]"; recording: -
+effects:
+  bell
+
+== surround-change-unknown-replacement ==
+text: "(foo)"
+cursor: 0 @ 0:0
+mode: Normal; selection: -
+register: char ""
+history: undo=0 redo=0
+jumps: []
+marks: []
+pending: ""; last-change: "cs(x"; recording: -
+effects:
+  bell
+
+== surround-delete-opening-target ==
+text: "foo"
+cursor: 0 @ 0:0
+mode: Normal; selection: -
+register: char ""
+history: undo=1 redo=0
+jumps: []
+marks: [[:0, ]:2]
+pending: ""; last-change: "ds("; recording: -
+effects:
+  edit 5..7 -> 5; (0,5)..(0,7) -> (0,5)
+  edit 0..2 -> 0; (0,0)..(0,2) -> (0,0)
+
+== surround-delete-closing-target ==
+text: "foo"
+cursor: 0 @ 0:0
+mode: Normal; selection: -
+register: char ""
+history: undo=1 redo=0
+jumps: []
+marks: [[:0, ]:2]
+pending: ""; last-change: "ds)"; recording: -
+effects:
+  edit 5..7 -> 5; (0,5)..(0,7) -> (0,5)
+  edit 0..2 -> 0; (0,0)..(0,2) -> (0,0)
+
+== surround-delete-unpadded ==
+text: "foo"
+cursor: 0 @ 0:0
+mode: Normal; selection: -
+register: char ""
+history: undo=1 redo=0
+jumps: []
+marks: [[:0, ]:2]
+pending: ""; last-change: "ds("; recording: -
+effects:
+  edit 4..5 -> 4; (0,4)..(0,5) -> (0,4)
+  edit 0..1 -> 0; (0,0)..(0,1) -> (0,0)
+
+== surround-delete-no-pair ==
+text: "foo"
+cursor: 0 @ 0:0
+mode: Normal; selection: -
+register: char ""
+history: undo=0 redo=0
+jumps: []
+marks: []
+pending: ""; last-change: "ds("; recording: -
+effects:
+  bell
+
+== surround-selection-delete-round-trip ==
+text: "foo"
+cursor: 0 @ 0:0
+mode: Normal; selection: -
+register: char ""
+history: undo=2 redo=0
+jumps: []
+marks: [<:0, >:2, [:0, ]:2]
+pending: ""; last-change: "ds("; recording: -
+effects:
+  mode Visual(Char)
+  edit 3..3 -> 5; (0,3)..(0,3) -> (0,5)
+  edit 0..0 -> 2; (0,0)..(0,0) -> (0,2)
+  mode Normal
+  edit 5..7 -> 5; (0,5)..(0,7) -> (0,5)
+  edit 0..2 -> 0; (0,0)..(0,2) -> (0,0)
+
+== surround-change-does-not-double-padding ==
+text: "{ foo }"
+cursor: 0 @ 0:0
+mode: Normal; selection: -
+register: char ""
+history: undo=1 redo=0
+jumps: []
+marks: [[:0, ]:6]
+pending: ""; last-change: "cs({"; recording: -
+effects:
+  edit 5..7 -> 7; (0,5)..(0,7) -> (0,7)
+  edit 0..2 -> 2; (0,0)..(0,2) -> (0,2)
+
+== surround-selection-opening-adds-padding ==
+text: "( foo )"
+cursor: 0 @ 0:0
+mode: Normal; selection: -
+register: char ""
+history: undo=1 redo=0
+jumps: []
+marks: [<:0, >:4, [:0, ]:6]
+pending: ""; last-change: "veS("; recording: -
+effects:
+  mode Visual(Char)
+  edit 3..3 -> 5; (0,3)..(0,3) -> (0,5)
+  edit 0..0 -> 2; (0,0)..(0,0) -> (0,2)
+  mode Normal
+
+== surround-selection-closing-has-no-padding ==
+text: "(foo)"
+cursor: 0 @ 0:0
+mode: Normal; selection: -
+register: char ""
+history: undo=1 redo=0
+jumps: []
+marks: [<:0, >:3, [:0, ]:4]
+pending: ""; last-change: "veS)"; recording: -
+effects:
+  mode Visual(Char)
+  edit 3..3 -> 4; (0,3)..(0,3) -> (0,4)
+  edit 0..0 -> 1; (0,0)..(0,0) -> (0,1)
+  mode Normal
+
+== surround-selection-linewise-multi-row ==
+text: "(one\ntwo\n)three"
+cursor: 0 @ 0:0
+mode: Normal; selection: -
+register: char ""
+history: undo=1 redo=0
+jumps: []
+marks: [<:0, >:8, [:0, ]:9]
+pending: ""; last-change: "VjS)"; recording: -
+effects:
+  mode Visual(Line)
+  edit 8..8 -> 9; (2,0)..(2,0) -> (2,1)
+  edit 0..0 -> 1; (0,0)..(0,0) -> (0,1)
+  mode Normal
+
+== surround-yank-is-out-of-scope ==
+text: "foo"
+cursor: 0 @ 0:0
+mode: Normal; selection: -
+register: char ""
+history: undo=0 redo=0
+jumps: []
+marks: []
+pending: ""; last-change: ""; recording: -
+effects:
+  bell
+
+== surround-yank-shaped-input-resets ==
+text: "foo"
+cursor: 1 @ 0:1
+mode: Normal; selection: -
+register: char ""
+history: undo=0 redo=0
+jumps: []
+marks: []
+pending: ""; last-change: ""; recording: -
+effects:
+  bell
+
+== surround-dot-change ==
+text: "{ one } { two }"
+cursor: 8 @ 0:8
+mode: Normal; selection: -
+register: char ""
+history: undo=2 redo=0
+jumps: []
+marks: [[:8, ]:14]
+pending: ""; last-change: "cs({"; recording: -
+effects:
+  edit 4..5 -> 6; (0,4)..(0,5) -> (0,6)
+  edit 0..1 -> 2; (0,0)..(0,1) -> (0,2)
+  edit 12..13 -> 14; (0,12)..(0,13) -> (0,14)
+  edit 8..9 -> 10; (0,8)..(0,9) -> (0,10)
+
+== surround-dot-delete ==
+text: "one two"
+cursor: 4 @ 0:4
+mode: Normal; selection: -
+register: char ""
+history: undo=2 redo=0
+jumps: []
+marks: [[:4, ]:6]
+pending: ""; last-change: "ds("; recording: -
+effects:
+  edit 4..5 -> 4; (0,4)..(0,5) -> (0,4)
+  edit 0..1 -> 0; (0,0)..(0,1) -> (0,0)
+  edit 8..9 -> 8; (0,8)..(0,9) -> (0,8)
+  edit 4..5 -> 4; (0,4)..(0,5) -> (0,4)
+
+== surround-dot-visual-selection ==
+text: "(one) (two)"
+cursor: 6 @ 0:6
+mode: Normal; selection: -
+register: char ""
+history: undo=2 redo=0
+jumps: []
+marks: [<:6, >:9, [:6, ]:10]
+pending: ""; last-change: "veS)"; recording: -
+effects:
+  mode Visual(Char)
+  edit 3..3 -> 4; (0,3)..(0,3) -> (0,4)
+  edit 0..0 -> 1; (0,0)..(0,0) -> (0,1)
+  mode Normal
+  mode Visual(Char)
+  edit 9..9 -> 10; (0,9)..(0,9) -> (0,10)
+  edit 6..6 -> 7; (0,6)..(0,6) -> (0,7)
+  mode Normal
+
+== surround-change-undo-one-step ==
+text: "( foo )"
+cursor: 0 @ 0:0
+mode: Normal; selection: -
+register: char ""
+history: undo=0 redo=1
+jumps: []
+marks: [[:0, ]:6]
+pending: ""; last-change: "cs({"; recording: -
+effects:
+  edit 5..7 -> 7; (0,5)..(0,7) -> (0,7)
+  edit 0..2 -> 2; (0,0)..(0,2) -> (0,2)
+  edit 0..2 -> 2; (0,0)..(0,2) -> (0,2)
+  edit 5..7 -> 7; (0,5)..(0,7) -> (0,7)
+
+== surround-multibyte-payload ==
+text: "{ 日本語 }"
+cursor: 0 @ 0:0
+mode: Normal; selection: -
+register: char ""
+history: undo=1 redo=0
+jumps: []
+marks: [[:0, ]:12]
+pending: ""; last-change: "cs({"; recording: -
+effects:
+  edit 10..11 -> 12; (0,10)..(0,11) -> (0,12)
+  edit 0..1 -> 2; (0,0)..(0,1) -> (0,2)
+
+== surround-leaves-register-untouched ==
+text: "seed { foo }"
+cursor: 5 @ 0:5
+mode: Normal; selection: -
+register: char "seed"
+history: undo=1 redo=0
+jumps: []
+marks: [[:5, ]:11]
+pending: ""; last-change: "cs({"; recording: -
+effects:
+  edit 9..10 -> 11; (0,9)..(0,10) -> (0,11)
+  edit 5..6 -> 7; (0,5)..(0,6) -> (0,7)

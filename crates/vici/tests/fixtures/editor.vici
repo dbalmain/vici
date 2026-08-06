@@ -1549,3 +1549,112 @@ keys /日本<CR>
 case search-pushes-jump
 text x foo
 keys /foo<CR><C-o>
+---
+# Surround
+case surround-change-opening-adds-padding
+text (foo)
+keys cs({
+---
+case surround-change-closing-removes-padding
+text ( foo )
+keys cs()
+---
+case surround-change-closing-target
+text (foo)
+keys cs){
+---
+case surround-change-alias-target
+text (foo)
+keys csb]
+---
+case surround-change-quotes
+text 'foo'
+keys cs'"
+---
+case surround-change-quotes-to-brackets-and-back
+text "foo"
+keys cs"]cs]"
+---
+case surround-change-multi-row
+text {\n  foo\n}
+keys cs{]
+---
+case surround-change-no-pair
+text foo
+keys cs({
+---
+case surround-change-unknown-target
+text (foo)
+keys csx]
+---
+case surround-change-unknown-replacement
+text (foo)
+keys cs(x
+---
+case surround-delete-opening-target
+text ( foo )
+keys ds(
+---
+case surround-delete-closing-target
+text ( foo )
+keys ds)
+---
+case surround-delete-unpadded
+text (foo)
+keys ds(
+---
+case surround-delete-no-pair
+text foo
+keys ds(
+---
+case surround-selection-delete-round-trip
+text foo
+keys veS(ds(
+---
+case surround-change-does-not-double-padding
+text ( foo )
+keys cs({
+---
+case surround-selection-opening-adds-padding
+text foo
+keys veS(
+---
+case surround-selection-closing-has-no-padding
+text foo
+keys veS)
+---
+case surround-selection-linewise-multi-row
+text one\ntwo\nthree
+keys VjS)
+---
+case surround-yank-is-out-of-scope
+text foo
+keys ys
+---
+case surround-yank-shaped-input-resets
+text foo
+keys ysl
+---
+case surround-dot-change
+text (one) (two)
+keys cs({f(.
+---
+case surround-dot-delete
+text (one) (two)
+keys ds(f(.
+---
+case surround-dot-visual-selection
+text one two
+keys veS)3w.
+---
+case surround-change-undo-one-step
+text ( foo )
+keys cs({u
+---
+case surround-multibyte-payload
+text (日本語)
+keys cs({
+---
+case surround-leaves-register-untouched
+text seed (foo)
+keys yiwf(cs({

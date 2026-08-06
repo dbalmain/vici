@@ -769,6 +769,18 @@ pub fn object_span(
     }
 }
 
+/// Byte offsets of the delimiters enclosing `at` for a delimited text object.
+///
+/// Word and paragraph objects have no delimiters and return `None`.
+#[must_use]
+pub fn delimiters(buf: &Buffer, at: usize, object: TextObject) -> Option<(usize, usize)> {
+    match object {
+        TextObject::Delimited { open, close } => enclosing_pair(buf, at, open, close),
+        TextObject::Quoted(quote) => enclosing_quotes(buf, at, quote),
+        TextObject::Word { .. } | TextObject::Paragraph => None,
+    }
+}
+
 /// `iw` / `aw`, with a count taking in further runs of text.
 ///
 /// A stretch of whitespace is a run of its own, so `3iw` is word, space, word,
@@ -1264,6 +1276,20 @@ mod tests {
                 "{text:?} at {from}"
             );
         }
+    }
+
+    #[test]
+    fn delimiter_offsets_are_independent_of_object_spans() {
+        let buffer = Buffer::from_text("{\n  body\n}");
+        let braces = TextObject::Delimited {
+            open: '{',
+            close: '}',
+        };
+        assert_eq!(delimiters(&buffer, 4, braces), Some((0, 9)));
+        assert_eq!(
+            delimiters(&buffer, 4, TextObject::Word { big: false }),
+            None
+        );
     }
 
     #[test]

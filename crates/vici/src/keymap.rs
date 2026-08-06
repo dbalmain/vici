@@ -343,7 +343,8 @@ impl Keymap {
 
         // -- operator-pending: `i`/`a` become object scopes -------------------
         map.bind_spec(Layer::Operator, "i", Scope(ObjectScope::Inner))
-            .bind_spec(Layer::Operator, "a", Scope(ObjectScope::Around));
+            .bind_spec(Layer::Operator, "a", Scope(ObjectScope::Around))
+            .bind_spec(Layer::Operator, "s", Await(AwaitChar::SurroundTarget));
 
         // -- visual ----------------------------------------------------------
         map.bind_spec(Layer::Visual, "i", Scope(ObjectScope::Inner))
@@ -356,6 +357,7 @@ impl Keymap {
             .bind_spec(Layer::Visual, "u", Op(Operator::Lower))
             .bind_spec(Layer::Visual, "U", Op(Operator::Upper))
             .bind_spec(Layer::Visual, "~", Op(Operator::SwapCase))
+            .bind_spec(Layer::Visual, "S", Await(AwaitChar::SurroundSelection))
             .bind_spec(Layer::Visual, "v", Cmd(C::EnterVisual(VisualKind::Char)))
             .bind_spec(Layer::Visual, "V", Cmd(C::EnterVisual(VisualKind::Line)));
 

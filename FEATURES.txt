@@ -480,7 +480,26 @@
     is literal, not regex. Successful searches leave a jump.
 
 --------------------------------------------------------------
- 21. EDGES
+ 21. SURROUND
+--------------------------------------------------------------
+
+[ ] cs({   change (foo) to { foo }
+[ ] cs()   change ( foo ) to (foo)
+[ ] ds(    delete parens; ds) is the same
+[ ] v...S( surround a selection as ( selection )
+[ ] v...S) surround a selection as (selection)
+[ ] V...S) surround whole selected rows
+[ ] .      repeat the last cs, ds, or visual S
+[ ] u      undo both delimiter edits together
+
+    Opening delimiter keys add one inner space; closing keys and
+    quotes do not. Existing one-space padding is removed before a
+    change or delete, so padding does not compound. Targets accept
+    either side of a pair, plus b for () and B for {}. ys is not
+    implemented and should ring.
+
+--------------------------------------------------------------
+ 22. EDGES
 --------------------------------------------------------------
 
     Multibyte — `x` must delete a whole grapheme, and the cursor

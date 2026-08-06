@@ -45,8 +45,9 @@ same way, so the stash is now of historical interest only.
   "include the quotes". Documented in FEATURES §8; not worth the code.
 - **`3.` replays the whole command three times** rather than substituting the
   count. Differs from vi, documented in FEATURES §11.
-- **`s`/`S` remain unbound** deliberately, as do named registers — one unnamed
-  register is the design.
+- **Normal-mode `s`/`S` remain unbound** deliberately, as do named registers —
+  one unnamed register is the design. Operator-pending `s` and visual `S` live
+  in different keymap layers and do not change that.
 - **FEATURES.txt ticks are Dave's**, recorded by walking the harness. An agent
   must not tick them: a tick asserts a walk that did not happen. Add entries
   unticked. (`1f4d2f3` isolates a batch that arrived pre-ticked, if the
@@ -76,16 +77,16 @@ from them.
 ## Bigger, later
 
 - **Visual block.** The expensive one: it touches every operator.
-- **surround.vim.** Cheaper than it looks — `motion::object_span` already
-  returns both the inner and around spans, and the delimiters are the set
-  difference. Two non-contiguous edits in one undo step is already solved, since
-  `Editor::run` groups every command; apply the closing delimiter first so the
-  opening insert does not shift it. The real cost is that **`ys` cannot be
-  bound**: `y` resolves to an operator at depth one, so the keymap never looks
-  up `ys` as a two-key sequence. Either surround takes a different prefix, or
-  `Pending` learns that an operator can also be a prefix — which is what vim
-  does, with a timeout. `ys` must have `yanks() == false` despite the `y`. About
-  a day; `t` for HTML tags wants a real scan and can wait.
+- **surround.vim.** Partly shipped: `cs`, `ds`, and visual `S` use
+  nvim-surround's delimiter spacing, repeat with `.`, and group both delimiter
+  edits into one undo step. The old blocker was wrong: after normal-layer `c` or
+  `d` sets the operator, the next key is looked up in `Layer::Operator`, where
+  `s` can begin the character awaits without a timeout or parser special case.
+  Delimiter offsets come directly from the pair/quote scanners rather than from
+  subtracting object spans, because multi-row inner spans deliberately shrink.
+  **`ys` is the only remaining surround command**; it needs the real
+  motion/text-object target grammar that was out of scope here. `t` for HTML
+  tags can wait with it.
 - **leap.vim.** Needs the viewport (done), the jump list, and search's literal
   scanning machinery. Its resolved destination now has a public seam:
   `Motion::ToOffset { offset, linewise }`. Operator-pending can consume the

@@ -70,7 +70,9 @@ Normal, insert, replace and visual (character and line) modes. Motions
 `h j k l 0 ^ $ w W b B e E f F t T ; , / ? n N G gg H M L % { }`. Operators `d c y > <` over
 motions, doubled (`dd`, `>>`, `<<`), and text objects `iw aw i( a( i" a" ip` and
 friends. Counts, including the multiplication in `2d3w`. `x X r ~ J p P`, all
-six insert entries, undo, redo, dot-repeat and macros.
+six insert entries, undo, redo, dot-repeat and macros. Surround supports
+`cs{from}{to}`, `ds{delim}`, and visual `S{delim}` with nvim-surround's spacing
+convention.
 
 Shifting has to know what an indent is worth, so the host supplies an `Indent`:
 shift width, tab width, and whether to render tabs. That is the one place
@@ -98,7 +100,9 @@ makes the pattern case-sensitive. There is deliberately no regex dependency.
   ex commands itself.
 - **Named registers.** One unnamed register, deliberately. This is a core for
   self-contained single-buffer editing, not a vi clone.
-- **Visual block** and the `s S` shortcuts.
+- **Visual block** and the normal-mode `s S` shortcuts.
+- **Yank-surround.** `ys` is not built yet; surround currently covers only
+  `cs`, `ds`, and visual `S`.
 - **Display width.** The sticky column for `j`/`k` counts graphemes, not
   terminal cells, so it diverges from vi on tabs and CJK. Width is the view's
   knowledge; `motion.rs` documents where a layout trait would plug in.
