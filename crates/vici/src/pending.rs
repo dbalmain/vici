@@ -53,6 +53,13 @@ pub struct Pending {
     operator: Option<Operator>,
     scope: Option<ObjectScope>,
     awaiting: Option<AwaitChar>,
+    search: Option<SearchInput>,
+}
+
+#[derive(Debug, Clone)]
+struct SearchInput {
+    pattern: String,
+    backward: bool,
 }
 
 impl Pending {
@@ -70,6 +77,7 @@ impl Pending {
             && self.operator.is_none()
             && self.scope.is_none()
             && self.awaiting.is_none()
+            && self.search.is_none()
     }
 
     /// Keys consumed so far, for a `showcmd` indicator.
@@ -106,6 +114,10 @@ impl Pending {
         self.keys.push(key);
         if key.code == KeyCode::Esc && !idle {
             return self.cancel();
+        }
+
+        if self.search.is_some() {
+            return self.feed_search(key);
         }
 
         if let Some(awaiting) = self.awaiting {
@@ -212,6 +224,56 @@ impl Pending {
                 self.awaiting = Some(awaiting);
                 Resolution::Pending
             }
+            Binding::Search { backward } => {
+                self.search = Some(SearchInput {
+                    pattern: String::new(),
+                    backward,
+                });
+                Resolution::Pending
+            }
+        }
+    }
+
+    fn feed_search(&mut self, key: Key) -> Resolution {
+        match key.code {
+            KeyCode::Enter if key.mods.is_empty() => {
+                let Some(search) = self.search.take() else {
+                    return self.reject();
+                };
+                if search.pattern.is_empty() {
+                    self.reject()
+                } else {
+                    self.finish(self.with_motion(Motion::Search {
+                        pattern: search.pattern,
+                        backward: search.backward,
+                    }))
+                }
+            }
+            KeyCode::Backspace if key.mods.is_empty() => {
+                let Some(search) = self.search.as_mut() else {
+                    return self.reject();
+                };
+                if search.pattern.pop().is_none() {
+                    self.cancel()
+                } else {
+                    // `keys` doubles as showcmd. Keep its displayed pattern in
+                    // step with editing; replaying this normalized spelling has
+                    // the same result as replaying the literal backspace.
+                    self.keys.pop();
+                    self.keys.pop();
+                    Resolution::Pending
+                }
+            }
+            _ => match key.as_text() {
+                Some(ch) => {
+                    let Some(search) = self.search.as_mut() else {
+                        return self.reject();
+                    };
+                    search.pattern.push(ch);
+                    Resolution::Pending
+                }
+                None => self.reject(),
+            },
         }
     }
 
@@ -411,12 +473,56 @@ mod tests {
                 Resolution::Rejected { .. }
             ));
         }
-        for spec in ["d<Esc>", "2d<Esc>", "f<Esc>"] {
+        for spec in ["d<Esc>", "2d<Esc>", "f<Esc>", "/half<Esc>"] {
             assert!(matches!(
                 resolve_in(Mode::Normal, spec),
                 Resolution::Cancelled { .. }
             ));
         }
+    }
+
+    #[test]
+    fn search_awaits_an_editable_line() {
+        assert_eq!(
+            command("3/foo<CR>"),
+            (
+                Command::Move(Motion::Search {
+                    pattern: "foo".to_owned(),
+                    backward: false,
+                }),
+                Some(3),
+            )
+        );
+        assert_eq!(
+            command("d?bar<CR>").0,
+            Command::Operate {
+                operator: Operator::Delete,
+                target: Target::Motion(Motion::Search {
+                    pattern: "bar".to_owned(),
+                    backward: true,
+                }),
+            }
+        );
+        assert_eq!(command("/fop<BS>o<CR>").0, command("/foo<CR>").0);
+
+        let keymap = Keymap::vim();
+        let mut pending = Pending::new();
+        for key in keys("/fop<BS>").expect("valid test notation") {
+            assert_eq!(
+                pending.feed(key, Mode::Normal, &keymap),
+                Resolution::Pending
+            );
+        }
+        assert_eq!(pending.keys(), keys("/fo").expect("valid test notation"));
+
+        assert!(matches!(
+            resolve_in(Mode::Normal, "/<BS>"),
+            Resolution::Cancelled { .. }
+        ));
+        assert!(matches!(
+            resolve_in(Mode::Normal, "/<CR>"),
+            Resolution::Rejected { .. }
+        ));
     }
 
     #[test]

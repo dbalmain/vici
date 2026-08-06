@@ -91,6 +91,7 @@ pub struct Editor {
     /// Named and automatic positions, shifted with jumps through every edit.
     marks: [Option<usize>; MARK_COUNT],
     last_find: Option<Find>,
+    last_search: Option<(String, bool)>,
     /// Keys of the last buffer-changing command, for `.`.
     last_change: Vec<Key>,
     /// Keys accumulated while an insert session is open.
@@ -138,6 +139,7 @@ impl Editor {
             jump_at: 0,
             marks: [None; MARK_COUNT],
             last_find: None,
+            last_search: None,
             last_change: Vec::new(),
             change_keys: None,
             visual_keys: Vec::new(),
@@ -251,6 +253,7 @@ impl Editor {
                             None,
                             0,
                             None,
+                            None,
                             self.viewport,
                             Bound::PastEnd,
                         )
@@ -335,7 +338,7 @@ impl Editor {
                 keys: consumed,
             } => {
                 let was_visual = self.mode.is_visual();
-                let effects = self.run(command, count);
+                let effects = self.run(command.clone(), count);
                 // Everything typed since the selection opened, so that `.` can
                 // replay the shape and not just the operator. The operator's own
                 // key is not among them: by the time it runs, visual mode is over.
@@ -345,7 +348,7 @@ impl Editor {
                     }
                     self.visual_keys.extend_from_slice(&consumed);
                 }
-                self.note_change(command, &consumed);
+                self.note_change(&command, &consumed);
                 effects
             }
         }
@@ -456,31 +459,38 @@ impl Editor {
                     effects.push(Effect::Bell);
                     return effects;
                 };
+                // A submitted pattern becomes the last search even when it has
+                // no match; `n` then repeats that same failed search, as vi does.
+                self.remember_search(&target);
                 let bound = self.bound();
                 match motion::resolve(
                     self.buffer(),
                     self.cursor,
-                    target,
+                    target.clone(),
                     count,
                     self.sticky,
                     self.last_find,
+                    self.last_search
+                        .as_ref()
+                        .map(|(pattern, backward)| (pattern.as_str(), *backward)),
                     self.viewport,
                     bound,
                 ) {
                     Some(landed) => {
-                        if landed != self.cursor && pushes_jump(target) {
+                        if landed != self.cursor && pushes_jump(&target) {
                             self.push_jump();
                         }
                         self.cursor = landed;
-                        self.remember_find(target);
-                        self.update_sticky(target);
+                        self.remember_find(&target);
+                        self.update_sticky(&target);
                     }
                     None => effects.push(Effect::Bell),
                 }
             }
 
             Command::Operate { operator, target } => {
-                self.remember_target_find(target);
+                self.remember_target_find(&target);
+                self.remember_target_search(&target);
                 match self.span_of(operator, target, count) {
                     Some(span) => {
                         let amount = if self.mode.is_visual() {
@@ -710,6 +720,7 @@ impl Editor {
                     None,
                     self.sticky,
                     None,
+                    None,
                     self.viewport,
                     Bound::PastEnd,
                 )
@@ -738,6 +749,9 @@ impl Editor {
             Some(times),
             self.sticky,
             self.last_find,
+            self.last_search
+                .as_ref()
+                .map(|(pattern, backward)| (pattern.as_str(), *backward)),
             self.viewport,
             bound,
         )
@@ -821,18 +835,21 @@ impl Editor {
         self.set_mark('>', self.previous_grapheme(selection.end));
     }
 
-    /// The concrete find `;` or `,` stands for, given what was remembered.
+    /// The operator semantics `;` or `,` inherits from the remembered find.
     ///
     /// Any other motion is already concrete and passes through. Without this,
     /// [`Motion::is_inclusive`] has no direction to answer from and falls back to
     /// exclusive, which silently costs `d;` a character.
-    fn effective(&self, motion: Motion) -> Motion {
+    fn motion_semantics(&self, motion: &Motion) -> (bool, bool) {
         match (motion, self.last_find) {
-            (Motion::RepeatFind { reverse }, Some(find)) => Motion::Find(Find {
-                backward: find.backward != reverse,
-                ..find
-            }),
-            _ => motion,
+            (Motion::RepeatFind { reverse }, Some(find)) => {
+                let effective = Motion::Find(Find {
+                    backward: find.backward != *reverse,
+                    ..find
+                });
+                (effective.is_linewise(), effective.is_inclusive())
+            }
+            _ => (motion.is_linewise(), motion.is_inclusive()),
         }
     }
 
@@ -858,15 +875,27 @@ impl Editor {
         }
     }
 
-    fn remember_find(&mut self, motion: Motion) {
+    fn remember_find(&mut self, motion: &Motion) {
         if let Motion::Find(find) = motion {
-            self.last_find = Some(find);
+            self.last_find = Some(*find);
         }
     }
 
-    fn remember_target_find(&mut self, target: Target) {
+    fn remember_target_find(&mut self, target: &Target) {
         if let Target::Motion(motion) = target {
             self.remember_find(motion);
+        }
+    }
+
+    fn remember_search(&mut self, motion: &Motion) {
+        if let Motion::Search { pattern, backward } = motion {
+            self.last_search = Some((pattern.clone(), *backward));
+        }
+    }
+
+    fn remember_target_search(&mut self, target: &Target) {
+        if let Target::Motion(motion) = target {
+            self.remember_search(motion);
         }
     }
 
@@ -887,7 +916,7 @@ impl Editor {
         self.sticky = motion::grapheme_col(self.buffer(), self.cursor);
     }
 
-    fn update_sticky(&mut self, motion: Motion) {
+    fn update_sticky(&mut self, motion: &Motion) {
         match motion {
             // Vertical movement consumes the sticky column without changing it.
             Motion::Up | Motion::Down => {}
@@ -1002,13 +1031,13 @@ impl Editor {
                 // `motion::resolve` to skip the target a `t` is already parked on.
                 // Operator semantics have to come from the concrete find it stands
                 // for, or `d;` after `f,` stops one character short.
-                let semantics = self.effective(motion);
+                let (linewise, inclusive) = self.motion_semantics(&motion);
                 // An exclusive motion's landing place is the span's *end boundary*,
                 // not somewhere the cursor has to be able to sit, so it may be one
                 // past the last character — otherwise `dw` on the last word of the
                 // file leaves its final character behind. An inclusive motion does
                 // land on a character, and extends over it below.
-                let bound = if semantics.is_inclusive() {
+                let bound = if inclusive {
                     Bound::OnChar
                 } else {
                     Bound::PastEnd
@@ -1020,22 +1049,26 @@ impl Editor {
                     count,
                     self.sticky,
                     self.last_find,
+                    self.last_search
+                        .as_ref()
+                        .map(|(pattern, backward)| (pattern.as_str(), *backward)),
                     self.viewport,
                     bound,
                 )?;
-                if semantics.is_linewise() {
+                if linewise {
                     let first = buf.byte_to_point(self.cursor.min(landed)).row;
                     let last = buf.byte_to_point(self.cursor.max(landed)).row;
                     Span::Lines(first..=last)
                 } else {
                     let (start, mut end) = (self.cursor.min(landed), self.cursor.max(landed));
-                    if semantics.is_inclusive() {
+                    if inclusive {
                         end = motion::resolve(
                             buf,
                             end,
                             Motion::Right,
                             None,
                             0,
+                            None,
                             None,
                             self.viewport,
                             Bound::PastEnd,
@@ -1380,7 +1413,7 @@ impl Editor {
     /// Commands that enter insert mode open a *session*: keys accumulate until the
     /// mode ends, so `.` after `ciwfoo<Esc>` replays the typed text too. One-shot
     /// changes record immediately.
-    fn note_change(&mut self, command: Command, consumed: &[Key]) {
+    fn note_change(&mut self, command: &Command, consumed: &[Key]) {
         // A visual operator is only half of what happened: replaying a bare `>`
         // would leave an operator pending for whatever gets typed next. The keys
         // that opened and shaped the selection go in front of it, so `Vj>` repeats
@@ -1435,7 +1468,7 @@ impl Editor {
 }
 
 /// Motions that cross enough of the buffer to deserve a return point.
-const fn pushes_jump(motion: Motion) -> bool {
+const fn pushes_jump(motion: &Motion) -> bool {
     matches!(
         motion,
         Motion::GotoRow
@@ -1445,6 +1478,8 @@ const fn pushes_jump(motion: Motion) -> bool {
             | Motion::ScreenMiddle
             | Motion::ScreenBottom
             | Motion::ToOffset { .. }
+            | Motion::Search { .. }
+            | Motion::RepeatSearch { .. }
     )
 }
 

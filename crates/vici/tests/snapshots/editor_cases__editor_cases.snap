@@ -4577,3 +4577,264 @@ effects:
   bell
   bell
   bell
+
+== search-forward ==
+text: "x foo y foo"
+cursor: 2 @ 0:2
+mode: Normal; selection: -
+register: char ""
+history: undo=0 redo=0
+jumps: [0]
+marks: []
+pending: ""; last-change: ""; recording: -
+effects:
+
+== search-backward ==
+text: "foo x foo y"
+cursor: 6 @ 0:6
+mode: Normal; selection: -
+register: char ""
+history: undo=0 redo=0
+jumps: [10]
+marks: []
+pending: ""; last-change: ""; recording: -
+effects:
+
+== search-smartcase-lowercase ==
+text: "x FOO y"
+cursor: 2 @ 0:2
+mode: Normal; selection: -
+register: char ""
+history: undo=0 redo=0
+jumps: [0]
+marks: []
+pending: ""; last-change: ""; recording: -
+effects:
+
+== search-smartcase-uppercase ==
+text: "x foo y"
+cursor: 0 @ 0:0
+mode: Normal; selection: -
+register: char ""
+history: undo=0 redo=0
+jumps: []
+marks: []
+pending: ""; last-change: ""; recording: -
+effects:
+  bell
+
+== search-wrap-forward ==
+text: "foo\nbar"
+cursor: 0 @ 0:0
+mode: Normal; selection: -
+register: char ""
+history: undo=0 redo=0
+jumps: [0, 6]
+marks: []
+pending: ""; last-change: ""; recording: -
+effects:
+
+== search-wrap-backward ==
+text: "bar\nfoo"
+cursor: 4 @ 1:0
+mode: Normal; selection: -
+register: char ""
+history: undo=0 redo=0
+jumps: [0]
+marks: []
+pending: ""; last-change: ""; recording: -
+effects:
+
+== search-missing ==
+text: "one two"
+cursor: 0 @ 0:0
+mode: Normal; selection: -
+register: char ""
+history: undo=0 redo=0
+jumps: []
+marks: []
+pending: ""; last-change: ""; recording: -
+effects:
+  bell
+
+== search-delete-exclusive ==
+text: "foo xyz"
+cursor: 0 @ 0:0
+mode: Normal; selection: -
+register: char "abc "
+history: undo=1 redo=0
+jumps: []
+marks: [[:0, ]:0]
+pending: ""; last-change: "d/foo<CR>"; recording: -
+effects:
+  edit 0..4 -> 0; (0,0)..(0,4) -> (0,0)
+
+== search-counted ==
+text: "x foo foo foo"
+cursor: 10 @ 0:10
+mode: Normal; selection: -
+register: char ""
+history: undo=0 redo=0
+jumps: [0]
+marks: []
+pending: ""; last-change: ""; recording: -
+effects:
+
+== search-repeat-forward-after-forward ==
+text: "x foo y foo z foo"
+cursor: 8 @ 0:8
+mode: Normal; selection: -
+register: char ""
+history: undo=0 redo=0
+jumps: [0, 2]
+marks: []
+pending: ""; last-change: ""; recording: -
+effects:
+
+== search-repeat-reverse-after-forward ==
+text: "x foo y foo z foo"
+cursor: 14 @ 0:14
+mode: Normal; selection: -
+register: char ""
+history: undo=0 redo=0
+jumps: [0, 2]
+marks: []
+pending: ""; last-change: ""; recording: -
+effects:
+
+== search-repeat-forward-after-backward ==
+text: "x foo y foo z foo"
+cursor: 8 @ 0:8
+mode: Normal; selection: -
+register: char ""
+history: undo=0 redo=0
+jumps: [0, 14]
+marks: []
+pending: ""; last-change: ""; recording: -
+effects:
+
+== search-repeat-reverse-after-backward ==
+text: "x foo y foo z foo"
+cursor: 2 @ 0:2
+mode: Normal; selection: -
+register: char ""
+history: undo=0 redo=0
+jumps: [0, 14]
+marks: []
+pending: ""; last-change: ""; recording: -
+effects:
+
+== search-reverse-keeps-forward-direction ==
+text: "x foo y foo z foo"
+cursor: 2 @ 0:2
+mode: Normal; selection: -
+register: char ""
+history: undo=0 redo=0
+jumps: [0, 2, 14]
+marks: []
+pending: ""; last-change: ""; recording: -
+effects:
+
+== search-reverse-keeps-backward-direction ==
+text: "x foo y foo z foo"
+cursor: 14 @ 0:14
+mode: Normal; selection: -
+register: char ""
+history: undo=0 redo=0
+jumps: [0, 14, 2]
+marks: []
+pending: ""; last-change: ""; recording: -
+effects:
+
+== search-repeat-counted ==
+text: "x foo foo foo foo"
+cursor: 14 @ 0:14
+mode: Normal; selection: -
+register: char ""
+history: undo=0 redo=0
+jumps: [0, 2]
+marks: []
+pending: ""; last-change: ""; recording: -
+effects:
+
+== search-repeat-without-pattern ==
+text: "one two"
+cursor: 0 @ 0:0
+mode: Normal; selection: -
+register: char ""
+history: undo=0 redo=0
+jumps: []
+marks: []
+pending: ""; last-change: ""; recording: -
+effects:
+  bell
+
+== search-cancel ==
+text: "one two"
+cursor: 1 @ 0:1
+mode: Normal; selection: -
+register: char ""
+history: undo=0 redo=0
+jumps: []
+marks: []
+pending: ""; last-change: ""; recording: -
+effects:
+
+== search-backspace ==
+text: "x foo y"
+cursor: 2 @ 0:2
+mode: Normal; selection: -
+register: char ""
+history: undo=0 redo=0
+jumps: [0]
+marks: []
+pending: ""; last-change: ""; recording: -
+effects:
+
+== search-dot-operator ==
+text: "foo foo"
+cursor: 4 @ 0:4
+mode: Normal; selection: -
+register: char "x "
+history: undo=2 redo=0
+jumps: []
+marks: [[:4, ]:3]
+pending: ""; last-change: "d/foo<CR>"; recording: -
+effects:
+  edit 0..2 -> 0; (0,0)..(0,2) -> (0,0)
+  edit 4..6 -> 4; (0,4)..(0,6) -> (0,4)
+
+== search-in-macro ==
+text: "x foo y foo"
+cursor: 2 @ 0:2
+mode: Normal; selection: -
+register: char ""
+history: undo=0 redo=0
+jumps: [0, 0]
+marks: []
+pending: ""; last-change: ""; recording: -
+effects:
+  recording @a
+  recorded @a
+
+== search-multibyte ==
+text: "x 日本 y 日本"
+cursor: 2 @ 0:2
+mode: Normal; selection: -
+register: char ""
+history: undo=0 redo=0
+jumps: [0]
+marks: []
+pending: ""; last-change: ""; recording: -
+effects:
+
+== search-pushes-jump ==
+text: "x foo"
+cursor: 0 @ 0:0
+mode: Normal; selection: -
+register: char ""
+history: undo=0 redo=0
+jumps: [0, 2]
+marks: []
+pending: ""; last-change: ""; recording: -
+effects:

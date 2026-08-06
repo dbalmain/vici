@@ -67,7 +67,7 @@ deserialised from config without redesigning anything.
 ## What's implemented
 
 Normal, insert, replace and visual (character and line) modes. Motions
-`h j k l 0 ^ $ w W b B e E f F t T ; , G gg H M L %`. Operators `d c y > <` over
+`h j k l 0 ^ $ w W b B e E f F t T ; , / ? n N G gg H M L %`. Operators `d c y > <` over
 motions, doubled (`dd`, `>>`, `<<`), and text objects `iw aw i( a( i" a" ip` and
 friends. Counts, including the multiplication in `2d3w`. `x X r ~ J p P`, all
 six insert entries, undo, redo, dot-repeat and macros.
@@ -88,10 +88,14 @@ wrong screen.
 Dot-repeat and macros are both implemented as key replay, so they cost almost
 nothing and behave correctly for free — including `.` after an insert session.
 
+Search is literal and wraps around the buffer. Its smartcase policy is simple:
+an all-lowercase pattern matches case-insensitively, while any uppercase letter
+makes the pattern case-sensitive. There is deliberately no regex dependency.
+
 ## What isn't
 
-- **Search.** `/ ? n N` are not implemented. `:` opens a host prompt for ex
-  command execution.
+- **Ex commands.** `:` opens a host prompt; the core does not parse or execute
+  ex commands itself.
 - **Named registers.** One unnamed register, deliberately. This is a core for
   self-contained single-buffer editing, not a vi clone.
 - **Visual block** and the `s S` shortcuts.

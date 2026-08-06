@@ -51,6 +51,12 @@ same way, so the stash is now of historical interest only.
   must not tick them: a tick asserts a walk that did not happen. Add entries
   unticked. (`1f4d2f3` isolates a batch that arrived pre-ticked, if the
   checklist ever needs resetting: `git revert 1f4d2f3`.)
+- **Search is a core-resolved motion.** `Pending` collects `/` and `?` patterns
+  as ordinary replayable keys, so operators, counts, dot-repeat and macros use
+  the same paths as every other motion. Matching is private, literal and
+  smartcase; there is no `Matcher` trait because one policy with no second
+  implementation does not justify a framework. Extracting one later is
+  mechanical if a real host needs regex.
 
 ## Position store and jump list
 
@@ -66,24 +72,6 @@ the jump list, shifts both through the same edit helper, and clears both in
 concrete `Motion::ToOffset` before the pure motion resolver runs. Automatic
 `'<` and `'>` preserve the latest visual selection; a future `gv` should
 reselect from them.
-
-## Then: search
-
-Search is not implemented. Build it as a core-resolved motion rather than a
-host-resolved prompt façade.
-
-Make search **core-resolved, not host-resolved**:
-
-- `Motion::Search`, not a `Command`.
-- The prompt becomes an await-a-line state in `Pending`, exactly as `f` awaits
-  one char.
-- Matching goes behind a `Matcher` trait with a literal + smartcase default, so
-  the crate still does not depend on `regex`.
-
-Then `d/foo<CR>`, `3n`, `.` and macros all work for free, because the pattern is
-just more keys and all three of those are key replay. The previous shape
-dead-ended precisely because it tried to round-trip through the host
-mid-command. `n`/`N` push to the jump list from the previous step.
 
 ## Cheap, whenever
 
@@ -103,8 +91,8 @@ mid-command. `n`/`N` push to the jump list from the previous step.
   `Pending` learns that an operator can also be a prefix — which is what vim
   does, with a timeout. `ys` must have `yanks() == false` despite the `y`. About
   a day; `t` for HTML tags wants a real scan and can wait.
-- **leap.vim.** Needs the viewport (done), the jump list, and the matcher from
-  search. Its resolved destination now has a public seam:
+- **leap.vim.** Needs the viewport (done), the jump list, and search's literal
+  scanning machinery. Its resolved destination now has a public seam:
   `Motion::ToOffset { offset, linewise }`. Operator-pending can consume the
   label keypress and hand that concrete motion back to the core.
   Its dot-repeat is the first genuine break in "everything is key replay" — vim

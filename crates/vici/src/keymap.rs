@@ -51,7 +51,7 @@ impl Layer {
 /// Not every binding is a complete command — operators, object scopes and
 /// character-argument bindings all leave the parser expecting more input. That is
 /// why this is a separate type from [`Command`].
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Binding {
     /// Complete on its own.
     Command(Command),
@@ -63,10 +63,12 @@ pub enum Binding {
     ObjectScope(ObjectScope),
     /// Awaits one literal character.
     Await(AwaitChar),
+    /// Awaits a literal search pattern terminated by `<CR>`.
+    Search { backward: bool },
 }
 
 /// The result of walking a key path through one layer.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Walk {
     /// A valid prefix — more keys needed.
     Prefix,
@@ -218,9 +220,13 @@ impl Keymap {
             ("L", Motion::ScreenBottom),
             (";", Motion::RepeatFind { reverse: false }),
             (",", Motion::RepeatFind { reverse: true }),
+            ("n", Motion::RepeatSearch { reverse: false }),
+            ("N", Motion::RepeatSearch { reverse: true }),
         ] {
             map.bind_spec(Layer::Normal, spec, Move(motion));
         }
+        map.bind_spec(Layer::Normal, "/", Binding::Search { backward: false })
+            .bind_spec(Layer::Normal, "?", Binding::Search { backward: true });
 
         // `f`/`t` and friends need one more key before they mean anything.
         for (spec, backward, till) in [
@@ -397,7 +403,7 @@ fn walk(map: &BTreeMap<Vec<Key>, Binding>, path: &[Key]) -> Walk {
         return Walk::Prefix;
     }
     if let Some(binding) = map.get(path) {
-        return Walk::Bound(*binding);
+        return Walk::Bound(binding.clone());
     }
     // The first sequence at or after `path` is the only candidate: anything
     // extending `path` sorts immediately after it, so one lookup settles it.
@@ -452,7 +458,7 @@ mod tests {
     fn keys_features_calls_unbound_really_are() {
         // Keep in step with FEATURES.txt §17. D/C were bound while both the
         // checklist and the README still called them unbound.
-        for spec in ["s", "S", "{", "}", "<C-v>", "\"", "U", "/", "?", "n", "N"] {
+        for spec in ["s", "S", "{", "}", "<C-v>", "\"", "U"] {
             let path = keys(spec).expect("valid notation");
             assert_eq!(
                 Keymap::vim().walk(Layer::Normal, &path),

@@ -44,7 +44,7 @@ pub enum VisualKind {
 /// Each motion carries its own operator semantics via [`Motion::is_linewise`] and
 /// [`Motion::is_inclusive`]. Getting these right is what makes `dw` and `de`
 /// differ by one character, and `dj` delete two whole rows.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Motion {
     Left,
     Right,
@@ -72,6 +72,15 @@ pub enum Motion {
     Find(Find),
     /// `;` / `,`
     RepeatFind {
+        reverse: bool,
+    },
+    /// `/` / `?`
+    Search {
+        pattern: String,
+        backward: bool,
+    },
+    /// `n` / `N`
+    RepeatSearch {
         reverse: bool,
     },
     /// `G` — count as an absolute row, else the last row.
@@ -106,10 +115,10 @@ pub enum Motion {
 impl Motion {
     /// Whether an operator over this motion acts on whole rows.
     #[must_use]
-    pub const fn is_linewise(self) -> bool {
+    pub const fn is_linewise(&self) -> bool {
         match self {
-            Self::ToOffset { linewise, .. } => linewise,
-            Self::Mark { exact, .. } => !exact,
+            Self::ToOffset { linewise, .. } => *linewise,
+            Self::Mark { exact, .. } => !*exact,
             Self::Down
             | Self::Up
             | Self::GotoRow
@@ -123,7 +132,7 @@ impl Motion {
 
     /// Whether the character under the motion's destination is included.
     #[must_use]
-    pub const fn is_inclusive(self) -> bool {
+    pub const fn is_inclusive(&self) -> bool {
         match self {
             // `%` takes the delimiter it lands on with it, in either direction:
             // `d%` from either end of a pair deletes both and everything between.
@@ -132,7 +141,7 @@ impl Motion {
             // earlier. So `dt,` deletes up to but not including the comma, which
             // requires including the character `t` landed on. Backward `F`/`T` are
             // exclusive, leaving the character under the cursor alone.
-            Self::Find(Find { backward, .. }) => !backward,
+            Self::Find(Find { backward, .. }) => !*backward,
             _ => false,
         }
     }
@@ -164,7 +173,7 @@ pub enum TextObject {
 }
 
 /// What an operator acts upon.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Target {
     Motion(Motion),
     Object {
@@ -252,7 +261,7 @@ pub enum Scroll {
 ///
 /// Counts are *not* carried here — see [`crate::Resolution::Command`]. Keeping
 /// them separate means the same `Command` value can sit in a keymap unchanged.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Command {
     Move(Motion),
     Operate {
@@ -380,6 +389,15 @@ mod tests {
                 false,
                 false,
             ),
+            (
+                Motion::Search {
+                    pattern: "needle".to_owned(),
+                    backward: false,
+                },
+                false,
+                false,
+            ),
+            (Motion::RepeatSearch { reverse: false }, false, false),
         ] {
             assert_eq!(motion.is_linewise(), linewise, "{motion:?}");
             assert_eq!(motion.is_inclusive(), inclusive, "{motion:?}");

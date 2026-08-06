@@ -1415,3 +1415,96 @@ keys Vy`]
 case automatic-marks-unset-ring
 text one
 keys `<lt>`>`[`]`^
+---
+# Search
+case search-forward
+text x foo y foo
+keys /foo<CR>
+---
+case search-backward
+text foo x foo y
+keys $?foo<CR>
+---
+case search-smartcase-lowercase
+text x FOO y
+keys /foo<CR>
+---
+case search-smartcase-uppercase
+text x foo y
+keys /Foo<CR>
+---
+case search-wrap-forward
+text foo\nbar
+keys G$/foo<CR>
+---
+case search-wrap-backward
+text bar\nfoo
+keys ?foo<CR>
+---
+case search-missing
+text one two
+keys /absent<CR>
+---
+case search-delete-exclusive
+text abc foo xyz
+keys d/foo<CR>
+---
+case search-counted
+text x foo foo foo
+keys 3/foo<CR>
+---
+case search-repeat-forward-after-forward
+text x foo y foo z foo
+keys /foo<CR>n
+---
+case search-repeat-reverse-after-forward
+text x foo y foo z foo
+keys /foo<CR>N
+---
+case search-repeat-forward-after-backward
+text x foo y foo z foo
+keys ?foo<CR>n
+---
+case search-repeat-reverse-after-backward
+text x foo y foo z foo
+keys ?foo<CR>N
+---
+case search-reverse-keeps-forward-direction
+text x foo y foo z foo
+keys /foo<CR>Nn
+---
+case search-reverse-keeps-backward-direction
+text x foo y foo z foo
+keys ?foo<CR>Nn
+---
+case search-repeat-counted
+text x foo foo foo foo
+keys /foo<CR>3n
+---
+case search-repeat-without-pattern
+text one two
+keys n
+---
+case search-cancel
+text one two
+keys /half<Esc>l
+---
+case search-backspace
+text x foo y
+keys /fop<BS>o<CR>
+---
+case search-dot-operator
+text x foo x foo
+keys d/foo<CR>w.
+---
+case search-in-macro
+text x foo y foo
+keys qa/foo<CR>q0@a
+---
+case search-multibyte
+text x 日本 y 日本
+keys /日本<CR>
+---
+case search-pushes-jump
+text x foo
+keys /foo<CR><C-o>

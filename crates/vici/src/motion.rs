@@ -482,7 +482,12 @@ fn match_pair(buf: &Buffer, at: usize) -> Option<usize> {
     Some(if pos == start { finish } else { start })
 }
 
-fn screen_motion(buf: &Buffer, motion: Motion, repeat: usize, viewport: Viewport) -> Option<usize> {
+fn screen_motion(
+    buf: &Buffer,
+    motion: &Motion,
+    repeat: usize,
+    viewport: Viewport,
+) -> Option<usize> {
     // A zero height means no host has reported a screen, so screen-relative
     // motions have no meaningful target rather than pretending row zero is it.
     if viewport.height == 0 {
@@ -507,10 +512,80 @@ fn screen_motion(buf: &Buffer, motion: Motion, repeat: usize, viewport: Viewport
     Some(first_non_blank(buf, row))
 }
 
+/// Find the counted literal match in `direction`, wrapping at either end.
+fn search(
+    buf: &Buffer,
+    from: usize,
+    pattern: &str,
+    backward: bool,
+    repeat: usize,
+) -> Option<usize> {
+    if pattern.is_empty() {
+        return None;
+    }
+
+    // Whole-buffer materialisation is acceptable for the one literal matching
+    // policy this crate has today. A rope-aware matcher can replace this private
+    // function if profiling ever makes that extra machinery worthwhile.
+    let text = buf.to_string();
+    let sensitive = pattern.chars().any(char::is_uppercase);
+    let folded = (!sensitive).then(|| {
+        pattern
+            .chars()
+            .flat_map(char::to_lowercase)
+            .collect::<String>()
+    });
+    let matches: Vec<_> = text
+        .grapheme_indices(true)
+        .map(|(offset, _)| offset)
+        .filter(|&offset| literal_prefix(&text[offset..], pattern, folded.as_deref()))
+        .collect();
+    if matches.is_empty() {
+        return None;
+    }
+
+    let mut landed = from;
+    for _ in 0..repeat {
+        landed = if backward {
+            matches
+                .iter()
+                .rev()
+                .copied()
+                .find(|&offset| offset < landed)
+                .unwrap_or_else(|| *matches.last().expect("matches is not empty"))
+        } else {
+            matches
+                .iter()
+                .copied()
+                .find(|&offset| offset > landed)
+                .unwrap_or(matches[0])
+        };
+    }
+    Some(landed)
+}
+
+fn literal_prefix(text: &str, pattern: &str, folded_pattern: Option<&str>) -> bool {
+    let Some(folded_pattern) = folded_pattern else {
+        return text.starts_with(pattern);
+    };
+    let mut candidate = String::new();
+    for ch in text.chars() {
+        candidate.extend(ch.to_lowercase());
+        if candidate == folded_pattern {
+            return true;
+        }
+        if !folded_pattern.starts_with(&candidate) {
+            return false;
+        }
+    }
+    false
+}
+
 /// Where `motion` lands, starting from `from`.
 ///
 /// `sticky` is the remembered grapheme column for `j`/`k`.
 /// `last_find` supplies the target for [`Motion::RepeatFind`].
+/// `last_search` supplies the pattern and direction for [`Motion::RepeatSearch`].
 /// `viewport` is the host's current screen fact for `H`/`M`/`L`.
 ///
 /// Returns `None` when the motion cannot be performed at all.
@@ -526,6 +601,7 @@ pub fn resolve(
     count: Option<usize>,
     sticky: usize,
     last_find: Option<Find>,
+    last_search: Option<(&str, bool)>,
     viewport: Viewport,
     bound: Bound,
 ) -> Option<usize> {
@@ -591,6 +667,11 @@ pub fn resolve(
             }
             find_in_row(buf, from, find, repeat, true)?
         }
+        Motion::Search { pattern, backward } => search(buf, from, &pattern, backward, repeat)?,
+        Motion::RepeatSearch { reverse } => {
+            let (pattern, backward) = last_search?;
+            search(buf, from, pattern, backward != reverse, repeat)?
+        }
         // `G` and `gg` take the count as an absolute row, 1-based.
         Motion::GotoRow => {
             let target_row = count.map_or(rows - 1, |n| n.saturating_sub(1).min(rows - 1));
@@ -602,7 +683,7 @@ pub fn resolve(
         }
         Motion::MatchPair => match_pair(buf, from)?,
         Motion::ScreenTop | Motion::ScreenMiddle | Motion::ScreenBottom => {
-            screen_motion(buf, motion, repeat, viewport)?
+            screen_motion(buf, &motion, repeat, viewport)?
         }
         // Marks belong to Editor's navigation state. It turns them into the
         // concrete `ToOffset` vocabulary before this pure resolver is called.
@@ -977,6 +1058,7 @@ mod tests {
             motion,
             count,
             0,
+            None,
             None,
             Viewport::default(),
             Bound::OnChar,

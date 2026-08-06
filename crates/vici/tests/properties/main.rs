@@ -328,6 +328,32 @@ fn parser_keys_strategy() -> impl Strategy<Value = Vec<Key>> {
     )
 }
 
+fn search_case_strategy() -> impl Strategy<Value = (String, String, u8, bool, usize)> {
+    prop::collection::vec(
+        prop::sample::select(vec!["a", "b", "café", "日本", "👩‍💻", " ", "!"]),
+        1..=8,
+    )
+    .prop_flat_map(|parts| {
+        let choices = parts.len();
+        (
+            Just(parts),
+            0..choices,
+            any::<u8>(),
+            any::<bool>(),
+            1..=4usize,
+        )
+    })
+    .prop_map(|(parts, pattern_at, from, backward, count)| {
+        (
+            parts.concat(),
+            parts[pattern_at].to_owned(),
+            from,
+            backward,
+            count,
+        )
+    })
+}
+
 proptest! {
     #![proptest_config(ProptestConfig { cases: CASES, .. ProptestConfig::default() })]
 
@@ -482,7 +508,17 @@ proptest! {
             for (motion, find) in motions() {
                 for count in 1..=3 {
                     for viewport in [Viewport::default(), Viewport { top_row: 0, height: 1 }, Viewport { top_row: 2, height: 4 }] {
-                        let result = resolve_motion(&buffer, from, motion, Some(count), 0, find, viewport, bound);
+                        let result = resolve_motion(
+                            &buffer,
+                            from,
+                            motion.clone(),
+                            Some(count),
+                            0,
+                            find,
+                            None,
+                            viewport,
+                            bound,
+                        );
                         if let Some(landed) = result {
                             prop_assert!(landed <= buffer.len_bytes());
                             prop_assert!(text.is_char_boundary(landed));
@@ -494,6 +530,32 @@ proptest! {
                 }
             }
         }
+    }
+
+    #[test]
+    fn successful_search_lands_on_its_pattern_and_a_grapheme_boundary(
+        (text, pattern, from_choice, backward, count) in search_case_strategy()
+    ) {
+        let buffer = Buffer::from_text(&text);
+        let offsets = legal_offsets(&buffer, Bound::OnChar);
+        let from = offsets[usize::from(from_choice) % offsets.len()];
+        let landed = resolve_motion(
+            &buffer,
+            from,
+            Motion::Search {
+                pattern: pattern.clone(),
+                backward,
+            },
+            Some(count),
+            0,
+            None,
+            None,
+            Viewport::default(),
+            Bound::OnChar,
+        )
+        .expect("a pattern drawn from the buffer must be found with wrapscan");
+        prop_assert!(text[landed..].starts_with(&pattern));
+        prop_assert!(grapheme_boundary(&buffer, landed));
     }
 
     #[test]

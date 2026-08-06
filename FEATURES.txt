@@ -430,7 +430,6 @@
 [ ] <C-v>  visual block
 [ ] "   named registers — deliberately absent
 [ ] U   row-scoped undo
-[ ] /   [ ] ?   [ ] n   [ ] N   search
 [ ] <C-o> (insert mode)   one-shot normal
 
     Watch for `bell` in the log. Anything here that silently does
@@ -464,7 +463,23 @@
     confirm it still lands on the intended text.
 
 --------------------------------------------------------------
- 19. EDGES
+ 20. SEARCH
+--------------------------------------------------------------
+
+[ ] /pattern<CR>   search forward
+[ ] ?pattern<CR>   search backward
+[ ] n              repeat in the same direction
+[ ] N              repeat in the reverse direction
+[ ] 3/foo<CR>      third match      [ ] 3n  third repeat
+[ ] d/foo<CR>      exclusive operator target
+[ ] <BS> edits the pattern          [ ] <Esc> cancels it
+
+    Search wraps at either end. An all-lowercase pattern ignores
+    case; any uppercase letter makes it case-sensitive. Matching
+    is literal, not regex. Successful searches leave a jump.
+
+--------------------------------------------------------------
+ 21. EDGES
 --------------------------------------------------------------
 
     Multibyte — `x` must delete a whole grapheme, and the cursor
