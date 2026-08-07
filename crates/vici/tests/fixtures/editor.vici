@@ -1627,6 +1627,18 @@ case surround-selection-linewise-multi-row
 text one\ntwo\nthree
 keys VjS)
 ---
+case surround-selection-linewise-padding-is-moot
+text one\ntwo\nthree
+keys VjS(
+---
+case surround-selection-linewise-single-row
+text one\ntwo
+keys VS)
+---
+case surround-selection-linewise-final-row
+text one\ntwo
+keys GVS)
+---
 case surround-yank-is-out-of-scope
 text foo
 keys ys

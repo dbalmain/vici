@@ -1384,20 +1384,38 @@ impl Editor {
             return;
         };
         self.remember_visual_selection();
-        let close_text = if padding {
-            format!(" {close}")
+        // A linewise selection puts its delimiters on rows of their own, as
+        // surround.vim does. Wrapping the raw span instead would leave the
+        // closing delimiter prefixed to the row *after* the selection, since a
+        // linewise span carries the trailing newline. Padding is meaningless
+        // once each delimiter owns a row, so `S(` and `S)` agree here.
+        let home = if self.mode == Mode::Visual(VisualKind::Line) {
+            let anchor = self.anchor.unwrap_or(self.cursor);
+            let buf = self.buffer();
+            let first = buf.byte_to_point(anchor.min(self.cursor)).row;
+            let last = buf.byte_to_point(anchor.max(self.cursor)).row;
+            let start = buf.row_range(first).start;
+            let end = buf.row_content_range(last).end;
+            self.edit(end..end, &format!("\n{close}"), effects);
+            self.edit(start..start, &format!("{open}\n"), effects);
+            start
         } else {
-            close.to_string()
+            let close_text = if padding {
+                format!(" {close}")
+            } else {
+                close.to_string()
+            };
+            self.edit(selection.end..selection.end, &close_text, effects);
+            let open_text = if padding {
+                format!("{open} ")
+            } else {
+                open.to_string()
+            };
+            self.edit(selection.start..selection.start, &open_text, effects);
+            selection.start
         };
-        self.edit(selection.end..selection.end, &close_text, effects);
-        let open_text = if padding {
-            format!("{open} ")
-        } else {
-            open.to_string()
-        };
-        self.edit(selection.start..selection.start, &open_text, effects);
         self.leave_visual(false, effects);
-        self.place_cursor(selection.start);
+        self.place_cursor(home);
     }
 
     fn surround_offsets(&self, target: char) -> Option<(usize, usize, usize, usize)> {
