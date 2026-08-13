@@ -1671,6 +1671,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "vici-oracle"
+version = "0.1.0"
+dependencies = [
+ "vici",
+]
+
+[[package]]
 name = "vtparse"
 version = "0.6.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"

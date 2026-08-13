@@ -138,6 +138,32 @@ a UI dependency. It is also the honest demonstration of the layering: owning the
 viewport, expanding tabs, measuring display width, answering `:` prompts and
 touching the filesystem are all _its_ code, not the core's.
 
+## Two implementations
+
+The behaviour is the fixture file
+`crates/vici/tests/fixtures/editor.vici`. Rust and TypeScript both have
+to produce the same snapshot block for every case. A new keybind is one
+PR: the case, the Rust change, the JS change, both suites green.
+
+| Host | Implementation |
+| --- | --- |
+| TUI / Tauri | `vici` crate (this is the oracle) |
+| Web | `js/` TypeScript engine (`createEngine`) |
+
+`vici-oracle` reprints a snapshot block for any `text` + `keys` pair.
+The JS fuzzer drives it and, on a miss, prints a pasteable case.
+
+```sh
+cargo test --workspace
+npm install
+npm test              # JS fixtures + a 24-case alignment smoke
+npm run fuzz          # 256 random scripts; FUZZ_CASES / FUZZ_SEED override
+cargo run -p vici-oracle -- --text 'one two' --keys 'dw'
+```
+
+Search is the one documented split: Rust stays literal/smartcase, JS
+may grow a JS-regex path later. Everything else has to match.
+
 ## Status
 
 Early but tested — the test suite reads as keystroke scripts, which is the main

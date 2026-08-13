@@ -1,5 +1,5 @@
 [workspace]
-members = ["crates/vici", "crates/vici-harness"]
+members = ["crates/vici", "crates/vici-harness", "crates/vici-oracle"]
 resolver = "3"
 
 [workspace.package]

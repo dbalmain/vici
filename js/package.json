@@ -1,0 +1,18 @@
+{
+  "name": "vici",
+  "version": "0.1.0",
+  "private": true,
+  "license": "MIT OR Apache-2.0",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "import": "./src/index.ts"
+    }
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "test": "tsc --noEmit -p tsconfig.json && vitest run",
+    "fuzz": "tsc --noEmit -p tsconfig.json && vitest run --config vitest.fuzz.mjs"
+  }
+}

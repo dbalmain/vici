@@ -1,0 +1,14 @@
+[package]
+name = "vici-oracle"
+version = "0.1.0"
+description = "Print an editor.vici snapshot block for a buffer and key script"
+publish = false
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[dependencies]
+vici = { path = "../vici" }
+
+[lints]
+workspace = true

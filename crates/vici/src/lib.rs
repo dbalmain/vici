@@ -42,6 +42,7 @@ mod command;
 mod document;
 mod edit;
 mod editor;
+pub mod fixtures;
 mod history;
 mod host;
 mod key;
