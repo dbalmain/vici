@@ -11,14 +11,26 @@
       "default": "./src/index.js"
     }
   },
-  "files": ["src", "types", "README.md"],
-  "keywords": ["vi", "vim", "editor", "keybindings", "modal", "headless"],
+  "files": [
+    "src",
+    "types",
+    "README.md"
+  ],
+  "keywords": [
+    "vi",
+    "vim",
+    "editor",
+    "keybindings",
+    "modal",
+    "headless"
+  ],
   "scripts": {
-    "test": "node --test test/",
+    "test": "node --test 'test/*.test.js'",
     "bench": "node bench/run.js",
     "size": "node bench/size.js",
     "types": "tsc -p jsconfig.json",
-    "check": "tsc -p jsconfig.json --noEmit"
+    "check": "tsc -p jsconfig.json --noEmit",
+    "fuzz": "node test/fuzz.js"
   },
   "devDependencies": {
     "esbuild": "^0.25.0",

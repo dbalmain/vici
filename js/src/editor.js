@@ -39,6 +39,7 @@ const AUTO_MARKS = '<>[]^';
  *   { type: 'recordingStopped', register: string }} Effect
  */
 
+/** @type {Effect} */
 const BELL = { type: 'bell' };
 
 /**
@@ -147,7 +148,10 @@ export class Editor {
     this.replayDepth = 0;
     /** True while an insert session's undo group is open. */
     this.insertGroup = false;
-    /** Reused motion context: `resolve` never retains it. */
+    /**
+     * Reused motion context: `resolve` never retains it.
+     * @type {import('./motion.js').Context}
+     */
     this.ctx = { sticky: 0, lastFind: null, lastSearch: null, viewport: this.viewport, bound: M.ON_CHAR };
   }
 
@@ -262,7 +266,7 @@ export class Editor {
       const { register, script } = this.recording;
       this.recording = null;
       this.macros.set(register, script);
-      return [{ type: 'recordingStopped', register }];
+      return [/** @type {Effect} */ ({ type: 'recordingStopped', register })];
     }
 
     // Record raw keys, not resolved commands. Replayed keys are excluded, so
@@ -413,7 +417,7 @@ export class Editor {
         }
         if (landed !== this.cursor && pushesJump(target)) this.#pushJump();
         this.cursor = landed;
-        if (target.k === M.FIND) this.lastFind = target;
+        if (target.k === M.FIND) this.lastFind = /** @type {import('./motion.js').Find} */ (target);
         // Vertical movement consumes the sticky column without changing it;
         // `$` sticks to row ends, so a subsequent `j` stays at the end.
         if (target.k === M.LAST_COLUMN) this.sticky = M.STICKY_END;
@@ -559,7 +563,7 @@ export class Editor {
 
       case C.RECORD_MACRO:
         this.recording = { register: command.register, script: [] };
-        effects.push({ type: 'recordingStarted', register: command.register });
+        effects.push(/** @type {Effect} */ ({ type: 'recordingStarted', register: command.register }));
         break;
 
       case C.PLAY_MACRO: {

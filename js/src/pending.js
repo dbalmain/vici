@@ -13,7 +13,7 @@
 
 import * as C from './command.js';
 import * as M from './motion.js';
-import { L_OPERATOR, PREFIX, UNBOUND, layerOf } from './keymap.js';
+import { L_INSERT, L_OPERATOR, PREFIX, UNBOUND, layerOf } from './keymap.js';
 import { keyDigit, keyText } from './keys.js';
 
 /** Resolutions. */
@@ -126,7 +126,7 @@ export class Pending {
     const found = keymap.walk(layer, this.keys, this.pathStart);
     if (found === PREFIX) return PENDING_RESULT;
     if (found === UNBOUND) return this.#end(REJECTED);
-    return this.#apply(found, mode);
+    return this.#apply(/** @type {import('./keymap.js').Binding} */ (found), mode);
   }
 
   /**
@@ -135,10 +135,11 @@ export class Pending {
    * @returns {Resolution}
    */
   #insert(key, keymap) {
-    const found = keymap.walk(3, this.keys, this.pathStart);
-    if (found === PREFIX) return PENDING_RESULT;
-    if (found !== UNBOUND) {
+    const walked = keymap.walk(L_INSERT, this.keys, this.pathStart);
+    if (walked === PREFIX) return PENDING_RESULT;
+    if (walked !== UNBOUND) {
       // Operators and object scopes are meaningless while inserting.
+      const found = /** @type {import('./keymap.js').Binding} */ (walked);
       return found.b === C.B_COMMAND ? this.#finish(found.command) : this.#end(REJECTED);
     }
     // An unbound printable key is text.

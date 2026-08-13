@@ -31,7 +31,7 @@ export const PREFIX = 1;
 export const layerOf = (mode) =>
   mode === C.NORMAL ? L_NORMAL : mode >= C.VISUAL ? L_VISUAL : L_INSERT;
 
-/** @param {number} k @param {object} [rest] @returns {Binding} */
+/** @param {import('./motion.js').Motion} motion @returns {Binding} */
 const move = (motion) => ({ b: C.B_MOTION, motion });
 /** @param {object} command @returns {Binding} */
 const cmd = (command) => ({ b: C.B_COMMAND, command });
@@ -113,6 +113,7 @@ export function vim() {
   const map = new Keymap();
 
   // -- motions, shared by every command layer --------------------------------
+  /** @type {[string, number][]} */
   const motions = [
     ['h', M.LEFT],
     ['l', M.RIGHT],
@@ -140,13 +141,19 @@ export function vim() {
   for (const [spec, k] of motions) {
     map.bind(L_NORMAL, spec, move(spec === '{' ? { k, backward: true } : { k }));
   }
-  for (const [spec, big] of [['w', false], ['W', true]]) {
+  /** @type {[string, boolean][]} */
+  const words = [['w', false], ['W', true]];
+  for (const [spec, big] of words) {
     map.bind(L_NORMAL, spec, move({ k: M.WORD_FORWARD, big }));
   }
-  for (const [spec, big] of [['b', false], ['B', true]]) {
+  /** @type {[string, boolean][]} */
+  const backs = [['b', false], ['B', true]];
+  for (const [spec, big] of backs) {
     map.bind(L_NORMAL, spec, move({ k: M.WORD_BACKWARD, big }));
   }
-  for (const [spec, big] of [['e', false], ['E', true]]) {
+  /** @type {[string, boolean][]} */
+  const ends = [['e', false], ['E', true]];
+  for (const [spec, big] of ends) {
     map.bind(L_NORMAL, spec, move({ k: M.WORD_END, big }));
   }
   map.bind(L_NORMAL, ';', move({ k: M.REPEAT_FIND, reverse: false }));
@@ -157,12 +164,14 @@ export function vim() {
   map.bind(L_NORMAL, '?', { b: C.B_SEARCH, backward: true });
 
   // `f`/`t` and friends need one more key before they mean anything.
-  for (const [spec, backward, till] of [
+  /** @type {[string, boolean, boolean][]} */
+  const finds = [
     ['f', false, false],
     ['F', true, false],
     ['t', false, true],
     ['T', true, true],
-  ]) {
+  ];
+  for (const [spec, backward, till] of finds) {
     map.bind(L_NORMAL, spec, { b: C.B_AWAIT, await: C.AWAIT_FIND, backward, till });
   }
   map.bind(L_NORMAL, 'm', { b: C.B_AWAIT, await: C.AWAIT_SET_MARK });
@@ -170,7 +179,8 @@ export function vim() {
   map.bind(L_NORMAL, "'", { b: C.B_AWAIT, await: C.AWAIT_GOTO_MARK, exact: false });
 
   // -- operators -------------------------------------------------------------
-  for (const [spec, operator] of [
+  /** @type {[string, number][]} */
+  const operators = [
     ['d', C.DELETE],
     ['c', C.CHANGE],
     ['y', C.YANK],
@@ -181,7 +191,8 @@ export function vim() {
     ['gu', C.LOWER],
     ['gU', C.UPPER],
     ['g~', C.SWAP],
-  ]) {
+  ];
+  for (const [spec, operator] of operators) {
     map.bind(L_NORMAL, spec, { b: C.B_OPERATOR, operator });
   }
   // The bare keys, so the doubled row forms work: an operator is doubled when
@@ -195,7 +206,9 @@ export function vim() {
   // `D` and `C` are `d$` and `c$` pre-applied. Binding them as whole commands
   // rather than as an operator awaiting a target is what lets them take a
   // count: `2D` clears to the end of the following row, as in vi.
-  for (const [spec, operator] of [['D', C.DELETE], ['C', C.CHANGE]]) {
+  /** @type {[string, number][]} */
+  const shorthands = [['D', C.DELETE], ['C', C.CHANGE]];
+  for (const [spec, operator] of shorthands) {
     map.bind(
       L_NORMAL,
       spec,
@@ -204,14 +217,16 @@ export function vim() {
   }
 
   // -- mode changes ----------------------------------------------------------
-  for (const [spec, at] of [
+  /** @type {[string, number][]} */
+  const entries = [
     ['i', C.AT_CURSOR],
     ['a', C.AT_AFTER],
     ['I', C.AT_FIRST_NON_BLANK],
     ['A', C.AT_END_OF_ROW],
     ['o', C.AT_ROW_BELOW],
     ['O', C.AT_ROW_ABOVE],
-  ]) {
+  ];
+  for (const [spec, at] of entries) {
     map.bind(L_NORMAL, spec, cmd({ c: C.ENTER_INSERT, at }));
   }
   map.bind(L_NORMAL, 'v', cmd({ c: C.ENTER_VISUAL, kind: C.VISUAL }));
@@ -240,7 +255,8 @@ export function vim() {
   map.bind(L_NORMAL, '@', { b: C.B_AWAIT, await: C.AWAIT_PLAY });
 
   // -- viewport and prompts --------------------------------------------------
-  for (const [spec, scroll] of [
+  /** @type {[string, number][]} */
+  const scrolls = [
     ['<C-d>', C.HALF_PAGE_DOWN],
     ['<C-u>', C.HALF_PAGE_UP],
     ['<C-f>', C.PAGE_DOWN],
@@ -248,7 +264,8 @@ export function vim() {
     ['zz', C.CENTER],
     ['zt', C.TOP],
     ['zb', C.BOTTOM],
-  ]) {
+  ];
+  for (const [spec, scroll] of scrolls) {
     map.bind(L_NORMAL, spec, cmd({ c: C.SCROLL, scroll }));
   }
   map.bind(L_NORMAL, ':', cmd({ c: C.COMMAND_PROMPT }));
@@ -288,12 +305,14 @@ export function vim() {
   map.objects.set('w', { o: M.OBJ_WORD, big: false });
   map.objects.set('W', { o: M.OBJ_WORD, big: true });
   map.objects.set('p', { o: M.OBJ_PARAGRAPH });
-  for (const [open, close, alias] of [
+  /** @type {[string, string, string | null][]} */
+  const pairs = [
     ['(', ')', 'b'],
     ['{', '}', 'B'],
     ['[', ']', null],
     ['<', '>', null],
-  ]) {
+  ];
+  for (const [open, close, alias] of pairs) {
     const object = { o: M.OBJ_DELIMITED, open, close };
     map.objects.set(open === '<' ? '<lt>' : open, object);
     map.objects.set(close, object);
