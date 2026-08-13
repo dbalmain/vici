@@ -615,19 +615,32 @@ function scanBytes(buf, pattern, sensitive) {
     needle[i] = sensitive ? code : code | (isAlpha(code) ? 0x20 : 0);
   }
   const first = needle[0];
+  // Candidates come from the engine's own `indexOf`, which is vectorised;
+  // testing every byte here costs several times as much. A folded search has
+  // two possible first bytes, so it runs two scans and takes the nearer hit.
+  const other = !sensitive && isAlpha(first) ? first & ~0x20 : -1;
   const limit = bytes.length - needle.length;
   /** @type {number[]} */
   const out = [];
-  for (let at = 0; at <= limit; at += 1) {
-    const head = bytes[at];
-    if (head !== first && (sensitive || (head | (isAlpha(head) ? 0x20 : 0)) !== first)) continue;
+  // Each candidate keeps its own cursor. Re-asking for one that has already
+  // reported "no more" would rescan the whole tail per hit, which is how a
+  // linear search turns quadratic on a buffer that holds only one of the two
+  // cases — the common one, since prose is mostly lowercase.
+  let lower = bytes.indexOf(first, 0);
+  let upper = other >= 0 ? bytes.indexOf(other, 0) : -1;
+  for (;;) {
+    const hit = lower < 0 ? upper : upper < 0 ? lower : Math.min(lower, upper);
+    if (hit < 0 || hit > limit) break;
     let i = 1;
     for (; i < needle.length; i += 1) {
-      const byte = bytes[at + i];
+      const byte = bytes[hit + i];
       if (byte !== needle[i] && (sensitive || (byte | (isAlpha(byte) ? 0x20 : 0)) !== needle[i])) break;
     }
     // A `\r\n` is one grapheme, so a match cannot start on its newline.
-    if (i === needle.length && !(bytes[at] === 0x0a && at > 0 && bytes[at - 1] === 0x0d)) out.push(at);
+    if (i === needle.length && !(first === 0x0a && hit > 0 && bytes[hit - 1] === 0x0d)) out.push(hit);
+    const next = hit + 1;
+    if (lower >= 0 && lower < next) lower = bytes.indexOf(first, next);
+    if (upper >= 0 && upper < next) upper = bytes.indexOf(other, next);
   }
   return out;
 }

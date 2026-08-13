@@ -5,7 +5,7 @@
 // `Change`, which carries the text it displaced and is therefore self-
 // inverting: undoing one is applying its inverse. No document snapshots.
 
-import { TextBuffer, invertChange } from './buffer.js';
+import { TextBuffer, invertChange, isNoop } from './buffer.js';
 
 /** @typedef {import('./buffer.js').Change} Change */
 /** @typedef {import('./buffer.js').Edit} Edit */
@@ -63,7 +63,7 @@ export class Document {
    * @param {Change} change
    */
   #record(change) {
-    if (change.removed === change.inserted) return;
+    if (isNoop(change)) return;
     if (this.depth > 0) {
       this.groups.length = this.at;
       this.open.push(change);

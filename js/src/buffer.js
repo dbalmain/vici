@@ -26,9 +26,14 @@ const CR = 0x0d;
  * }} Edit
  */
 /**
+ * A change, complete enough to apply *or* reverse without consulting a buffer.
+ *
+ * The displaced text is kept as bytes, never as a string: a linewise `dG` over
+ * a megabyte would otherwise decode the whole buffer into a string nothing
+ * ever reads. The register, which does want a string, asks the buffer for one.
  * @typedef {{
- *   edit: Edit, removed: string, inserted: string,
- *   removedBytes: Uint8Array, insertedBytes: Uint8Array, insertedRows: number[],
+ *   edit: Edit, removedBytes: Uint8Array, insertedBytes: Uint8Array, insertedRows: number[],
+ *   insertedWide: number, removedWide: number,
  * }} Change
  */
 
@@ -71,12 +76,55 @@ export function invertEdit(edit) {
 export function invertChange(change) {
   return {
     edit: invertEdit(change.edit),
-    removed: change.inserted,
-    inserted: change.removed,
     removedBytes: change.insertedBytes,
     insertedBytes: change.removedBytes,
     insertedRows: rowOffsets(change.removedBytes),
+    insertedWide: change.removedWide,
+    removedWide: change.insertedWide,
   };
+}
+
+/**
+ * True when applying this change would leave the buffer unchanged.
+ * @param {Change} change
+ * @returns {boolean}
+ */
+export function isNoop(change) {
+  const { removedBytes: a, insertedBytes: b } = change;
+  if (a.length !== b.length) return false;
+  for (let i = 0; i < a.length; i += 1) if (a[i] !== b[i]) return false;
+  return true;
+}
+
+/**
+ * UTF-8 encode, avoiding `TextEncoder`'s fixed per-call cost for the short
+ * ASCII strings that are almost every keystroke.
+ * @param {string} text
+ * @returns {Uint8Array}
+ */
+export function encode(text) {
+  if (text.length === 0) return EMPTY;
+  if (text.length <= 64) {
+    const out = new Uint8Array(text.length);
+    for (let i = 0; i < text.length; i += 1) {
+      const code = text.charCodeAt(i);
+      if (code > 0x7f) return ENCODER.encode(text);
+      out[i] = code;
+    }
+    return out;
+  }
+  return ENCODER.encode(text);
+}
+
+/**
+ * How many non-ASCII bytes `bytes` holds.
+ * @param {Uint8Array} bytes
+ * @returns {number}
+ */
+function countWide(bytes) {
+  let wide = 0;
+  for (let i = 0; i < bytes.length; i += 1) if (bytes[i] >= 0x80) wide += 1;
+  return wide;
 }
 
 /**
@@ -90,6 +138,38 @@ function rowOffsets(bytes) {
   return out;
 }
 
+/**
+ * The unnamed register: displaced bytes, decoded only if something asks.
+ *
+ * `linewise` decides whether `p` pastes onto a new row or inline — the same
+ * text behaves differently depending on how it was yanked. Holding bytes means
+ * `yG` over a megabyte costs a copy rather than a copy and a decode; hosts that
+ * only ever paste it back never pay for the string at all.
+ */
+export class Register {
+  /**
+   * @param {Uint8Array} bytes
+   * @param {boolean} linewise
+   */
+  constructor(bytes, linewise) {
+    this.bytes = bytes;
+    this.linewise = linewise;
+    /** @type {string | null} */
+    this.decoded = null;
+  }
+
+  /** @returns {string} */
+  get text() {
+    this.decoded ??= this.bytes.length === 0 ? '' : DECODER.decode(this.bytes);
+    return this.decoded;
+  }
+
+  /** @returns {boolean} */
+  get isEmpty() {
+    return this.bytes.length === 0;
+  }
+}
+
 /** A UTF-8 text buffer addressed entirely in byte offsets. */
 export class TextBuffer {
   /** @param {string} [text] */
@@ -101,8 +181,18 @@ export class TextBuffer {
     this.gap = bytes.length;
     this.gapEnd = this.data.length;
     this.size = bytes.length;
-    /** Start offset of every row. Rows are counted by LF only. */
+    /**
+     * Start offset of every row, counted by LF only.
+     *
+     * An edit shifts every row after it, which would be an O(rows) loop on
+     * every keystroke. Instead the shift is *pending*: rows from `pivot`
+     * onwards read as `rows[i] + drift`, and only the few entries between the
+     * last edit and this one are ever materialised. Typing moves the pivot
+     * along with the caret, so the loop is empty in the common case.
+     */
     this.rows = [0];
+    this.pivot = 0;
+    this.drift = 0;
     /** Non-ASCII byte count. Zero unlocks the arithmetic fast paths. */
     this.wide = 0;
     this.#scan(bytes);
@@ -150,11 +240,13 @@ export class TextBuffer {
    */
   rowOf(at) {
     const rows = this.rows;
+    const pivot = this.pivot;
+    const drift = this.drift;
     let low = 0;
     let high = rows.length - 1;
     while (low < high) {
       const mid = (low + high + 1) >> 1;
-      if (rows[mid] <= at) low = mid;
+      if (rows[mid] + (mid >= pivot ? drift : 0) <= at) low = mid;
       else high = mid - 1;
     }
     return low;
@@ -166,7 +258,8 @@ export class TextBuffer {
    * @returns {number}
    */
   rowStart(row) {
-    return this.rows[Math.min(row, this.rows.length - 1)];
+    const at = Math.min(row, this.rows.length - 1);
+    return this.rows[at] + (at >= this.pivot ? this.drift : 0);
   }
 
   /**
@@ -175,7 +268,7 @@ export class TextBuffer {
    * @returns {number}
    */
   rowEnd(row) {
-    return row + 1 < this.rows.length ? this.rows[row + 1] : this.size;
+    return row + 1 < this.rows.length ? this.rowStart(row + 1) : this.size;
   }
 
   /**
@@ -198,7 +291,7 @@ export class TextBuffer {
    */
   pointAt(at) {
     const row = this.rowOf(at);
-    return { row, col: at - this.rows[row] };
+    return { row, col: at - this.rowStart(row) };
   }
 
   /**
@@ -324,8 +417,13 @@ export class TextBuffer {
    * @returns {Change}
    */
   stage(start, end, text) {
-    const inserted = ENCODER.encode(text);
+    const inserted = encode(text);
     const startPoint = this.pointAt(start);
+    // Keeping `wide` current must not cost a pass over the text. A UTF-8
+    // encoding as long as its UTF-16 source is pure ASCII, and an all-ASCII
+    // buffer cannot be losing non-ASCII bytes, so both counts are usually
+    // known without looking at a byte.
+    const insertedWide = inserted.length === text.length ? 0 : countWide(inserted);
     const breaks = rowOffsets(inserted);
     const last = breaks.length > 0 ? breaks[breaks.length - 1] : -1;
     return {
@@ -342,11 +440,11 @@ export class TextBuffer {
             ? { row: startPoint.row, col: startPoint.col + inserted.length }
             : { row: startPoint.row + breaks.length, col: inserted.length - last - 1 },
       },
-      removed: this.textIn(start, end),
-      inserted: text,
       removedBytes: end > start ? this.slice(start, end).slice() : EMPTY,
       insertedBytes: inserted,
       insertedRows: breaks,
+      insertedWide,
+      removedWide: this.wide === 0 || end === start ? 0 : countWide(this.slice(start, end)),
     };
   }
 
@@ -366,13 +464,7 @@ export class TextBuffer {
     this.size += insert.length - (end - start);
     this.cache = null;
     this.stamp += 1;
-
-    for (let i = 0; i < change.removedBytes.length; i += 1) {
-      if (change.removedBytes[i] >= 0x80) this.wide -= 1;
-    }
-    for (let i = 0; i < insert.length; i += 1) {
-      if (insert[i] >= 0x80) this.wide += 1;
-    }
+    this.wide += change.insertedWide - change.removedWide;
     this.#reroll(start, end, insert.length, change.insertedRows);
   }
 
@@ -386,22 +478,38 @@ export class TextBuffer {
   #reroll(start, end, length, breaks) {
     const rows = this.rows;
     const first = this.rowOf(start) + 1;
+    // Move the pending drift to this edit: entries below `first` become
+    // absolute, entries at or above it all share one pending shift.
+    if (this.pivot < first) {
+      for (let i = this.pivot; i < first; i += 1) rows[i] += this.drift;
+    } else if (this.pivot > first) {
+      for (let i = this.pivot; i < rows.length; i += 1) rows[i] += this.drift;
+      this.drift = 0;
+    }
+    this.pivot = first;
+
     let past = first;
     // A row start at `p` exists because of the LF at `p - 1`, which this edit
     // removed exactly when `start < p <= end`.
-    while (past < rows.length && rows[past] <= end) past += 1;
+    while (past < rows.length && rows[past] + this.drift <= end) past += 1;
     const added = breaks.map((offset) => start + offset + 1);
     const delta = length - (end - start);
 
     if (added.length > 4096) {
-      this.rows = rows.slice(0, first).concat(added, rows.slice(past));
-      for (let i = first + added.length; i < this.rows.length; i += 1) this.rows[i] += delta;
+      // Too many arguments to spread into `splice`; rebuild, and take the
+      // opportunity to make every entry absolute again.
+      const tail = rows.slice(past);
+      for (let i = 0; i < tail.length; i += 1) tail[i] += this.drift + delta;
+      this.rows = rows.slice(0, first).concat(added, tail);
+      this.pivot = this.rows.length;
+      this.drift = 0;
       return;
     }
     rows.splice(first, past - first, ...added);
-    if (delta !== 0) {
-      for (let i = first + added.length; i < rows.length; i += 1) rows[i] += delta;
-    }
+    // The inserted starts are already post-edit absolute, so the drift begins
+    // after them and carries the tail.
+    this.pivot = first + added.length;
+    this.drift += delta;
   }
 
   /**

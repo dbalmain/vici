@@ -16,7 +16,7 @@
 import * as C from './command.js';
 import * as M from './motion.js';
 import { Document } from './document.js';
-import { shift } from './buffer.js';
+import { shift, Register } from './buffer.js';
 import { keys as parseKeys } from './keys.js';
 import { vim } from './keymap.js';
 import { PENDING, COMMAND, REJECTED, Pending } from './pending.js';
@@ -122,8 +122,8 @@ export class Editor {
     this.sticky = 0;
     /** @type {number | null} Visual-mode anchor; the other end of the selection. */
     this.anchor = null;
-    /** The unnamed register. `linewise` decides whether `p` pastes onto a new row. */
-    this.register = { text: '', linewise: false };
+    /** The unnamed register. */
+    this.register = new Register(EMPTY_BYTES, false);
     /** @type {number[]} Places left by far motions and host-side jumps. */
     this.jumps = [];
     /** An entry being visited, or `jumps.length` when the caret is at the present. */
@@ -864,20 +864,18 @@ export class Editor {
    */
   #yank(span) {
     const buf = this.buffer;
-    let start;
-    let end;
-    let text;
-    if (span.lines) {
-      start = buf.rowStart(span.a);
-      end = buf.rowEnd(span.b);
-      text = buf.textIn(start, end);
-      if (!text.endsWith('\n')) text += '\n';
-    } else {
-      start = span.a;
-      end = span.b;
-      text = buf.textIn(start, end);
+    const start = span.lines ? buf.rowStart(span.a) : span.a;
+    const end = span.lines ? buf.rowEnd(span.b) : span.b;
+    let bytes = buf.slice(start, end).slice();
+    // A linewise yank always ends in a row break, even when taken from a file
+    // whose final row has none.
+    if (span.lines && (bytes.length === 0 || bytes[bytes.length - 1] !== 0x0a)) {
+      const terminated = new Uint8Array(bytes.length + 1);
+      terminated.set(bytes);
+      terminated[bytes.length] = 0x0a;
+      bytes = terminated;
     }
-    this.register = { text, linewise: span.lines };
+    this.register = new Register(bytes, span.lines);
     this.#setMark('[', start);
     this.#setMark(']', this.#previousGrapheme(end));
   }
@@ -1260,7 +1258,7 @@ export class Editor {
    * @param {Effect[]} effects
    */
   #put(before, repeat, effects) {
-    if (this.register.text === '') {
+    if (this.register.isEmpty) {
       effects.push(BELL);
       return;
     }
@@ -1362,6 +1360,8 @@ export class Editor {
     if (oneShot) this.lastChange = script;
   }
 }
+
+const EMPTY_BYTES = new Uint8Array(0);
 
 /** Frequently resolved motions, allocated once. */
 const LEFT = { k: M.LEFT };
