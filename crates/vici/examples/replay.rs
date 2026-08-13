@@ -76,7 +76,7 @@ fn parse(fixture: &str) -> Vec<Case> {
             if let Some(value) = line.strip_prefix("text") {
                 case.text = unescape(value.strip_prefix(' ').unwrap_or_default());
             } else if let Some(value) = line.strip_prefix("keys ") {
-                case.keys = value.to_owned();
+                value.clone_into(&mut case.keys);
             } else if let Some(value) = line.strip_prefix("with ") {
                 settings(value, &mut case);
             }
