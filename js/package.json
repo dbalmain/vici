@@ -1,0 +1,27 @@
+{
+  "name": "vici",
+  "version": "0.1.0",
+  "description": "A headless vi editing core: modes, motions, operators, counts, text objects, visual mode, undo, dot-repeat and macros, with no view attached.",
+  "type": "module",
+  "license": "MIT OR Apache-2.0",
+  "main": "./src/index.js",
+  "exports": {
+    ".": {
+      "types": "./types/index.d.ts",
+      "default": "./src/index.js"
+    }
+  },
+  "files": ["src", "types", "README.md"],
+  "keywords": ["vi", "vim", "editor", "keybindings", "modal", "headless"],
+  "scripts": {
+    "test": "node --test test/",
+    "bench": "node bench/run.js",
+    "size": "node bench/size.js",
+    "types": "tsc -p jsconfig.json",
+    "check": "tsc -p jsconfig.json --noEmit"
+  },
+  "devDependencies": {
+    "esbuild": "^0.25.0",
+    "typescript": "^5.7.0"
+  }
+}
