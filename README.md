@@ -67,12 +67,12 @@ deserialised from config without redesigning anything.
 ## What's implemented
 
 Normal, insert, replace and visual (character and line) modes. Motions
-`h j k l 0 ^ $ w W b B e E f F t T ; , / ? n N G gg H M L % { }`. Operators `d c y > <` over
-motions, doubled (`dd`, `>>`, `<<`), and text objects `iw aw i( a( i" a" ip` and
-friends. Counts, including the multiplication in `2d3w`. `x X r ~ J p P`, all
-six insert entries, undo, redo, dot-repeat and macros. Surround supports
-`cs{from}{to}`, `ds{delim}`, and visual `S{delim}` with nvim-surround's spacing
-convention.
+`h j k l 0 ^ $ w W b B e E f F t T ; , / ? n N G gg H M L % { }`. Operators
+`d c y > <` over motions, doubled (`dd`, `>>`, `<<`), and text objects
+`iw aw i( a( i" a" ip` and friends. Counts, including the multiplication in
+`2d3w`. `x X r ~ J p P`, all six insert entries, undo, redo, dot-repeat and
+macros. Surround supports `cs{from}{to}`, `ds{delim}`, and visual `S{delim}`
+with nvim-surround's spacing convention.
 
 Shifting has to know what an indent is worth, so the host supplies an `Indent`:
 shift width, tab width, and whether to render tabs. That is the one place
@@ -101,8 +101,8 @@ makes the pattern case-sensitive. There is deliberately no regex dependency.
 - **Named registers.** One unnamed register, deliberately. This is a core for
   self-contained single-buffer editing, not a vi clone.
 - **Visual block** and the normal-mode `s S` shortcuts.
-- **Yank-surround.** `ys` is not built yet; surround currently covers only
-  `cs`, `ds`, and visual `S`.
+- **Yank-surround.** `ys` is not built yet; surround currently covers only `cs`,
+  `ds`, and visual `S`.
 - **Display width.** The sticky column for `j`/`k` counts graphemes, not
   terminal cells, so it diverges from vi on tabs and CJK. Width is the view's
   knowledge; `motion.rs` documents where a layout trait would plug in.
@@ -140,29 +140,37 @@ touching the filesystem are all _its_ code, not the core's.
 
 ## Two implementations
 
-The behaviour is the fixture file
-`crates/vici/tests/fixtures/editor.vici`. Rust and TypeScript both have
-to produce the same snapshot block for every case. A new keybind is one
-PR: the case, the Rust change, the JS change, both suites green.
+The behaviour is the fixture file `crates/vici/tests/fixtures/editor.vici`. Rust
+and JavaScript both have to produce the same snapshot block for every one of its
+cases. A new keybind is one change: the case, the Rust side, the JS side, both
+suites green.
 
-| Host | Implementation |
-| --- | --- |
-| TUI / Tauri | `vici` crate (this is the oracle) |
-| Web | `js/` TypeScript engine (`createEngine`) |
+| Host        | Implementation                                       |
+| ----------- | ---------------------------------------------------- |
+| TUI / Tauri | the `vici` crate — this one is the reference         |
+| Web         | [`js/`](js/README.md), published to npm as `vici.js` |
 
-`vici-oracle` reprints a snapshot block for any `text` + `keys` pair.
-The JS fuzzer drives it and, on a miss, prints a pasteable case.
+`js/` is a second implementation, not a binding: plain ESM, no runtime
+dependencies, a UTF-8 byte gap buffer so the contract's byte offsets need no
+conversion. It passes every fixture case, and it is faster than a WASM build of
+this crate on the workloads a host actually runs.
+
+`vici::fixtures` holds the one parser and renderer for the format, so the
+snapshot test and the differential harness cannot drift. `vici-oracle` exposes
+it: a whole fixture file in one process, or a single `text` + `keys` pair.
 
 ```sh
 cargo test --workspace
+cargo run -q -p vici-oracle -- --text 'one two' --keys dw
+
+cd js
 npm install
-npm test              # JS fixtures + a 24-case alignment smoke
-npm run fuzz          # 256 random scripts; FUZZ_CASES / FUZZ_SEED override
-cargo run -p vici-oracle -- --text 'one two' --keys 'dw'
+npm test                          # every fixture case, plus layer tests
+npm run fuzz -- --cases 5000      # random scripts, diffed against the crate
 ```
 
-Search is the one documented split: Rust stays literal/smartcase, JS
-may grow a JS-regex path later. Everything else has to match.
+Search is the one documented split: Rust stays literal/smartcase, JS may grow a
+JS-regex path later. Everything else has to match.
 
 ## Status
 
