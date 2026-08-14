@@ -107,18 +107,24 @@ selection, register, history depth, jumps, marks, pending keys, last change,
 recording, and the full effect stream. Nothing is skipped and there is no
 allowlist, so a divergence in any observable fails the suite.
 
-**The differential fuzzer.** `npm run fuzz` generates random buffers and random
-keystroke scripts, replays them through the Rust core
-(`cargo run -q -p vici-oracle`) and diffs the same blocks:
+**The differential fuzzer.** `npm run fuzz` generates buffers and keystroke
+scripts, runs them through a WASM build of the Rust core (the sibling `beetle`
+artefact) and this engine in the same process, and diffs the same blocks.
+Grapheme-cluster traps and regex-shaped search patterns are out of scope; the
+generator hunts for differences in how editing commands are interpreted.
 
 ```sh
-npm run fuzz -- --cases 5000 --seed 7
+npm run fuzz -- --cases 8000 --seed 7
+npm run fuzz -- --campaign soup --until
+npm run fuzz -- --oracle rust --cases 200   # native `vici-oracle`, needs cargo
 ```
 
-Because the generated cases are written in `editor.vici` format, a divergence is
-directly pasteable into the fixture file, where it becomes a permanent
-regression test for _both_ engines. The generator is seeded, so a reported seed
-reproduces a run exactly.
+Campaigns (`--campaign`, or all of them by default): a hand-picked corpus,
+a cartesian grid of edge buffers × scripts, random key-soup, structured
+operator/visual/surround/mark/indent/search families, and fixture mutations.
+Failing cases are shrunk to the shortest disagreeing key prefix and written
+in `editor.vici` format, so they paste straight into the fixture file.
+The generator is seeded, so a reported seed reproduces a run exactly.
 
 Both mechanisms read the same block from the same code: `vici::fixtures` holds
 one parser and one renderer, used by the crate's snapshot test and by
@@ -133,7 +139,7 @@ npm run check      # typecheck the JSDoc types
 npm run types      # emit types/*.d.ts
 npm run bench      # speed, to stdout
 npm run size       # bundle size, to stdout
-npm run fuzz       # differential fuzz against the Rust core (needs cargo)
+npm run fuzz       # WASM vs JS differential fuzz (needs beetle's wasm build)
 ```
 
 `npm run bench` and `npm run size` accept `--vs <entry>` to measure another
@@ -213,10 +219,8 @@ are where to look first if one turns up.
 
 ## Next
 
-- A WASM build of the Rust core behind this same interface, so the fuzzer can
-  run in a browser as well as against a native binary.
-- Publishing: the package is `vici.js` on npm; the WASM build can land later as
-  an optional entry point of the same package.
+- Publishing: the package is `vici.js` on npm; a first-party WASM entry point
+  can land later. The fuzzer currently loads the sibling `beetle` WASM artefact.
 
 ## License
 
